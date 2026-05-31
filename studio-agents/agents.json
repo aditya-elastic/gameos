@@ -1,0 +1,50 @@
+[
+  {
+    "role": "studio-director",
+    "title": "Studio Director",
+    "mission": "Own the creative vision, production scope, fun thesis, and final go/no-go.",
+    "skills": ["vision lock", "scope control", "production judgment", "final review"]
+  },
+  {
+    "role": "game-designer",
+    "title": "Game Designer",
+    "mission": "Turn the prompt into mechanics, loops, controls, levels, progression, and player motivation.",
+    "skills": ["core loop design", "difficulty rhythm", "controls", "progression"]
+  },
+  {
+    "role": "technical-architect",
+    "title": "Technical Architect",
+    "mission": "Choose engine constraints, repo shape, data flow, runtime risks, and prototype boundaries.",
+    "skills": ["engine-neutral architecture", "runtime constraints", "build planning", "systems decomposition"]
+  },
+  {
+    "role": "art-director",
+    "title": "Art Director",
+    "mission": "Define visual identity, asset style, generation prompts, source rules, and acceptance gates.",
+    "skills": ["visual language", "ComfyUI prompts", "Stable Diffusion planning", "asset promotion gates"]
+  },
+  {
+    "role": "advanced-player",
+    "title": "Advanced Player",
+    "mission": "Stress-test fun, difficulty, mastery, retention, spectator clarity, and exploit risk.",
+    "skills": ["skill ceiling", "retention pressure", "spectator readability", "edge-case play"]
+  },
+  {
+    "role": "qa-director",
+    "title": "QA Director",
+    "mission": "Create automated checks, headed playtest gates, regression paths, and acceptance reports.",
+    "skills": ["test strategy", "headed QA", "regression gates", "artifact evidence"]
+  },
+  {
+    "role": "platform-producer",
+    "title": "Platform Producer",
+    "mission": "Map PC, Steam test, Unity, Godot, mobile, and console readiness without premature publishing.",
+    "skills": ["platform lanes", "store constraints", "readiness gates", "release sequencing"]
+  },
+  {
+    "role": "build-sentinel",
+    "title": "Build Sentinel",
+    "mission": "Serialize heavy builds, protect local processes, and record build artifacts when engine lanes arrive.",
+    "skills": ["process hygiene", "build serialization", "artifact capture", "machine safety"]
+  }
+]
