@@ -38,7 +38,18 @@ jobs:
           npm install -g ./gameos-*.tgz
           gameos --version
           gameos doctor --json
+      - name: Publish auth mode
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "Publishing with NPM_TOKEN secret."
+          else
+            echo "No NPM_TOKEN secret configured. npm publish will require npm trusted publishing for aditya-elastic/gameos/.github/workflows/release.yml."
+          fi
       - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish
       - name: Homebrew update instructions
         run: |

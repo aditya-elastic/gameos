@@ -13,7 +13,20 @@ gameos doctor
 npm publish
 ```
 
-Use npm trusted publishing from GitHub Actions for provenance-backed releases. The release workflow has `id-token: write`, runs `npm run check`, proves the packed tarball installs, blocks duplicate versions, then runs `npm publish`. Current npm trusted publishing generates provenance automatically when configured for the package and workflow. Local manual publishing cannot generate trusted-publisher provenance, so use it only as a fallback.
+Use npm trusted publishing from GitHub Actions for provenance-backed releases. Configure the npm package trusted publisher for:
+
+- package: `gameos`
+- owner: `aditya-elastic`
+- repository: `gameos`
+- workflow: `.github/workflows/release.yml`
+
+The release workflow has `id-token: write`, runs `npm run check`, proves the packed tarball installs, blocks duplicate versions, then runs `npm publish`. Current npm trusted publishing generates provenance automatically when configured for the package and workflow.
+
+Fallback: add an `NPM_TOKEN` repository secret with publish rights. The workflow will use it when present. Local manual publishing requires npm OTP when 2FA is enabled:
+
+```bash
+npm publish --otp <one-time-code>
+```
 
 The public package is `gameos`, which installs the `gameos` binary.
 

@@ -167,6 +167,8 @@ function checkWorkflowsAndFormulae() {
   assert(release.includes("npm run check"), "Release workflow must run npm run check.");
   assert(release.includes("Verify version is not already published"), "Release workflow must block duplicate npm versions.");
   assert(release.includes("npm install -g ./gameos-*.tgz"), "Release workflow must smoke install the packed tarball.");
+  assert(release.includes("Publish auth mode"), "Release workflow must report npm publish authentication mode.");
+  assert(release.includes("secrets.NPM_TOKEN"), "Release workflow must support NPM_TOKEN fallback.");
   assert(release.includes("npm publish"), "Release workflow must publish to npm.");
   assert(release.includes("Homebrew update instructions"), "Release workflow must print Homebrew update instructions.");
 
