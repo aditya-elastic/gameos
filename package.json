@@ -33,6 +33,7 @@
     "build:cli": "node scripts/build-cli.mjs",
     "test:cli": "node scripts/cli-smoke.mjs",
     "acceptance:cutrope": "node scripts/cutrope-acceptance.mjs",
+    "goal:audit": "node scripts/goal-audit.mjs",
     "release:audit": "node scripts/release-audit.mjs",
     "homebrew:audit": "node scripts/homebrew-audit.mjs",
     "homebrew:update": "node scripts/update-homebrew-formula.mjs",
@@ -53,7 +54,7 @@
     "web:smoke": "node scripts/web-smoke.mjs",
     "web:player": "node scripts/web-player-agent.mjs",
     "visual:smoke": "node scripts/visual-smoke.mjs",
-    "check": "npm test && npm run build:cli && npm run test:cli && npm run release:audit && npm run build && npm audit --audit-level=moderate && npm run package:dry-run"
+    "check": "npm test && npm run build:cli && npm run test:cli && npm run goal:audit && npm run release:audit && npm run build && npm audit --audit-level=moderate && npm run package:dry-run"
   },
   "dependencies": {
     "playwright-core": "^1.60.0",

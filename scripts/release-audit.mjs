@@ -45,6 +45,7 @@ function checkPackageMetadata() {
   assert(packageJson.license === "MIT", "package license must be MIT.");
   assert(packageJson.engines?.node === ">=24.0.0", "Node 24+ engine requirement must be explicit.");
   assert(packageJson.scripts?.["acceptance:cutrope"] === "node scripts/cutrope-acceptance.mjs", "package scripts must expose acceptance:cutrope.");
+  assert(packageJson.scripts?.["goal:audit"] === "node scripts/goal-audit.mjs", "package scripts must expose goal:audit.");
   assert(packageJson.scripts?.["release:audit"] === "node scripts/release-audit.mjs", "package scripts must expose release:audit.");
   assert(packageJson.scripts?.["homebrew:audit"] === "node scripts/homebrew-audit.mjs", "package scripts must expose homebrew:audit.");
   assert(packageJson.scripts?.["homebrew:update"] === "node scripts/update-homebrew-formula.mjs", "package scripts must expose homebrew:update.");
@@ -127,6 +128,7 @@ function checkDocs() {
     "CHANGELOG.md",
     "docs/CLI.md",
     "docs/ARCHITECTURE.md",
+    "docs/GOAL_AUDIT.md",
     "docs/PUBLISHING.md",
     "docs/RELEASE_CHECKLIST.md",
     "docs/TROUBLESHOOTING.md",
@@ -139,6 +141,7 @@ function checkDocs() {
   assert(readme.includes("npm install -g gameos"), "README must include npm install instructions.");
   assert(readme.includes("gameos review <project-id>"), "README must document gameos review.");
   assert(readme.includes("npm run acceptance:cutrope"), "README must document acceptance:cutrope.");
+  assert(readme.includes("npm run goal:audit"), "README must document goal:audit.");
   assert(readme.includes("npm run homebrew:update"), "README must document homebrew:update.");
   assert(readme.includes("V1 has no telemetry"), "README must document privacy posture.");
 
@@ -151,6 +154,11 @@ function checkDocs() {
   assert(architecture.includes("10/10 Review Doctrine"), "Architecture docs must explain 10/10 Review Doctrine.");
   assert(architecture.includes("Security Privacy Reviewer"), "Architecture docs must list security/privacy agent.");
   assert(architecture.includes("Open Source Release Engineer"), "Architecture docs must list open-source release agent.");
+
+  const goalAudit = readText("docs/GOAL_AUDIT.md");
+  assert(goalAudit.includes("10/10 Goal Audit"), "Goal audit docs must explain the 10/10 goal audit.");
+  assert(goalAudit.includes("Agent Swarm And Skills"), "Goal audit docs must list the agent swarm category.");
+  assert(goalAudit.includes("npm run goal:audit"), "Goal audit docs must include the command.");
 
   const publishing = readText("docs/PUBLISHING.md");
   assert(publishing.includes("npm run homebrew:update"), "Publishing docs must document deterministic Homebrew formula updates.");
@@ -210,6 +218,7 @@ function checkPackContents() {
     "CHANGELOG.md",
     "docs/CLI.md",
     "docs/ARCHITECTURE.md",
+    "docs/GOAL_AUDIT.md",
     "docs/PUBLISHING.md",
     "docs/RELEASE_CHECKLIST.md",
     "docs/TROUBLESHOOTING.md",

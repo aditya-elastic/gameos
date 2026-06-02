@@ -88,6 +88,8 @@ Run `gameos review <project-id>` after build and QA. It writes a `studio-scoreca
 - security and privacy
 - open-source release readiness
 
+Run `npm run goal:audit` for the repository-level 10/10 local-readiness gate across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, and open-source release evidence.
+
 ## Data And Privacy
 
 Game OS stores local data under:
@@ -120,6 +122,7 @@ npm install
 npm test
 npm run build:cli
 npm run test:cli
+npm run goal:audit
 npm run acceptance:cutrope
 npm run release:audit
 npm run homebrew:audit

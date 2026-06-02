@@ -11,6 +11,7 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - `gameos status <project-id>` shows verdicts, blockers, artifact count, and next command.
 - `gameos journey <project-id>` explains the current stage and exact blocker.
 - `gameos review <project-id>` creates a 10-category `studio-scorecard` and fails unless every category is 10/10.
+- `npm run goal:audit` verifies the repository-level 10/10 local-readiness proof across agents, skills, UX, security, game direction, gameplay development, QA, and open-source release evidence.
 - `gameos feedback <project-id> --note "..."` records creator feedback for regeneration.
 - `gameos artifact read` is summary-first and requires `--full` for full output.
 - `--json` works for core commands.
@@ -34,6 +35,7 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - README explains install, quickstart, commands, data, privacy, and requirements.
 - License, changelog, security, conduct, and publishing docs exist.
 - `npm run release:audit` verifies package metadata, CLI binary, 21-agent registry, docs, privacy posture, and tarball contents.
+- `npm run goal:audit` verifies the 10/10 local-readiness proof and fails if any objective category lacks evidence.
 - `npm run homebrew:audit` verifies formula URL/SHA values against published npm tarballs and reports pending formula updates.
 - `npm run homebrew:update` updates or checks `Formula/gameos.rb` against the published npm tarball without manual SHA editing.
 - CI runs tests, CLI build, CLI smoke, package dry-run, and audit.

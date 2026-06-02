@@ -4,6 +4,7 @@
 
 - Run `npm ci`.
 - Run `npm run check`.
+- Run `npm run goal:audit` when debugging the 10/10 local-readiness gate directly.
 - Run `npm run acceptance:cutrope` on a machine with Chrome for the full asset-led 10/10 game proof.
 - Run `npm run release:audit` when debugging publish-boundary failures directly.
 - Run `npm run homebrew:audit` to verify published formulae and detect pending formula updates.
@@ -71,6 +72,7 @@ brew audit --strict gameos
 - `gameos status` and `gameos journey` show blockers and next command.
 - `gameos feedback` stores creator feedback for agent regeneration.
 - `gameos artifact read` does not dump large artifacts unless `--full` is passed.
+- `npm run goal:audit` verifies the full 10/10 objective across agents, skills, UX, security/privacy, game direction, gameplay development, QA, and open-source release evidence.
 - `npm run release:audit` verifies package metadata, CLI binary, 21-agent registry, required docs, and npm tarball contents.
 - `npm run homebrew:audit` verifies formula URL/SHA values against published npm tarballs.
 - `npm run homebrew:update` updates `Formula/gameos.rb` from the published npm tarball and computed SHA256.

@@ -13,6 +13,7 @@
 - Adds `gameos review <project-id>` and `studio-scorecard` artifacts for 10-category 10/10 evidence gates.
 - Promotes project QA gates from watch to pass only after the studio scorecard reaches 10/10 across every category.
 - Adds `npm run acceptance:cutrope` as a full asset-led Web proof that creates a fresh game, runs browser QA, runs 21-agent review, and fails unless the scorecard is 10/10.
+- Adds `npm run goal:audit` as a repository-level 10/10 local-readiness proof across agents, skills, UX, security/privacy, game direction, gameplay development, QA, and open-source release evidence.
 - Adds `npm run release:audit` to verify package metadata, CLI binary, agent registry, docs, privacy posture, and npm tarball contents before go-live.
 - Adds `npm run homebrew:audit` to verify formula URL/SHA values against published npm tarballs and report pending formula updates.
 - Adds `npm run homebrew:update` to update or check `Formula/gameos.rb` from the published npm tarball without manual SHA editing.

@@ -93,8 +93,11 @@ When review passes, Game OS promotes the project QA gates to pass. When review f
 For the full asset-led proof on a local machine with Chrome, run:
 
 ```bash
+npm run goal:audit
 npm run acceptance:cutrope
 ```
+
+`goal:audit` verifies the repository-level 10/10 local-readiness evidence across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, and open-source release gates.
 
 That command creates a fresh rope physics project from a prompt and asset zip, runs browser QA, runs `gameos review`, and fails unless the scorecard reaches `10_OUT_OF_10_READY_FOR_LOCAL_USERS`.
 
