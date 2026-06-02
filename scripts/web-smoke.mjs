@@ -27,6 +27,8 @@ try {
 
   await page.goto(url, { waitUntil: "networkidle" });
   await page.locator('[data-game-os-web="ready"]').waitFor({ state: "visible", timeout: 5000 });
+  const visibleHudText = [await page.locator("#verdict-chip").innerText(), await page.locator("#asset-label").innerText()].join(" ");
+  assert(!/[A-Z]{2,}_[A-Z0-9_]+/.test(visibleHudText), "Visible HUD leaked machine verdict constants instead of player-facing labels.");
   const smoke = await page.evaluate(() => globalThis.__gameOsWebAdapter.smoke());
   assert(smoke.ok, "Web adapter runtime did not report ready.");
   if (smoke.kind === "ludo") {

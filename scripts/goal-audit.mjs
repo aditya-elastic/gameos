@@ -51,7 +51,8 @@ const categories = [
     fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "make"/, /case "journey"/, /case "review"/, /case "feedback"/, /case "artifact"/]),
     fileCheck("CLI output explains blockers", "src/cli/output.ts", [/Current blockers/, /Next best command/, /Advanced Player did not approve/]),
     fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos make/, /gameos journey/, /gameos feedback/, /Studio Review/]),
-    fileCheck("Artifact output is summary-first", "src/cli/main.ts", [/--full/, /summarizeArtifactContent/])
+    fileCheck("Artifact output is summary-first", "src/cli/main.ts", [/--full/, /summarizeArtifactContent/]),
+    fileCheck("Playable HUD labels are player-facing", "src/lib/web-adapter.ts", [/formatGameOsStatusLabel/, /displayStatusLabel/])
   ]),
   category("Asset Pipeline And Visual Quality", [
     fileCheck("Role-based asset classifier exists", "src/lib/asset-importer.ts", [/hero-object/, /goal-character/, /collectible/, /WRONG_ASSET_PACK_FOR_CUT_ROPE/]),
@@ -63,7 +64,8 @@ const categories = [
     fileCheck("Web generator uses V3 physics prototype", "src/lib/web-adapter.ts", [/renderCutRopeGameScriptV3/, /pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet/]),
     fileCheck("No-goal-magnet physics gate is enforced", "scripts/web-player-agent.mjs", [/physics_model.*no-goal-magnet/, /Timing skill gate failed/, /Agency gate failed/]),
     fileCheck("Slow human blade input is implemented", "src/lib/web-adapter.ts", [/slowFreeMoveRopeForQa/, /pointerrawupdate/, /bladeTrailCutsRope/]),
-    fileCheck("Web smoke requires watermark and slow blade", "scripts/web-smoke.mjs", [/GameOS watermark/, /hasSlowMouseBlade/, /slow human mouse blade/])
+    fileCheck("Web smoke requires watermark and slow blade", "scripts/web-smoke.mjs", [/GameOS watermark/, /hasSlowMouseBlade/, /slow human mouse blade/]),
+    fileCheck("Web smoke rejects machine-verdict HUD leaks", "scripts/web-smoke.mjs", [/Visible HUD leaked machine verdict constants/])
   ]),
   category("QA Player Agent Evidence", [
     scriptCheck("acceptance:cutrope", "node scripts/cutrope-acceptance.mjs"),

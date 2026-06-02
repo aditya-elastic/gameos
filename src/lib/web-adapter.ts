@@ -135,6 +135,7 @@ function copyCutRopeAssets(projectRoot: string, manifest: AssetImportManifest | 
 
 function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImportManifest | null): string {
   const verdict = manifest?.verdict ?? "NO_ASSET_PACK_IMPORTED";
+  const displayVerdict = formatGameOsStatusLabel(verdict);
 
   return `<!doctype html>
 <html lang="en">
@@ -153,7 +154,7 @@ function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImpo
           <h1>${escapeHtml(workspace.project.name)}</h1>
           <p>Cut the connector, feed the goal, collect the stars, and retry cleanly.</p>
         </div>
-        <div class="verdict-chip" id="verdict-chip">${escapeHtml(verdict)}</div>
+        <div class="verdict-chip" id="verdict-chip">${escapeHtml(displayVerdict)}</div>
       </section>
 
       <section class="play-surface" aria-label="Playable Cut Rope web prototype">
@@ -173,7 +174,7 @@ function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImpo
           </section>
           <section class="hud-card">
             <p class="eyebrow">Asset Gate</p>
-            <p id="asset-label">${escapeHtml(verdict)}</p>
+            <p id="asset-label">${escapeHtml(displayVerdict)}</p>
           </section>
           <section class="hud-card">
             <p class="eyebrow">Puzzle Log</p>
@@ -1762,12 +1763,12 @@ function renderHud() {
           ? "Trajectory live: " + collected + "/" + state.stars.length + " stars"
           : state.sliceFeedback === "dragging"
             ? "Slicing: drag smoothly through the rope"
-          : isInputLocked()
-            ? "Resetting safely"
-            : "Swinging: swipe through the rope on a green arc";
+            : isInputLocked()
+              ? "Resetting safely"
+              : "Swinging: swipe through the rope on a green arc";
   attemptLabel.textContent = statusText;
-  verdictChip.textContent = state.status === "won" ? "Playable proof" : state.skillBand === "green" ? "Timing window" : visualVerdict();
-  assetLabel.textContent = assetFitVerdict() + " · " + assetGate;
+  verdictChip.textContent = state.status === "won" ? "Playable proof" : state.skillBand === "green" ? "Timing window" : displayStatusLabel(visualVerdict());
+  assetLabel.textContent = displayAssetLabel();
   eventLog.innerHTML = "";
   for (const entry of state.log.slice(0, 8)) {
     const item = document.createElement("li");
@@ -1840,6 +1841,29 @@ function visualVerdict() {
   if (assetFitVerdict() === "ASSET_FIT_PASS") return "VISUAL_GATE_PASS";
   if (roleAccepted("goal-character") || roleAccepted("hero-object")) return "VISUAL_GATE_REVIEW";
   return "VISUAL_GATE_FAIL";
+}
+
+function displayAssetLabel() {
+  return displayStatusLabel(assetFitVerdict()) + " · " + displayStatusLabel(assetGate);
+}
+
+function displayStatusLabel(value) {
+  const labels = {
+    APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE: "Assets approved",
+    WRONG_ASSET_PACK_FOR_CUT_ROPE: "Assets need review",
+    NO_ASSET_PACK_IMPORTED: "No asset pack imported",
+    ASSET_FIT_PASS: "Asset fit pass",
+    ASSET_FIT_PARTIAL: "Asset fit review",
+    ASSET_FIT_FAIL: "Asset fit failed",
+    VISUAL_GATE_PASS: "Visual pass",
+    VISUAL_GATE_REVIEW: "Visual review",
+    VISUAL_GATE_FAIL: "Visual failed"
+  };
+  if (labels[value]) return labels[value];
+  return String(value)
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
 }
 
 function cloneStateForSimulation(source) {
@@ -3395,4 +3419,26 @@ function safeWebAssetName(value: string): string {
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function formatGameOsStatusLabel(value: string): string {
+  const labels: Record<string, string> = {
+    APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE: "Assets approved",
+    WRONG_ASSET_PACK_FOR_CUT_ROPE: "Assets need review",
+    NO_ASSET_PACK_IMPORTED: "No asset pack imported",
+    ASSET_FIT_PASS: "Asset fit pass",
+    ASSET_FIT_PARTIAL: "Asset fit review",
+    ASSET_FIT_FAIL: "Asset fit failed",
+    VISUAL_GATE_PASS: "Visual pass",
+    VISUAL_GATE_REVIEW: "Visual review",
+    VISUAL_GATE_FAIL: "Visual failed"
+  };
+
+  return (
+    labels[value] ??
+    value
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
 }

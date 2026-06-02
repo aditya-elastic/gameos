@@ -17,6 +17,7 @@
 - Adds `npm run release:audit` to verify package metadata, CLI binary, agent registry, docs, privacy posture, and npm tarball contents before go-live.
 - Adds `npm run homebrew:audit` to verify formula URL/SHA values against published npm tarballs and report pending formula updates.
 - Adds `npm run homebrew:update` to update or check `Formula/gameos.rb` from the published npm tarball without manual SHA editing.
+- Keeps generated Web game HUD labels player-facing while preserving machine-readable QA verdicts in manifests and smoke/player-agent reports.
 - Hardens CI/release workflows with macOS Homebrew audit, duplicate-version publish guard, package smoke, and post-publish Homebrew SHA instructions.
 - Upgrades browser QA and Advanced Player reports with visual, physics, timing skill, player agency, mastery, smooth slice gesture, input, asset-fit, reset/recut, and watermark gates.
 - Adds asset preview manifests and stricter wrong-role rejection so UI buttons are not approved as hero physics objects.

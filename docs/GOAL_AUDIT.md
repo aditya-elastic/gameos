@@ -30,6 +30,7 @@ npm run goal:audit
 - The 21-agent swarm is present and each agent has usable skills.
 - Studio Director, Game Designer, Gameplay Developer, UX Flow Director, Game Feel Director, Physics Gameplay Engineer, Advanced Player, QA Director, Memory Manager, Storage Manager, Security Privacy Reviewer, Build Sentinel, and Open Source Release Engineer are wired into the system.
 - The Cut Rope Web lane includes asset role mapping, no-goal-magnet physics, timing skill, agency, mastery, smooth and slow mouse blade input, reset/recut proof, watermarking, and Advanced Player gates.
+- Playable Web HUDs stay player-facing instead of leaking raw machine verdict constants; manifests and QA reports keep the exact machine-readable fields.
 - The open-source package includes release, security, privacy, Homebrew, CI, publishing, and contributor trust evidence.
 - The acceptance path can prove a fresh asset-led Web game reaches `WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE` and `10_OUT_OF_10_READY_FOR_LOCAL_USERS`.
 
