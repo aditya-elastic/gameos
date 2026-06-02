@@ -35,6 +35,7 @@
     "acceptance:cutrope": "node scripts/cutrope-acceptance.mjs",
     "release:audit": "node scripts/release-audit.mjs",
     "homebrew:audit": "node scripts/homebrew-audit.mjs",
+    "homebrew:update": "node scripts/update-homebrew-formula.mjs",
     "package:dry-run": "cross-env npm_config_cache=tmp/npm-cache npm pack --dry-run",
     "dev": "cross-env GAME_OS_NEXT_DIST_DIR=.next-dev NODE_OPTIONS=--disable-warning=ExperimentalWarning next dev",
     "dev:fresh": "npm run clean && npm run dev",

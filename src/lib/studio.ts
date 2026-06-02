@@ -51,6 +51,8 @@ type WebPlaytestReport = {
   slice_gesture_pass?: boolean;
   smooth_mouse_verdict?: string;
   smooth_mouse_pass?: boolean;
+  slow_mouse_verdict?: string;
+  slow_mouse_pass?: boolean;
   asset_fit_verdict?: string;
   reset_recut_pass?: boolean;
   role_assignments?: unknown;
@@ -550,6 +552,8 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
       `- Slice gesture pass: ${String(Boolean(report.slice_gesture_pass))}`,
       `- Smooth mouse verdict: ${report.smooth_mouse_verdict ?? "unknown"}`,
       `- Smooth mouse pass: ${String(Boolean(report.smooth_mouse_pass))}`,
+      `- Slow mouse verdict: ${report.slow_mouse_verdict ?? "unknown"}`,
+      `- Slow mouse pass: ${String(Boolean(report.slow_mouse_pass))}`,
       `- Reset/recut pass: ${String(Boolean(report.reset_recut_pass))}`,
       `- Visual screenshot: ${report.visual_screenshot ?? "not captured"}`,
       `- Assets used: ${report.assets_used ?? 0}`,
@@ -567,7 +571,7 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
       `- Timeouts: ${report.timeouts ?? 0}`,
       "",
       "## Architecture Decision",
-      "The Web lane is promoted only when uploaded assets are role-fit, the screenshot is coherent, reset/recut is reliable, physics is readable, and the Advanced Player approves the level. Unity and Godot should inherit this only after asset relevance, storage, and QA reports are present."
+      "The Web lane is promoted only when uploaded assets are role-fit, the screenshot is coherent, smooth and slow mouse blade movement works, reset/recut is reliable, physics is readable, and the Advanced Player approves the level. Unity and Godot should inherit this only after asset relevance, storage, and QA reports are present."
     ].join("\n");
   }
 

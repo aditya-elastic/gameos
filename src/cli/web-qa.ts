@@ -13,6 +13,7 @@ declare global {
     cutRope?: (source?: string) => boolean;
     swipeRopeForQa?: () => Record<string, unknown>;
     freeMoveRopeForQa?: () => Record<string, unknown>;
+    slowFreeMoveRopeForQa?: () => Record<string, unknown>;
     reset?: () => boolean;
     runPlayerAgent: (options: { matches: number; seed: number }) => Record<string, unknown>;
   };
@@ -137,6 +138,13 @@ async function verifyCutRopeBrowserInteraction(page: import("playwright-core").P
   await page.waitForTimeout(340);
   const afterBladeResetSettled = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
 
+  const slowMouseBlade = await performSlowMouseBladeCut(page);
+  const afterSlowMouseBlade = slowMouseBlade.after;
+
+  await page.locator("#reset-button").click();
+  await page.waitForTimeout(340);
+  const afterSlowBladeResetSettled = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+
   const secondSwipe = await performMouseSwipeCut(page);
   const afterRecut = secondSwipe.after;
 
@@ -145,11 +153,13 @@ async function verifyCutRopeBrowserInteraction(page: import("playwright-core").P
   const noAutoCutPass = afterResetSettled.ropeCut === false && afterResetSettled.status === "ready";
   const smoothMousePass = smoothMouseBlade.pass && afterSmoothMouseBlade.ropeCut === true && afterSmoothMouseBlade.status === "falling";
   const bladeResetSafePass = afterBladeResetSettled.ropeCut === false && afterBladeResetSettled.status === "ready";
+  const slowMousePass = slowMouseBlade.pass && afterSlowMouseBlade.ropeCut === true && afterSlowMouseBlade.status === "falling";
+  const slowBladeResetSafePass = afterSlowBladeResetSettled.ropeCut === false && afterSlowBladeResetSettled.status === "ready";
   const recutPass = secondSwipe.pass && afterRecut.ropeCut === true && afterRecut.status === "falling";
 
-  if (!firstCutPass || !resetSafePass || !noAutoCutPass || !smoothMousePass || !bladeResetSafePass || !recutPass) {
+  if (!firstCutPass || !resetSafePass || !noAutoCutPass || !smoothMousePass || !bladeResetSafePass || !slowMousePass || !slowBladeResetSafePass || !recutPass) {
     throw new Error(
-      `Cut Rope browser interaction failed: firstCut=${firstCutPass}, resetSafe=${resetSafePass}, noAutoCut=${noAutoCutPass}, smoothMouse=${smoothMousePass}, bladeResetSafe=${bladeResetSafePass}, recut=${recutPass}.`
+      `Cut Rope browser interaction failed: firstCut=${firstCutPass}, resetSafe=${resetSafePass}, noAutoCut=${noAutoCutPass}, smoothMouse=${smoothMousePass}, bladeResetSafe=${bladeResetSafePass}, slowMouse=${slowMousePass}, slowBladeResetSafe=${slowBladeResetSafePass}, recut=${recutPass}.`
     );
   }
 
@@ -159,15 +169,20 @@ async function verifyCutRopeBrowserInteraction(page: import("playwright-core").P
     noAutoCutPass,
     smoothMousePass,
     bladeResetSafePass,
+    slowMousePass,
+    slowBladeResetSafePass,
     recutPass,
     firstSwipe,
     smoothMouseBlade,
+    slowMouseBlade,
     secondSwipe,
     afterCut,
     afterReset,
     afterResetSettled,
     afterSmoothMouseBlade,
     afterBladeResetSettled,
+    afterSlowMouseBlade,
+    afterSlowBladeResetSettled,
     afterRecut
   };
 }
@@ -214,6 +229,62 @@ async function performMouseSwipeCut(page: import("playwright-core").Page): Promi
   return {
     pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
     rope,
+    start,
+    end,
+    after
+  };
+}
+
+async function performSlowMouseBladeCut(page: import("playwright-core").Page): Promise<Record<string, unknown> & { pass: boolean; after: Record<string, unknown> }> {
+  const target = await page.evaluate(() => ({
+    rope: globalThis.__gameOsWebAdapter.getRopeForQa?.(),
+    canvas: globalThis.__gameOsWebAdapter.getCanvasForQa?.()
+  }));
+  const box = await page.locator("#game-canvas").boundingBox();
+  if (!box || !target.rope || !target.canvas) {
+    throw new Error("Cut Rope slow mouse blade QA could not read canvas or rope geometry.");
+  }
+  const canvasSize = target.canvas;
+  let latestRope = target.rope;
+  const bladePointFor = (rope: { a: { x: number; y: number }; b: { x: number; y: number } }, side: 1 | -1, offset: number) => {
+    const mid = {
+      x: (rope.a.x + rope.b.x) / 2,
+      y: (rope.a.y + rope.b.y) / 2
+    };
+    const dx = rope.b.x - rope.a.x;
+    const dy = rope.b.y - rope.a.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const normal = { x: -dy / length, y: dx / length };
+    return { x: mid.x + normal.x * offset * side, y: mid.y + normal.y * offset * side };
+  };
+  const toScreen = (point: { x: number; y: number }) => ({
+    x: box.x + (point.x / canvasSize.width) * box.width,
+    y: box.y + (point.y / canvasSize.height) * box.height
+  });
+  const start = bladePointFor(latestRope, 1, 96);
+  const screenStart = toScreen(start);
+
+  await page.mouse.move(screenStart.x, screenStart.y);
+  let end = start;
+  for (let step = 1; step <= 8; step += 1) {
+    await page.waitForTimeout(260);
+    const liveTarget = await page.evaluate(() => ({
+      rope: globalThis.__gameOsWebAdapter.getRopeForQa?.(),
+      state: globalThis.__gameOsWebAdapter.getState?.() ?? {}
+    }));
+    if (liveTarget.state.ropeCut === true) break;
+    if (!liveTarget.rope) throw new Error("Cut Rope slow mouse blade QA lost live rope geometry.");
+    latestRope = liveTarget.rope;
+    end = bladePointFor(latestRope, step % 2 === 1 ? -1 : 1, step === 1 ? 62 : 48);
+    const screenPoint = toScreen(end);
+    await page.mouse.move(screenPoint.x, screenPoint.y);
+  }
+  await page.waitForTimeout(180);
+
+  const after = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+  return {
+    pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
+    rope: latestRope,
     start,
     end,
     after

@@ -6,6 +6,7 @@
 npm ci
 npm run check
 npm run homebrew:audit
+npm run homebrew:update -- 0.1.0 --check
 npm pack --dry-run
 npm pack
 npm install -g ./gameos-*.tgz
@@ -40,16 +41,15 @@ The Homebrew formula lives at `Formula/gameos.rb` in this repo and should be cop
 npm run homebrew:audit
 ```
 
-If the audit reports `pendingFormulaUpdate`, publish that npm version first, then update the formula URL/SHA.
+If the audit reports `pendingFormulaUpdate`, publish that npm version first, then update the formula URL/SHA with the deterministic updater.
 
 After npm publish, update the tap formula:
 
 ```bash
 VERSION="$(node -p "require('./package.json').version")"
-TARBALL_URL="$(npm view "gameos@$VERSION" dist.tarball)"
-SHA256="$(curl -L "$TARBALL_URL" | shasum -a 256 | awk '{print $1}')"
-echo "$TARBALL_URL"
-echo "$SHA256"
+npm run homebrew:update -- "$VERSION"
+npm run homebrew:update -- "$VERSION" --check
+npm run homebrew:audit
 brew tap aditya-elastic/gameos
 brew install gameos
 brew install aditya-elastic/gameos/gameos@"$VERSION"

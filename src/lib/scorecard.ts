@@ -181,6 +181,7 @@ function scoreWebPlayability(workspace: ProjectWorkspace): StudioScorecardCatego
     needsPhysicsPlayability ? markdownValueCheck(webReport, "Agency verdict", "AGENCY_GATE_PASS", "Player agency gate passed.") : numericMarkdownCheck(webReport, "Finish choices", 1, "Rules playability produced finish choices."),
     needsPhysicsPlayability ? markdownValueCheck(webReport, "Mastery verdict", "MASTERY_GATE_PASS", "Mastery gate passed.") : numericMarkdownCheck(webReport, "Safe-square choices", 1, "Rules playability produced safe choices."),
     needsPhysicsPlayability ? markdownValueCheck(webReport, "Smooth mouse verdict", "SMOOTH_MOUSE_BLADE_PASS", "Smooth mouse blade gate passed.") : passingCheck("Smooth mouse blade is not required for this non-physics target."),
+    needsPhysicsPlayability ? markdownValueCheck(webReport, "Slow mouse verdict", "SLOW_MOUSE_BLADE_PASS", "Slow human mouse blade gate passed.") : passingCheck("Slow mouse blade is not required for this non-physics target."),
     {
       label: "Manifest provenance and watermark",
       pass: manifest?.generatedBy === "Game OS" && Boolean(manifest?.watermark?.required),
@@ -256,6 +257,9 @@ function scoreGameFeel(workspace: ProjectWorkspace): StudioScorecardCategory {
     needsPhysicsFeel
       ? markdownValueCheck(webReport, "Smooth mouse verdict", "SMOOTH_MOUSE_BLADE_PASS", "Smooth mouse blade gate passed.")
       : passingCheck("Smooth mouse blade is not required for this non-physics target."),
+    needsPhysicsFeel
+      ? markdownValueCheck(webReport, "Slow mouse verdict", "SLOW_MOUSE_BLADE_PASS", "Slow human mouse blade gate passed.")
+      : passingCheck("Slow mouse blade is not required for this non-physics target."),
     needsPhysicsFeel
       ? markdownValueCheck(webReport, "Reset/recut pass", "true", "Reset/recut proof passed.")
       : passingCheck("Reset/recut physics proof is not required for this non-physics target."),

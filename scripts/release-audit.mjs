@@ -47,6 +47,7 @@ function checkPackageMetadata() {
   assert(packageJson.scripts?.["acceptance:cutrope"] === "node scripts/cutrope-acceptance.mjs", "package scripts must expose acceptance:cutrope.");
   assert(packageJson.scripts?.["release:audit"] === "node scripts/release-audit.mjs", "package scripts must expose release:audit.");
   assert(packageJson.scripts?.["homebrew:audit"] === "node scripts/homebrew-audit.mjs", "package scripts must expose homebrew:audit.");
+  assert(packageJson.scripts?.["homebrew:update"] === "node scripts/update-homebrew-formula.mjs", "package scripts must expose homebrew:update.");
   assert(Array.isArray(packageJson.files), "package files whitelist must be present.");
 
   for (const required of ["dist/", "docs/*.md", "studio-agents/", "README.md", "LICENSE", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md"]) {
@@ -138,6 +139,7 @@ function checkDocs() {
   assert(readme.includes("npm install -g gameos"), "README must include npm install instructions.");
   assert(readme.includes("gameos review <project-id>"), "README must document gameos review.");
   assert(readme.includes("npm run acceptance:cutrope"), "README must document acceptance:cutrope.");
+  assert(readme.includes("npm run homebrew:update"), "README must document homebrew:update.");
   assert(readme.includes("V1 has no telemetry"), "README must document privacy posture.");
 
   const cliDocs = readText("docs/CLI.md");
@@ -149,6 +151,12 @@ function checkDocs() {
   assert(architecture.includes("10/10 Review Doctrine"), "Architecture docs must explain 10/10 Review Doctrine.");
   assert(architecture.includes("Security Privacy Reviewer"), "Architecture docs must list security/privacy agent.");
   assert(architecture.includes("Open Source Release Engineer"), "Architecture docs must list open-source release agent.");
+
+  const publishing = readText("docs/PUBLISHING.md");
+  assert(publishing.includes("npm run homebrew:update"), "Publishing docs must document deterministic Homebrew formula updates.");
+
+  const releaseChecklist = readText("docs/RELEASE_CHECKLIST.md");
+  assert(releaseChecklist.includes("npm run homebrew:update"), "Release checklist must document deterministic Homebrew formula updates.");
 }
 
 function checkWorkflowsAndFormulae() {
@@ -171,6 +179,7 @@ function checkWorkflowsAndFormulae() {
   assert(release.includes("secrets.NPM_TOKEN"), "Release workflow must support NPM_TOKEN fallback.");
   assert(release.includes("npm publish"), "Release workflow must publish to npm.");
   assert(release.includes("Homebrew update instructions"), "Release workflow must print Homebrew update instructions.");
+  assert(release.includes("npm run homebrew:update"), "Release workflow must mention homebrew:update.");
 
   for (const [file, content] of [
     ["Formula/gameos.rb", formula],

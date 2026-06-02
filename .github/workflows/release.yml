@@ -54,8 +54,6 @@ jobs:
       - name: Homebrew update instructions
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          TARBALL_URL="$(npm view "gameos@$VERSION" dist.tarball)"
-          SHA256="$(curl -L "$TARBALL_URL" | shasum -a 256 | awk '{print $1}')"
+          npm run homebrew:update -- "$VERSION" --print
           echo "Update Formula/gameos.rb in the tap after npm publish:"
-          echo "  url \"$TARBALL_URL\""
-          echo "  sha256 \"$SHA256\""
+          echo "  npm run homebrew:update -- \"$VERSION\""

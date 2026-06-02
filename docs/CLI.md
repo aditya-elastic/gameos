@@ -69,6 +69,7 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 - mastery proof such as star collection or bumper/obstacle use
 - smooth swipe/touch slicing proof for cut-style games
 - smooth mouse/touch blade proof for moving naturally through the rope
+- slow human mouse blade proof for deliberate, non-perfect movement
 - cut, reset, no auto-cut, and recut input proof
 - Advanced Player approval
 

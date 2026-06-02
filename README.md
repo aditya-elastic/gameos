@@ -71,7 +71,7 @@ Use `--json` for automation and AI coding agents. Artifact reads are summary-fir
 
 ## Web Worth-Playing Gates
 
-For asset-led Web games, Game OS blocks promotion unless the generated prototype passes role-fit assets, visible GameOS watermark, visual composition, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, smooth mouse/touch blade input, cut/reset/recut input, and Advanced Player QA. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
+For asset-led Web games, Game OS blocks promotion unless the generated prototype passes role-fit assets, visible GameOS watermark, visual composition, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, smooth mouse/touch blade input, slow human mouse blade input, cut/reset/recut input, and Advanced Player QA. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
 
 ## 10/10 Studio Review
 
@@ -123,6 +123,7 @@ npm run test:cli
 npm run acceptance:cutrope
 npm run release:audit
 npm run homebrew:audit
+npm run homebrew:update -- 0.1.0 --check
 ```
 
 Publish checks:

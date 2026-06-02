@@ -32,7 +32,7 @@ if (problems.length > 0) {
         npmLatest: latestNpmVersion,
         localPackage: packageJson.version,
         localPackagePublished,
-        pendingFormulaUpdate: localPackagePublished ? null : `Publish npm ${packageJson.version}, then update Formula/gameos.rb to that tarball and sha256.`,
+        pendingFormulaUpdate: localPackagePublished ? null : `Publish npm ${packageJson.version}, then run: npm run homebrew:update -- ${packageJson.version}`,
         formulas: reports
       },
       null,

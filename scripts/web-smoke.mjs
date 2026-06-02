@@ -41,6 +41,7 @@ try {
     assert(smoke.hasTimingArc === true && smoke.hasPrediction === true, "Cut Rope build lacks timing/prediction playability helpers.");
     assert(smoke.hasSwipeSlice === true, "Cut Rope build lacks smooth swipe slicing support.");
     assert(smoke.hasSmoothMouseBlade === true, "Cut Rope build lacks smooth mouse blade support.");
+    assert(smoke.hasSlowMouseBlade === true, "Cut Rope build lacks slow human mouse blade support.");
   } else {
     throw new Error(`Unknown Web prototype kind: ${smoke.kind || "missing"}.`);
   }
@@ -69,6 +70,14 @@ try {
     await page.waitForTimeout(340);
     const afterBladeReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
     assert(afterBladeReset.ropeCut === false && afterBladeReset.status === "ready", "Cut Rope reset after smooth mouse blade did not restore ready state.");
+    const slowBladeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.slowFreeMoveRopeForQa());
+    assert(slowBladeProof.pass === true, "Cut Rope slow human mouse blade did not cut the rope.");
+    const afterSlowBlade = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterSlowBlade.ropeCut === true && afterSlowBlade.status === "falling" && afterSlowBlade.sliceGestureCut === true, "Cut Rope slow human mouse blade did not cut into falling state.");
+    await page.locator("#reset-button").click();
+    await page.waitForTimeout(340);
+    const afterSlowBladeReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterSlowBladeReset.ropeCut === false && afterSlowBladeReset.status === "ready", "Cut Rope reset after slow human mouse blade did not restore ready state.");
     const recutSwipeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.swipeRopeForQa());
     assert(recutSwipeProof.pass === true, "Cut Rope swipe gesture could not recut after reset.");
     const afterRecut = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());

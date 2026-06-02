@@ -32,6 +32,8 @@ try {
   assert(report.slice_gesture_pass === true, "Smooth swipe slice proof failed.");
   assert(report.smooth_mouse_verdict === "SMOOTH_MOUSE_BLADE_PASS", `Smooth mouse blade gate failed: ${report.smooth_mouse_verdict}`);
   assert(report.smooth_mouse_pass === true, "Smooth mouse blade proof failed.");
+  assert(report.slow_mouse_verdict === "SLOW_MOUSE_BLADE_PASS", `Slow mouse blade gate failed: ${report.slow_mouse_verdict}`);
+  assert(report.slow_mouse_pass === true, "Slow human mouse blade proof failed.");
   assert(report.early_miss_verified === true, "Early miss proof failed.");
   assert(report.late_miss_verified === true, "Late miss proof failed.");
   assert(Array.isArray(report.timing_windows) && report.timing_windows.length > 0, "No timing window was proven.");

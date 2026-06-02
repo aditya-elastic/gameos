@@ -109,11 +109,11 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
       name: "Web Worth Playing Gate",
       automatedChecks: [
         "Web smoke reports the GameOS watermark.",
-        "Browser QA cuts, resets, verifies no auto-cut, recuts, and runs the Advanced Player.",
-        "Player report includes visual, physics, timing skill, agency, mastery, input, asset-fit, and reset/recut verdicts."
+        "Browser QA cuts, resets, verifies no auto-cut, proves fast swipe, smooth mouse blade, slow human mouse blade, recuts, and runs the Advanced Player.",
+        "Player report includes visual, physics, timing skill, agency, mastery, input, smooth mouse, slow mouse, asset-fit, and reset/recut verdicts."
       ],
-      headedPlaytestChecks: ["Screenshot composition must be mature enough for creator feedback.", "Physics motion must be readable without debug text.", "Early and late actions must visibly fail."],
-      playerFeelChecks: ["Advanced Player blocks promotion unless visual, physics, timing, agency, mastery, input, asset-fit, and fun gates pass."],
+      headedPlaytestChecks: ["Screenshot composition must be mature enough for creator feedback.", "Physics motion must be readable without debug text.", "Slow human mouse movement across the rope must cut reliably.", "Early and late actions must visibly fail."],
+      playerFeelChecks: ["Advanced Player blocks promotion unless visual, physics, timing, agency, mastery, fast swipe, smooth mouse, slow mouse, asset-fit, and fun gates pass."],
       result: "watch"
     }
   ];

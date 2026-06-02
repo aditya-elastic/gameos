@@ -7,6 +7,7 @@
 - Run `npm run acceptance:cutrope` on a machine with Chrome for the full asset-led 10/10 game proof.
 - Run `npm run release:audit` when debugging publish-boundary failures directly.
 - Run `npm run homebrew:audit` to verify published formulae and detect pending formula updates.
+- Run `npm run homebrew:update -- 0.1.0 --check` to verify the updater against the currently published stable formula.
 - Run `npm pack --dry-run` and confirm the package contains only publish-safe files.
 - Run `npm pack`.
 - Install the tarball globally:
@@ -41,16 +42,16 @@ npm publish
 ## Homebrew Release
 
 - Run `npm pack`.
-- After npm publish, compute the published npm tarball SHA:
+- After npm publish, update and verify the formula from the published npm tarball:
 
 ```bash
 VERSION="$(node -p "require('./package.json').version")"
-TARBALL_URL="$(npm view "gameos@$VERSION" dist.tarball)"
-curl -L "$TARBALL_URL" | shasum -a 256
+npm run homebrew:update -- "$VERSION"
+npm run homebrew:update -- "$VERSION" --check
+npm run homebrew:audit
 ```
 
 - Copy `Formula/gameos.rb` into the tap repo at `github.com/aditya-elastic/homebrew-gameos`.
-- Update the tap formula with the matching version and SHA from the published npm tarball.
 - Test:
 
 ```bash
@@ -72,5 +73,6 @@ brew audit --strict gameos
 - `gameos artifact read` does not dump large artifacts unless `--full` is passed.
 - `npm run release:audit` verifies package metadata, CLI binary, 21-agent registry, required docs, and npm tarball contents.
 - `npm run homebrew:audit` verifies formula URL/SHA values against published npm tarballs.
+- `npm run homebrew:update` updates `Formula/gameos.rb` from the published npm tarball and computed SHA256.
 - No generated local data is included in the npm package.
 - V1 has no telemetry, accounts, cloud calls, or hidden network behavior.

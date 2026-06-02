@@ -23,7 +23,7 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - Web adapter generation works without a website.
 - Web static QA records a `web-playtest-report`.
 - Browser Web QA can run when Chrome is available.
-- Asset-led Web games require visual, no-goal-magnet physics, timing skill, player agency, mastery, smooth primary gesture input, smooth mouse/touch blade input, input/reset, asset-fit, watermark, and Advanced Player gates for `WORTH_PLAYING`.
+- Asset-led Web games require visual, no-goal-magnet physics, timing skill, player agency, mastery, smooth primary gesture input, smooth mouse/touch blade input, slow human mouse blade input, input/reset, asset-fit, watermark, and Advanced Player gates for `WORTH_PLAYING`.
 - The 21-agent swarm includes game direction, design, gameplay development, UX flow, visual quality, game feel, physics, advanced player, QA, memory, storage, security/privacy, release engineering, orchestration, and build-sentinel roles.
 - `gameos review` promotes QA gates to pass only after all 10 studio scorecard categories are 10/10.
 - `npm run acceptance:cutrope` creates a fresh asset-led rope physics game, runs browser QA, runs 21-agent review, verifies `10_OUT_OF_10_READY_FOR_LOCAL_USERS`, and reruns Web smoke/player checks.
@@ -35,6 +35,7 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - License, changelog, security, conduct, and publishing docs exist.
 - `npm run release:audit` verifies package metadata, CLI binary, 21-agent registry, docs, privacy posture, and tarball contents.
 - `npm run homebrew:audit` verifies formula URL/SHA values against published npm tarballs and reports pending formula updates.
+- `npm run homebrew:update` updates or checks `Formula/gameos.rb` against the published npm tarball without manual SHA editing.
 - CI runs tests, CLI build, CLI smoke, package dry-run, and audit.
 - Generated local data is ignored by git and excluded from npm.
 

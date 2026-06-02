@@ -42,7 +42,7 @@ Common blockers:
 - physics gate: the cut/drop/collision loop did not complete reliably or used shallow scripted motion
 - timing gate: early and late actions did not fail, or the best timed action did not win
 - agency gate: the player cannot improve through timing, trajectory, or obstacle use
-- slice gesture gate: dragging across the rope does not cut smoothly, smooth mouse/touch blade movement does not cut, or only the fallback button works
+- slice gesture gate: dragging across the rope does not cut smoothly, smooth mouse/touch blade movement does not cut, slow deliberate mouse movement fails, or only the fallback button works
 - input gate: cut, reset, no auto-cut, and recut were not all proven
 - browser QA: only static QA ran, so Game OS cannot approve worth-playing quality
 

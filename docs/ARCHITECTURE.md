@@ -65,7 +65,7 @@ There is no required website, plugin, MCP server, account, telemetry, or cloud s
 
 ## Web Worth-Playing Doctrine
 
-Asset-led Web prototypes are not promoted by render success alone. `WORTH_PLAYING` requires role-fit assets, visible GameOS watermark, coherent screenshot composition, readable physics without hidden goal attraction, timing skill, player agency, mastery proof, smooth primary gesture input, smooth mouse/touch blade input, reset/cut/recut input proof, and Advanced Player approval. Partial asset packs may still produce playable prototypes, but `gameos journey` must explain the blocker.
+Asset-led Web prototypes are not promoted by render success alone. `WORTH_PLAYING` requires role-fit assets, visible GameOS watermark, coherent screenshot composition, readable physics without hidden goal attraction, timing skill, player agency, mastery proof, smooth primary gesture input, smooth mouse/touch blade input, slow human mouse blade input, reset/cut/recut input proof, and Advanced Player approval. Partial asset packs may still produce playable prototypes, but `gameos journey` must explain the blocker.
 
 ## 10/10 Review Doctrine
 

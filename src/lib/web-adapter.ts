@@ -1378,6 +1378,7 @@ function createInitialState() {
     pointerActive: false,
     bladeLastPoint: null,
     bladeLastTime: 0,
+    bladeSensitivity: 42,
     sliceGestureCut: false,
     sliceFeedback: "idle",
     sliceTrailVisibleUntil: 0,
@@ -1940,6 +1941,7 @@ function simulateCutRope(options = {}) {
   const input = verifyResetAndInputLoop();
   const swipe = swipeRopeForQa();
   const blade = freeMoveRopeForQa();
+  const slowBlade = slowFreeMoveRopeForQa();
   const report = {
     agent: "Advanced Web Player - Physics Puzzle Specialist",
     claim: "swing-momentum, timing-sensitive, no-goal-magnet Cut Rope style browser prototype simulation",
@@ -1955,10 +1957,12 @@ function simulateCutRope(options = {}) {
     agency_verdict: agencyPass ? "AGENCY_GATE_PASS" : "AGENCY_GATE_FAIL",
     mastery_verdict: masteryPass ? "MASTERY_GATE_PASS" : "MASTERY_GATE_FAIL",
     input_verdict: input.pass ? "INPUT_GATE_PASS" : "INPUT_GATE_FAIL",
-    slice_gesture_verdict: swipe.pass && blade.pass ? "SLICE_GESTURE_PASS" : "SLICE_GESTURE_FAIL",
-    slice_gesture_pass: swipe.pass && blade.pass,
-    smooth_mouse_verdict: blade.pass ? "SMOOTH_MOUSE_BLADE_PASS" : "SMOOTH_MOUSE_BLADE_FAIL",
-    smooth_mouse_pass: blade.pass,
+    slice_gesture_verdict: swipe.pass && blade.pass && slowBlade.pass ? "SLICE_GESTURE_PASS" : "SLICE_GESTURE_FAIL",
+    slice_gesture_pass: swipe.pass && blade.pass && slowBlade.pass,
+    smooth_mouse_verdict: blade.pass && slowBlade.pass ? "SMOOTH_MOUSE_BLADE_PASS" : "SMOOTH_MOUSE_BLADE_FAIL",
+    smooth_mouse_pass: blade.pass && slowBlade.pass,
+    slow_mouse_verdict: slowBlade.pass ? "SLOW_MOUSE_BLADE_PASS" : "SLOW_MOUSE_BLADE_FAIL",
+    slow_mouse_pass: slowBlade.pass,
     asset_fit_verdict: assetFitVerdict(),
     reset_recut_pass: input.pass,
     role_assignments: roleAssignments,
@@ -2005,6 +2009,7 @@ function verifyResetAndInputLoop() {
   const recutWorks = cutRope("agent-recut") === true && state.ropeCut;
   const swipe = swipeRopeForQa();
   const blade = freeMoveRopeForQa();
+  const slowBlade = slowFreeMoveRopeForQa();
   return {
     firstCut,
     afterCut,
@@ -2014,7 +2019,8 @@ function verifyResetAndInputLoop() {
     recutWorks,
     swipeCutPass: swipe.pass,
     smoothMouseCutPass: blade.pass,
-    pass: Boolean(firstCut && afterCut && resetReady && blockedDuringCooldown && recutWorks && swipe.pass && blade.pass)
+    slowMouseCutPass: slowBlade.pass,
+    pass: Boolean(firstCut && afterCut && resetReady && blockedDuringCooldown && recutWorks && swipe.pass && blade.pass && slowBlade.pass)
   };
 }
 
@@ -2090,7 +2096,7 @@ function beginSlice(point) {
   state.pointerActive = true;
   state.sliceFeedback = "dragging";
   state.sliceGestureCut = false;
-  state.sliceTrail = [point];
+  state.sliceTrail = [withBladeTime(point)];
   state.sliceTrailVisibleUntil = performance.now() + 700;
   state.bladeLastPoint = point;
   state.bladeLastTime = performance.now();
@@ -2100,7 +2106,7 @@ function beginSlice(point) {
 function extendSlice(point) {
   if (!state.pointerActive) return false;
   const previous = state.sliceTrail[state.sliceTrail.length - 1] ?? point;
-  state.sliceTrail.push(point);
+  pushBladePoint(point);
   if (state.sliceTrail.length > 28) state.sliceTrail.shift();
   state.sliceTrailVisibleUntil = performance.now() + 420;
   state.bladeLastPoint = point;
@@ -2120,9 +2126,10 @@ function endSlice() {
 }
 
 function swipeCutsRope(start, end) {
-  if (distance(start, end) < 14) return false;
+  if (distance(start, end) < 1.8) return false;
   const rope = currentRopeSegment();
-  return segmentDistance(start, end, rope.a, rope.b) <= 34;
+  const tolerance = state.bladeSensitivity ?? 42;
+  return segmentDistance(start, end, rope.a, rope.b) <= tolerance || pointSegmentDistance(end, rope.a, rope.b) <= tolerance * 0.72;
 }
 
 function trackBladePoint(point, options = {}) {
@@ -2133,26 +2140,59 @@ function trackBladePoint(point, options = {}) {
     return false;
   }
   const previous = state.bladeLastPoint;
-  const recent = previous && now - state.bladeLastTime <= 210;
+  const recent = previous && now - state.bladeLastTime <= 1200;
   state.bladeLastPoint = point;
   state.bladeLastTime = now;
-  if (!recent || state.pointerActive) return false;
+  if (state.pointerActive) return false;
+  if (!recent) {
+    state.sliceTrail = [withBladeTime(point, now)];
+    return false;
+  }
 
   const moved = distance(previous, point);
-  if (moved < 7) return false;
+  if (moved < 1.8) return false;
 
   state.sliceFeedback = "tracking";
-  if (state.sliceTrail.length === 0 || distance(state.sliceTrail[state.sliceTrail.length - 1], previous) > 1) state.sliceTrail.push(previous);
-  state.sliceTrail.push(point);
-  if (state.sliceTrail.length > 28) state.sliceTrail.splice(0, state.sliceTrail.length - 28);
-  state.sliceTrailVisibleUntil = now + 280;
+  if (state.sliceTrail.length === 0 || distance(state.sliceTrail[state.sliceTrail.length - 1], previous) > 1) pushBladePoint(previous, now);
+  pushBladePoint(point, now);
+  trimBladeTrail(now);
+  state.sliceTrailVisibleUntil = now + 460;
 
-  const cut = !state.ropeCut && state.status === "ready" && swipeCutsRope(previous, point);
+  const cut = !state.ropeCut && state.status === "ready" && bladeTrailCutsRope();
   if (cut) {
     const source = options.passive ? "blade" : "swipe";
     cutRope(source);
   }
   return cut;
+}
+
+function withBladeTime(point, time = performance.now()) {
+  return { x: point.x, y: point.y, t: time };
+}
+
+function pushBladePoint(point, time = performance.now()) {
+  state.sliceTrail.push(withBladeTime(point, time));
+  trimBladeTrail(time);
+}
+
+function trimBladeTrail(now = performance.now()) {
+  state.sliceTrail = state.sliceTrail.filter((point) => !point.t || now - point.t <= 1400);
+  if (state.sliceTrail.length > 42) state.sliceTrail.splice(0, state.sliceTrail.length - 42);
+}
+
+function bladeTrailCutsRope() {
+  if (state.sliceTrail.length < 2) return false;
+  const rope = currentRopeSegment();
+  const tolerance = state.bladeSensitivity ?? 42;
+  const recentTrail = state.sliceTrail.slice(-18);
+  for (let index = 1; index < recentTrail.length; index += 1) {
+    const start = recentTrail[index - 1];
+    const end = recentTrail[index];
+    if (distance(start, end) < 1.8) continue;
+    if (segmentDistance(start, end, rope.a, rope.b) <= tolerance || pointSegmentDistance(end, rope.a, rope.b) <= tolerance * 0.72) return true;
+  }
+  const latest = recentTrail[recentTrail.length - 1];
+  return Boolean(latest && pointSegmentDistance(latest, rope.a, rope.b) <= tolerance * 0.66);
 }
 
 function segmentDistance(a, b, c, d) {
@@ -2219,7 +2259,7 @@ function freeMoveRopeForQa() {
   const end = { x: mid.x - normal.x * 98, y: mid.y - normal.y * 98 };
   state.bladeLastPoint = start;
   state.bladeLastTime = performance.now();
-  state.sliceTrail = [start];
+  state.sliceTrail = [withBladeTime(start)];
   const didCut = trackBladePoint(end, { passive: true });
   return {
     pass: Boolean(didCut && state.ropeCut && state.status === "falling" && state.sliceGestureCut),
@@ -2235,15 +2275,43 @@ function freeMoveRopeForQa() {
   };
 }
 
-canvas.addEventListener("pointerdown", (event) => {
-  event.preventDefault();
-  canvas.setPointerCapture?.(event.pointerId);
-  beginSlice(canvasPoint(event));
-  draw();
-  renderHud();
-});
+function slowFreeMoveRopeForQa() {
+  resetAttempt({ quiet: true });
+  state.inputLockedUntil = performance.now() - 1;
+  const rope = currentRopeSegment();
+  const mid = { x: (rope.a.x + rope.b.x) / 2, y: (rope.a.y + rope.b.y) / 2 };
+  const dx = rope.b.x - rope.a.x;
+  const dy = rope.b.y - rope.a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const normal = { x: -dy / length, y: dx / length };
+  const start = { x: mid.x + normal.x * 112, y: mid.y + normal.y * 112 };
+  const end = { x: mid.x - normal.x * 112, y: mid.y - normal.y * 112 };
+  state.bladeLastPoint = start;
+  state.bladeLastTime = performance.now();
+  state.sliceTrail = [withBladeTime(start)];
+  let didCut = false;
+  for (let step = 1; step <= 18; step += 1) {
+    const t = step / 18;
+    const point = { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t };
+    didCut = trackBladePoint(point, { passive: true }) || didCut;
+    if (didCut) break;
+  }
+  return {
+    pass: Boolean(didCut && state.ropeCut && state.status === "falling" && state.sliceGestureCut),
+    start,
+    end,
+    rope,
+    steps: 18,
+    state: {
+      ropeCut: state.ropeCut,
+      status: state.status,
+      sliceGestureCut: state.sliceGestureCut,
+      sliceFeedback: state.sliceFeedback
+    }
+  };
+}
 
-canvas.addEventListener("pointermove", (event) => {
+function handlePointerMove(event) {
   const point = canvasPoint(event);
   if (state.pointerActive) {
     event.preventDefault();
@@ -2253,7 +2321,18 @@ canvas.addEventListener("pointermove", (event) => {
   }
   draw();
   renderHud();
-});
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  canvas.setPointerCapture?.(event.pointerId);
+  beginSlice(canvasPoint(event));
+  draw();
+  renderHud();
+}, { passive: false });
+
+canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
+canvas.addEventListener("pointerrawupdate", handlePointerMove, { passive: false });
 
 canvas.addEventListener("pointerup", (event) => {
   event.preventDefault();
@@ -2261,7 +2340,7 @@ canvas.addEventListener("pointerup", (event) => {
   endSlice();
   draw();
   renderHud();
-});
+}, { passive: false });
 
 canvas.addEventListener("pointercancel", (event) => {
   event.preventDefault();
@@ -2273,6 +2352,7 @@ canvas.addEventListener("pointerenter", (event) => {
   const point = canvasPoint(event);
   state.bladeLastPoint = point;
   state.bladeLastTime = performance.now();
+  state.sliceTrail = [withBladeTime(point)];
 });
 
 canvas.addEventListener("pointerleave", () => {
@@ -2317,6 +2397,7 @@ window.__gameOsWebAdapter = {
     hasPrediction: true,
     hasSwipeSlice: true,
     hasSmoothMouseBlade: true,
+    hasSlowMouseBlade: true,
     roleAssignments,
     canvasWidth: canvas.width,
     canvasHeight: canvas.height,
@@ -2325,6 +2406,7 @@ window.__gameOsWebAdapter = {
   cutRope,
   swipeRopeForQa,
   freeMoveRopeForQa,
+  slowFreeMoveRopeForQa,
   reset: resetAttempt,
   runPlayerAgent: simulateCutRope
 };
@@ -2360,8 +2442,8 @@ function renderCutRopeBrief(workspace: ProjectWorkspace, manifest: AssetImportMa
     "",
     "## QA Expectations",
     "- Static HTTP smoke must render the canvas, controls, watermark, and imported asset references.",
-    "- Browser QA must cut, reset, verify no auto-cut, recut, and run the Advanced Player simulation.",
-    "- Advanced Player can only pass when visual, physics, timing skill, agency, mastery, input, asset-fit, and reset gates pass.",
+    "- Browser QA must cut, reset, verify no auto-cut, prove fast swipe, smooth mouse blade, slow human mouse blade, recut, and run the Advanced Player simulation.",
+    "- Advanced Player can only pass when visual, physics, timing skill, agency, mastery, smooth mouse, slow mouse, input, asset-fit, and reset gates pass.",
     "- The physics model must not use hidden goal attraction; timing has to change success and failure outcomes.",
     "- Web channel remains local prototype delivery, not hosted publishing automation."
   ].join("\n");
@@ -2424,7 +2506,7 @@ function renderCutRopeReport(
     "- Game type: Cut Rope physics puzzle",
     `- Asset gate: ${manifest?.verdict ?? "NO_ASSET_PACK_IMPORTED"}`,
     `- Imported images copied: ${copiedAssets.length}`,
-    "- Required promoted gates: visual quality, physics dynamics, timing skill, player agency, mastery, reset/cut input, role-fit assets, Advanced Player.",
+    "- Required promoted gates: visual quality, physics dynamics, timing skill, player agency, mastery, smooth/slow blade input, reset/cut input, role-fit assets, Advanced Player.",
     "",
     "## Asset Role Mapping",
     ...(manifest?.roleAssignments?.length
@@ -2457,7 +2539,7 @@ function renderCutRopeReport(
     "- The adapter selects imported local images by gameplay role, not loose filename quantity.",
     "- The generated physics model uses swing momentum, gravity, bumper collision, and miss states instead of hidden goal attraction.",
     "- The reset loop debounces input so reset does not auto-cut or inherit stale physics state.",
-    "- The asset, visual, physics, timing, agency, mastery, input, and player gates are visible in the build, manifest, smoke checks, and player-agent report.",
+    "- The asset, visual, physics, timing, agency, mastery, smooth/slow blade input, and player gates are visible in the build, manifest, smoke checks, and player-agent report.",
     "- Steam, hosting, accounts, multiplayer servers, and store publishing remain outside V1."
   ].join("\n");
 }
