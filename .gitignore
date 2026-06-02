@@ -5,7 +5,12 @@
 .next/
 .next-dev/
 node_modules/
+dist/
 data/
 tmp/
 coverage/
+docs/qa/*.md
+!docs/qa/v1-local-test-run-2026-05-31.md
+tsconfig.tsbuildinfo
 *.log
+*.tgz

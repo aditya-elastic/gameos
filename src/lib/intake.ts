@@ -11,7 +11,9 @@ export const createProjectInputSchema = z.object({
 
 const genreSignals: Array<[string, string[]]> = [
   ["War Arcade", ["war", "missile", "naval", "battle", "combat", "soldier", "tank"]],
+  ["Physics Puzzle", ["cut the rope", "cut rope", "rope", "physics puzzle", "candy", "swing"]],
   ["Creator Challenge", ["youtube", "creator", "stream", "shorts", "viral", "clip"]],
+  ["Board Game Strategy", ["ludo", "pachisi", "board game", "dice", "token", "tokens", "turn-based", "turn based"]],
   ["Racing", ["race", "speed", "drift", "car", "bike", "track"]],
   ["Survival", ["survival", "survive", "horde", "rogue", "danger", "escape"]],
   ["Puzzle Strategy", ["puzzle", "strategy", "tactics", "resource", "tower"]],
@@ -32,7 +34,9 @@ const titleStopWords = new Set([
   "small",
   "test",
   "mode",
-  "platform"
+  "platform",
+  "create",
+  "make"
 ]);
 
 export function normalizeCreateProjectInput(raw: CreateProjectInput): CreateProjectInput {
@@ -98,40 +102,106 @@ export function createGameBrief(project: GameProject): GameBrief {
   const prompt = project.prompt.toLowerCase();
   const creatorFocused = prompt.includes("youtube") || prompt.includes("creator") || prompt.includes("stream");
   const combatFocused = prompt.includes("war") || prompt.includes("combat") || prompt.includes("missile");
+  const boardFocused = isBoardGamePrompt(prompt);
+  const ropePuzzleFocused = isCutRopePrompt(prompt) || project.genre.toLowerCase().includes("physics puzzle");
   const platformPhrase = project.targetPlatforms.join(", ");
 
   return {
     projectId: project.id,
     summary: `${project.name} is a ${project.genre.toLowerCase()} concept for ${project.targetAudience}, planned for ${platformPhrase}.`,
-    fantasy: creatorFocused
-      ? "Players feel like they are inside a high-pressure creator challenge built for readable clips, clutch attempts, and fast retakes."
-      : "Players feel immediate purpose, readable pressure, and a clear reason to try one more run.",
-    pillars: [
-      creatorFocused ? "Every run should produce a moment worth replaying." : "The first minute proves the fantasy quickly.",
-      combatFocused ? "Threats must be readable before they are dangerous." : "Challenge must feel fair before it feels difficult.",
-      "Controls need to feel trustworthy within the first attempt.",
-      "The prototype should expose production risks early instead of hiding them."
-    ],
-    coreLoop: [
-      "Enter a short, legible challenge.",
-      "Make one meaningful decision every few seconds.",
-      "See immediate feedback through score, motion, sound, or state change.",
-      "Reach a clear result screen with a sharper next goal.",
-      "Repeat with stronger mastery or a new scenario seed."
-    ],
+    fantasy: ropePuzzleFocused
+      ? "Players feel the tiny magic of one clean cut turning a suspended object into a satisfying fall, star pickup, and goal feed moment."
+      : boardFocused
+      ? "Players feel the familiar table-game tension of one lucky dice roll changing the whole race home, with clean turns and zero rule ambiguity."
+      : creatorFocused
+        ? "Players feel like they are inside a high-pressure creator challenge built for readable clips, clutch attempts, and fast retakes."
+        : "Players feel immediate purpose, readable pressure, and a clear reason to try one more run.",
+    pillars: ropePuzzleFocused
+      ? [
+          "The first interaction must be obvious: cut the rope, watch the object fall, and read success or failure instantly.",
+          "Uploaded assets must be source-tracked, relevance-scored, and never silently treated as correct.",
+          "Physics can be simplified, but the candy path, goal, and collectibles must be readable.",
+          "The Web lane must prove the playable loop before Unity or Godot adapters inherit it."
+        ]
+      : boardFocused
+      ? [
+          "Rules must be deterministic, explainable, and faithful to the selected Ludo variant.",
+          "Every turn must clearly show whose move it is, what the dice did, and which tokens are legal.",
+          "Multiplayer, local-pass, and bot turns must never corrupt state.",
+          "The prototype should expose rules, storage, and QA risks before visual polish."
+        ]
+      : [
+          creatorFocused ? "Every run should produce a moment worth replaying." : "The first minute proves the fantasy quickly.",
+          combatFocused ? "Threats must be readable before they are dangerous." : "Challenge must feel fair before it feels difficult.",
+          "Controls need to feel trustworthy within the first attempt.",
+          "The prototype should expose production risks early instead of hiding them."
+        ],
+    coreLoop: ropePuzzleFocused
+      ? [
+          "Show the candy-like object attached to a rope and a visible goal below.",
+          "Let the player cut the rope with one click or tap.",
+          "Resolve gravity, star collection, and goal contact with clear feedback.",
+          "Let the player reset quickly and try for a cleaner path.",
+          "Record asset-readability and player-agent results before engine expansion."
+        ]
+      : boardFocused
+      ? [
+          "Start a two-to-four player match with clear seat colors and turn order.",
+          "Roll the dice and reveal every legal token move.",
+          "Move one token, resolve captures, safe squares, home-lane entry, and extra turns.",
+          "Persist match state after every turn so refresh/resume is safe.",
+          "Finish when one player gets all tokens home, then show standings and rematch."
+        ]
+      : [
+          "Enter a short, legible challenge.",
+          "Make one meaningful decision every few seconds.",
+          "See immediate feedback through score, motion, sound, or state change.",
+          "Reach a clear result screen with a sharper next goal.",
+          "Repeat with stronger mastery or a new scenario seed."
+        ],
     references: [
       "Run the Strait production doctrine: staged QA, director gates, asset promotion, serialized heavy builds.",
-      creatorFocused ? "YouTube challenge readability and highlight-friendly session length." : "Arcade-first prototype pacing.",
+      ropePuzzleFocused
+        ? "Cut-the-Rope-style physics puzzle readability: one cut, falling object, collectible line, and goal feed clarity."
+        : boardFocused
+          ? "Ludo/Pachisi family rules: dice-driven racing, captures, safe squares, home lanes, and exact-finish expectations."
+          : creatorFocused
+            ? "YouTube challenge readability and highlight-friendly session length."
+            : "Arcade-first prototype pacing.",
       "Engine-neutral project structure until a build lane is selected."
     ],
-    risks: [
-      "The concept becomes too broad before the first playable slice exists.",
-      "Generated assets look exciting but do not serve gameplay readability.",
-      "Platform planning drifts into publishing before a test build proves the loop.",
-      "Agents produce impressive documents without a hard acceptance gate."
-    ],
+    risks: ropePuzzleFocused
+      ? [
+          "The uploaded asset pack may be attractive but wrong for rope/candy/goal readability.",
+          "The prototype may feel like an animation instead of a player-controlled puzzle if the cut timing has no consequence.",
+          "Procedural rope helpers may hide the fact that uploaded assets are missing key categories.",
+          "The Web adapter might pass smoke tests without proving the asset pipeline actually fed the build."
+        ]
+      : boardFocused
+      ? [
+          "Variant ambiguity creates arguments about captures, safe squares, sixes, and exact home entry.",
+          "Bot or async turns desync from local storage and make the match unrecoverable.",
+          "The board looks polished but legal moves and current turn are not instantly readable.",
+          "QA misses long-match edge cases such as chained sixes, no legal moves, and final-token exact rolls."
+        ]
+      : [
+          "The concept becomes too broad before the first playable slice exists.",
+          "Generated assets look exciting but do not serve gameplay readability.",
+          "Platform planning drifts into publishing before a test build proves the loop.",
+          "Agents produce impressive documents without a hard acceptance gate."
+        ],
     createdAt: new Date().toISOString()
   };
+}
+
+export function isBoardGamePrompt(prompt: string): boolean {
+  const lowerPrompt = prompt.toLowerCase();
+  return ["ludo", "pachisi", "board game", "dice", "token", "tokens", "turn-based", "turn based"].some((signal) => lowerPrompt.includes(signal));
+}
+
+export function isCutRopePrompt(prompt: string): boolean {
+  const lowerPrompt = prompt.toLowerCase();
+  return (lowerPrompt.includes("cut") && lowerPrompt.includes("rope")) || lowerPrompt.includes("physics puzzle");
 }
 
 export function makeProjectFromInput(id: string, input: CreateProjectInput, now = new Date().toISOString()): GameProject {

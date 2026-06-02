@@ -2,9 +2,12 @@ import type { AgentRun, AssetPlan, PlatformPlan, ProjectWorkspace, QAGate } from
 import { platformReadinessScore } from "./platforms";
 
 export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: AssetPlan, platformPlans: PlatformPlan[]): QAGate[] {
-  const agentComplete = agents.length >= 8 && agents.every((agent) => agent.status === "complete");
+  const agentComplete = agents.length >= 13 && agents.every((agent) => agent.status === "complete");
   const assetReady = assetPlan.items.every((item) => item.status !== "rejected");
   const platformScore = platformReadinessScore(platformPlans);
+  const hasMemoryAgent = agents.some((agent) => agent.role === "memory-manager" && agent.status === "complete");
+  const hasStorageAgent = agents.some((agent) => agent.role === "storage-manager" && agent.status === "complete");
+  const hasRulesAgent = agents.some((agent) => agent.role === "rules-systems-designer" && agent.status === "complete");
 
   return [
     {
@@ -33,6 +36,24 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
       headedPlaytestChecks: ["Visual assets must pass gameplay-camera readability before promotion."],
       playerFeelChecks: ["Assets support the core loop before spectacle."],
       result: assetReady ? "watch" : "blocked"
+    },
+    {
+      id: `${projectId}_rules`,
+      projectId,
+      name: "Rules Integrity Gate",
+      automatedChecks: ["Rules Systems Designer generated a state contract.", "Legal action and invalid action behavior are named."],
+      headedPlaytestChecks: ["Headed playtest must show legal moves and turn resolution clearly."],
+      playerFeelChecks: ["Players can explain why a move is legal or illegal."],
+      result: hasRulesAgent ? "watch" : "blocked"
+    },
+    {
+      id: `${projectId}_memory_storage`,
+      projectId,
+      name: "Memory And Storage Gate",
+      automatedChecks: ["Memory Manager exists.", "Storage Manager exists.", "Canonical artifacts are file-backed."],
+      headedPlaytestChecks: ["Save/resume proof required after prototype adapter exists."],
+      playerFeelChecks: ["The game can recover state without surprising the player."],
+      result: hasMemoryAgent && hasStorageAgent ? "watch" : "blocked"
     },
     {
       id: `${projectId}_platforms`,

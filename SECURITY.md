@@ -1,23 +1,12 @@
-# Security Policy
+# Security And Privacy
 
-## Supported Version
+Game OS V1 is a local-first CLI runtime.
 
-Game OS V1 is local-first and currently supports the `main` branch.
+- No telemetry is collected.
+- No account is required.
+- No hidden network calls are made by Game OS commands.
+- Generated projects and artifacts stay under `~/.gameos` by default.
+- `GAME_OS_DATA_DIR` or `--data-dir` can redirect all local project data.
+- Optional browser, Godot, and Unity checks run only when the user invokes them.
 
-## Reporting Issues
-
-For now, open a private maintainer report or GitHub issue with:
-
-- A short description of the risk.
-- Steps to reproduce.
-- Whether the issue exposes local files, generated artifacts, API routes, or project data.
-
-## Local Data Model
-
-Game OS stores local project data under `GAME_OS_DATA_DIR` or `./data` by default. Do not commit generated `data/` output.
-
-## Current Boundaries
-
-- No store publishing automation in V1.
-- No external AI provider is called by default.
-- No secrets are required for the local prototype workflow.
+Report security issues privately to the maintainer before public disclosure. Do not include secrets, private assets, or unpublished game data in issue reports.

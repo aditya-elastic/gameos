@@ -85,6 +85,15 @@ function readinessGatesFor(platform: string, status: PlatformStatus): string[] {
     ];
   }
 
+  if (platform === "Web") {
+    return [
+      "Standalone browser prototype can run from a local static server.",
+      "Browser smoke and player-agent checks prove the rules loop before hosting work.",
+      "Persistence uses local browser storage until backend sync is intentionally added.",
+      ...shared
+    ];
+  }
+
   if (status === "blocked") {
     return [
       "Console lane requires platform-holder access, dev hardware, and separate compliance planning.",

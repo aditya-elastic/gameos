@@ -44,6 +44,10 @@ export function deriveStyleSkills(project: GameProject): string[] {
     skills.push("threat readability", "combat pressure tuning", "tactical visual hierarchy");
   }
 
+  if (prompt.includes("ludo") || prompt.includes("pachisi") || prompt.includes("board game") || prompt.includes("dice")) {
+    skills.push("rules-state modeling", "turn-order validation", "local multiplayer UX", "save-resume integrity");
+  }
+
   if (project.targetPlatforms.some((platform) => platform.toLowerCase().includes("steam"))) {
     skills.push("steam test readiness");
   }
@@ -165,6 +169,35 @@ function renderAgentOutput(
     ].join("\n")}`;
   }
 
+  if (definition.role === "rules-systems-designer") {
+    const isLudo = project.prompt.toLowerCase().includes("ludo");
+    return `${commonHeader}${[
+      "## Rules Contract",
+      isLudo
+        ? "Use the same legal-move resolver for human moves, bot moves, QA simulations, save/resume, and replay validation."
+        : "Rules must be deterministic before implementation starts.",
+      "",
+      "## State Priorities",
+      "- Turn owner.",
+      "- Dice or action result.",
+      "- Legal action list.",
+      "- Resolution events.",
+      "- Persisted post-turn snapshot.",
+      "",
+      "## Edge Cases",
+      ...(isLudo
+        ? [
+            "- Six from base.",
+            "- No legal move after roll.",
+            "- Capture versus safe square.",
+            "- Exact home entry.",
+            "- Extra-turn chain policy.",
+            "- Bot turn cannot bypass the resolver."
+          ]
+        : ["- Invalid input.", "- No legal action.", "- Interrupted/resumed turn.", "- Win condition edge cases."])
+    ].join("\n")}`;
+  }
+
   if (definition.role === "art-director") {
     return `${commonHeader}${[
       "## Visual Direction",
@@ -206,6 +239,46 @@ function renderAgentOutput(
     ].join("\n")}`;
   }
 
+  if (definition.role === "memory-manager") {
+    return `${commonHeader}${[
+      "## Memory Contract",
+      "- Game bible, rules spec, QA gates, storage manifest, and latest agent outputs are durable memory.",
+      "- Regenerated agents append new run artifacts instead of overwriting history.",
+      "- Engine adapters must load the memory map before generating code.",
+      "",
+      "## Recall Priority",
+      "- Rules decisions.",
+      "- Current platform target.",
+      "- Open QA watch gates.",
+      "- Storage and save/resume constraints."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "storage-manager") {
+    return `${commonHeader}${[
+      "## Storage Contract",
+      "- SQLite owns structured records.",
+      "- Markdown artifacts own human-readable studio memory.",
+      "- Generated local data stays out of git.",
+      "- Save/resume requirements must be captured before prototype code generation.",
+      "",
+      "## Integrity Gate",
+      "Every studio room must have canonical artifacts plus one artifact per latest agent run."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "prototype-producer") {
+    return `${commonHeader}${[
+      "## Prototype Slice",
+      "- Build the smallest playable rules loop before polish.",
+      "- Use placeholder visuals until rules and turn feedback are proven.",
+      "- Make save/resume and restart testable from the first build.",
+      "",
+      "## Done When",
+      "A headed tester can complete the first representative session and the QA Director can cite evidence."
+    ].join("\n")}`;
+  }
+
   if (definition.role === "platform-producer") {
     return `${commonHeader}${[
       "## Platform Map",
@@ -218,6 +291,20 @@ function renderAgentOutput(
       "",
       "## Producer Call",
       "Do not let store work start before the game loop has a headed PASS."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "swarm-orchestrator") {
+    return `${commonHeader}${[
+      "## Swarm Order",
+      "- Studio Director locks intent.",
+      "- Game Designer and Rules Systems Designer define play and state.",
+      "- Technical Architect, Memory Manager, and Storage Manager define implementation boundaries.",
+      "- Art Director and QA Director set acceptance gates.",
+      "- Platform Producer, Prototype Producer, and Build Sentinel sequence execution.",
+      "",
+      "## Regeneration Rule",
+      "Regenerate the narrowest agent that owns the uncertainty, then re-read memory and QA artifacts before implementation."
     ].join("\n")}`;
   }
 

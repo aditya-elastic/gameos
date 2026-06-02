@@ -1,12 +1,7 @@
 # Code Of Conduct
 
-Game OS should be a practical, respectful space for people building ambitious games with AI-assisted workflows.
+Game OS is for helping creators build games with clarity, respect, and craft.
 
-Contributors are expected to:
+Contributors and users should be professional, constructive, and specific when reporting problems or suggesting changes. Harassment, personal attacks, and abusive behavior are not acceptable.
 
-- Be direct and kind.
-- Critique ideas and code without insulting people.
-- Respect different experience levels.
-- Keep discussions focused on making the product better.
-
-Unacceptable behavior includes harassment, personal attacks, doxxing, and intentionally disruptive conduct.
+Maintainers may remove disruptive content and block repeat abuse to keep the project usable for builders.

@@ -160,6 +160,20 @@ export function updateAgentRun(projectId: string, agent: AgentRun, artifact: Art
   }
 }
 
+export function addArtifact(artifact: ArtifactRecord): void {
+  const db = getDb();
+  db.exec("BEGIN");
+
+  try {
+    insertArtifacts(db, [artifact]);
+    touchProject(db, artifact.projectId);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 function migrate(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -377,7 +391,6 @@ function insertArtifacts(db: DatabaseSync, artifacts: ArtifactRecord[]): void {
     `INSERT INTO artifacts (id, project_id, kind, label, path, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(project_id, path) DO UPDATE SET
-      id = excluded.id,
       label = excluded.label,
       kind = excluded.kind,
       created_at = excluded.created_at`

@@ -18,6 +18,12 @@
     "skills": ["engine-neutral architecture", "runtime constraints", "build planning", "systems decomposition"]
   },
   {
+    "role": "rules-systems-designer",
+    "title": "Rules Systems Designer",
+    "mission": "Convert known game rules into deterministic state machines, legal actions, edge cases, and fairness checks.",
+    "skills": ["rules modeling", "turn order", "state machines", "edge-case contracts", "fairness validation"]
+  },
+  {
     "role": "art-director",
     "title": "Art Director",
     "mission": "Define visual identity, asset style, generation prompts, source rules, and acceptance gates.",
@@ -36,10 +42,34 @@
     "skills": ["test strategy", "headed QA", "regression gates", "artifact evidence"]
   },
   {
+    "role": "memory-manager",
+    "title": "Memory Manager",
+    "mission": "Maintain durable project memory, decision history, artifact recall, and context handoff between agent runs.",
+    "skills": ["memory indexing", "decision logs", "context compaction", "artifact recall", "run continuity"]
+  },
+  {
+    "role": "storage-manager",
+    "title": "Storage Manager",
+    "mission": "Own SQLite records, file-backed artifacts, exportability, integrity checks, and local data hygiene.",
+    "skills": ["SQLite storage", "artifact manifests", "backup planning", "integrity checks", "local-first data safety"]
+  },
+  {
+    "role": "prototype-producer",
+    "title": "Prototype Producer",
+    "mission": "Translate the studio plan into the smallest playable build order with acceptance evidence and no premature publishing work.",
+    "skills": ["prototype slicing", "task sequencing", "acceptance criteria", "playable-first planning"]
+  },
+  {
     "role": "platform-producer",
     "title": "Platform Producer",
     "mission": "Map PC, Steam test, Unity, Godot, mobile, and console readiness without premature publishing.",
     "skills": ["platform lanes", "store constraints", "readiness gates", "release sequencing"]
+  },
+  {
+    "role": "swarm-orchestrator",
+    "title": "Swarm Orchestrator",
+    "mission": "Coordinate agent order, handoffs, regeneration, blockers, and the final merged plan across the whole studio swarm.",
+    "skills": ["agent handoffs", "dependency ordering", "blocker routing", "merge discipline", "swarm status"]
   },
   {
     "role": "build-sentinel",

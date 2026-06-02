@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
+  Upload,
   WandSparkles
 } from "lucide-react";
 import type { AgentRun, ArtifactRecord, PlatformPlan, ProjectWorkspace, QAGate, StudioApiError } from "@/lib/types";
@@ -37,6 +38,26 @@ const demoGame = {
   genre: "Creator Challenge",
   targetAudience: "creator and YouTube playtest audience"
 };
+
+const ludoGame = {
+  prompt:
+    "Royal Ludo Table is a polished digital Ludo board game for YouTube creator playtesting. Two to four players roll dice, release tokens on sixes, capture rivals, use safe squares, race all four tokens home, and support local pass-and-play plus simple bot turns for PC and Steam test readiness before Unity and Godot adapters.",
+  targetPlatforms: ["PC Test", "Steam Test", "Web", "Unity", "Godot"],
+  enginePreference: "Engine-neutral first",
+  genre: "Board Game Strategy",
+  targetAudience: "creator and YouTube playtest audience"
+};
+
+const cutRopeGame = {
+  prompt:
+    "A physics puzzle game called Cut The Rope where a creator uploads a Kenney asset pack, cuts a rope to drop a candy-like object into a hungry character or goal, collects stars, and proves the asset pipeline through fast web playtesting.",
+  targetPlatforms: ["PC Test", "Web"],
+  enginePreference: "Web first",
+  genre: "Physics Puzzle",
+  targetAudience: "creator and YouTube playtest audience"
+};
+
+type StudioSeed = typeof demoGame;
 
 type ArtifactPreview = {
   artifact: ArtifactRecord & {
@@ -71,7 +92,7 @@ export function GameOsApp({
     [selectedId, workspaces]
   );
 
-  async function createProject(payload?: typeof demoGame) {
+  async function createProject(payload?: StudioSeed, action = "create") {
     const requestBody = payload ?? {
       prompt,
       targetPlatforms,
@@ -93,7 +114,7 @@ export function GameOsApp({
       return;
     }
 
-    setBusyAction(payload ? "demo" : "create");
+    setBusyAction(payload ? action : "create");
 
     try {
       const response = await fetch("/api/projects", {
@@ -148,6 +169,152 @@ export function GameOsApp({
     }
   }
 
+  async function generateGodotAdapter(projectId: string) {
+    setError("");
+    setMessage("");
+    setBusyAction("godot-adapter");
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/adapters/godot`, {
+        method: "POST"
+      });
+      const data = (await response.json()) as { project?: ProjectWorkspace } & StudioApiError;
+
+      if (!response.ok || !data.project) {
+        throw new Error([data.error, ...(data.details ?? [])].filter(Boolean).join(" "));
+      }
+
+      setWorkspaces((current) => current.map((workspace) => (workspace.project.id === projectId ? (data.project as ProjectWorkspace) : workspace)));
+      setArtifactPreview(null);
+      setMessage(`${data.project.project.name}: Godot adapter generated.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Game OS could not generate the Godot adapter.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function generateUnityAdapter(projectId: string) {
+    setError("");
+    setMessage("");
+    setBusyAction("unity-adapter");
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/adapters/unity`, {
+        method: "POST"
+      });
+      const data = (await response.json()) as { project?: ProjectWorkspace } & StudioApiError;
+
+      if (!response.ok || !data.project) {
+        throw new Error([data.error, ...(data.details ?? [])].filter(Boolean).join(" "));
+      }
+
+      setWorkspaces((current) => current.map((workspace) => (workspace.project.id === projectId ? (data.project as ProjectWorkspace) : workspace)));
+      setArtifactPreview(null);
+      setMessage(`${data.project.project.name}: Unity adapter generated.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Game OS could not generate the Unity adapter.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function generateWebAdapter(projectId: string) {
+    setError("");
+    setMessage("");
+    setBusyAction("web-adapter");
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/adapters/web`, {
+        method: "POST"
+      });
+      const data = (await response.json()) as { project?: ProjectWorkspace } & StudioApiError;
+
+      if (!response.ok || !data.project) {
+        throw new Error([data.error, ...(data.details ?? [])].filter(Boolean).join(" "));
+      }
+
+      setWorkspaces((current) => current.map((workspace) => (workspace.project.id === projectId ? (data.project as ProjectWorkspace) : workspace)));
+      setArtifactPreview(null);
+      setMessage(`${data.project.project.name}: Web adapter generated.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Game OS could not generate the Web adapter.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function uploadAssets(projectId: string, file: File) {
+    setError("");
+    setMessage("");
+    setBusyAction("asset-upload");
+
+    try {
+      const data = file.size > 48 * 1024 * 1024 ? await uploadAssetInChunks(projectId, file) : await uploadAssetAsSingleRequest(projectId, file);
+
+      if (!data.project) {
+        throw new Error([data.error, ...(data.details ?? [])].filter(Boolean).join(" "));
+      }
+
+      setWorkspaces((current) => current.map((workspace) => (workspace.project.id === projectId ? (data.project as ProjectWorkspace) : workspace)));
+      setArtifactPreview(null);
+      setMessage(`${data.project.project.name}: asset pack imported and judged.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Game OS could not import this asset pack.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function uploadAssetAsSingleRequest(projectId: string, file: File): Promise<{ project?: ProjectWorkspace } & StudioApiError> {
+    const formData = new FormData();
+    formData.append("assetArchive", file);
+
+    const response = await fetch(`/api/projects/${projectId}/assets`, {
+      method: "POST",
+      body: formData
+    });
+    const data = (await response.json()) as { project?: ProjectWorkspace } & StudioApiError;
+
+    if (!response.ok) {
+      throw new Error([data.error, ...(data.details ?? [])].filter(Boolean).join(" "));
+    }
+
+    return data;
+  }
+
+  async function uploadAssetInChunks(projectId: string, file: File): Promise<{ project?: ProjectWorkspace } & StudioApiError> {
+    const chunkSize = 8 * 1024 * 1024;
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    let latestData: ({ project?: ProjectWorkspace } & StudioApiError) | null = null;
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+      const formData = new FormData();
+      const start = chunkIndex * chunkSize;
+      const end = Math.min(file.size, start + chunkSize);
+      formData.append("uploadId", uploadId);
+      formData.append("fileName", file.name);
+      formData.append("chunkIndex", String(chunkIndex));
+      formData.append("totalChunks", String(totalChunks));
+      formData.append("chunk", file.slice(start, end), file.name);
+
+      const response = await fetch(`/api/projects/${projectId}/assets/chunk`, {
+        method: "POST",
+        body: formData
+      });
+      const data = (await response.json()) as { project?: ProjectWorkspace } & StudioApiError;
+
+      if (!response.ok) {
+        throw new Error([data.error, ...(data.details ?? [])].filter(Boolean).join(" "));
+      }
+
+      latestData = data;
+    }
+
+    return latestData ?? { error: "Chunk upload did not complete." };
+  }
+
   async function openArtifact(projectId: string, artifact: ArtifactRecord) {
     setError("");
     setBusyAction(`artifact:${artifact.id}`);
@@ -190,7 +357,15 @@ export function GameOsApp({
           </div>
         </div>
         <div className="topbar-actions">
-          <button className="secondary-button dark" type="button" onClick={() => void createProject(demoGame)} disabled={busyAction === "demo"}>
+          <button className="secondary-button dark" type="button" onClick={() => void createProject(ludoGame, "ludo")} disabled={busyAction === "ludo"}>
+            {busyAction === "ludo" ? <Loader2 className="spin" size={18} aria-hidden /> : <Sparkles size={18} aria-hidden />}
+            Run Ludo Flow
+          </button>
+          <button className="secondary-button dark" type="button" onClick={() => void createProject(cutRopeGame, "cut-rope")} disabled={busyAction === "cut-rope"}>
+            {busyAction === "cut-rope" ? <Loader2 className="spin" size={18} aria-hidden /> : <Sparkles size={18} aria-hidden />}
+            Run Cut Rope Flow
+          </button>
+          <button className="secondary-button dark" type="button" onClick={() => void createProject(demoGame, "demo")} disabled={busyAction === "demo"}>
             {busyAction === "demo" ? <Loader2 className="spin" size={18} aria-hidden /> : <WandSparkles size={18} aria-hidden />}
             Run Demo Flow
           </button>
@@ -241,6 +416,10 @@ export function GameOsApp({
             artifactPreview={artifactPreview}
             busyAction={busyAction}
             onRegenerate={regenerateAgent}
+            onGenerateGodot={generateGodotAdapter}
+            onGenerateUnity={generateUnityAdapter}
+            onGenerateWeb={generateWebAdapter}
+            onUploadAssets={uploadAssets}
             onOpenArtifact={openArtifact}
           />
         ) : (
@@ -385,15 +564,32 @@ function StudioRoom({
   artifactPreview,
   busyAction,
   onRegenerate,
+  onGenerateGodot,
+  onGenerateUnity,
+  onGenerateWeb,
+  onUploadAssets,
   onOpenArtifact
 }: {
   workspace: ProjectWorkspace;
   artifactPreview: ArtifactPreview | null;
   busyAction: string;
   onRegenerate: (projectId: string, role: string) => Promise<void>;
+  onGenerateGodot: (projectId: string) => Promise<void>;
+  onGenerateUnity: (projectId: string) => Promise<void>;
+  onGenerateWeb: (projectId: string) => Promise<void>;
+  onUploadAssets: (projectId: string, file: File) => Promise<void>;
   onOpenArtifact: (projectId: string, artifact: ArtifactRecord) => Promise<void>;
 }) {
   const snapshot = createAcceptanceSnapshot(workspace);
+  const hasUnityLane = workspace.platformPlans.some((plan) => plan.platform === "Unity" && plan.status === "targeted");
+  const hasUnityAdapter = workspace.artifacts.some((artifact) => artifact.kind === "unity-adapter");
+  const hasGodotLane = workspace.platformPlans.some((plan) => plan.platform === "Godot" && plan.status === "targeted");
+  const hasGodotAdapter = workspace.artifacts.some((artifact) => artifact.kind === "godot-adapter");
+  const hasWebLane = workspace.platformPlans.some((plan) => plan.platform === "Web" && plan.status === "targeted");
+  const hasWebAdapter = workspace.artifacts.some((artifact) => artifact.kind === "web-adapter");
+  const unityBusy = busyAction === "unity-adapter";
+  const godotBusy = busyAction === "godot-adapter";
+  const webBusy = busyAction === "web-adapter";
 
   return (
     <section className="studio-room">
@@ -414,6 +610,38 @@ function StudioRoom({
           <Metric icon={<Gauge size={18} />} label="QA Watch" value={String(snapshot.watchCount)} />
           <Metric icon={<FileText size={18} />} label="Artifacts" value={String(workspace.artifacts.length)} />
         </div>
+
+        <AssetImportPanel workspace={workspace} busy={busyAction === "asset-upload"} onUpload={onUploadAssets} />
+
+        {hasUnityLane && (
+          <div className="adapter-actions">
+            <button className="secondary-button" type="button" onClick={() => void onGenerateUnity(workspace.project.id)} disabled={unityBusy}>
+              {unityBusy ? <Loader2 className="spin" size={18} aria-hidden /> : <Cpu size={18} aria-hidden />}
+              {hasUnityAdapter ? "Regenerate Unity Adapter" : "Generate Unity Adapter"}
+            </button>
+            <small>Creates a Unity project from rules, memory, QA, and asset artifacts.</small>
+          </div>
+        )}
+
+        {hasGodotLane && (
+          <div className="adapter-actions">
+            <button className="secondary-button" type="button" onClick={() => void onGenerateGodot(workspace.project.id)} disabled={godotBusy}>
+              {godotBusy ? <Loader2 className="spin" size={18} aria-hidden /> : <Cpu size={18} aria-hidden />}
+              {hasGodotAdapter ? "Regenerate Godot Adapter" : "Generate Godot Adapter"}
+            </button>
+            <small>Creates a Godot 4 project from rules, memory, QA, and asset artifacts.</small>
+          </div>
+        )}
+
+        {hasWebLane && (
+          <div className="adapter-actions">
+            <button className="secondary-button" type="button" onClick={() => void onGenerateWeb(workspace.project.id)} disabled={webBusy}>
+              {webBusy ? <Loader2 className="spin" size={18} aria-hidden /> : <Cpu size={18} aria-hidden />}
+              {hasWebAdapter ? "Regenerate Web Adapter" : "Generate Web Adapter"}
+            </button>
+            <small>Creates a standalone browser prototype for fast local playtesting.</small>
+          </div>
+        )}
       </section>
 
       <section className="content-grid">
@@ -446,6 +674,51 @@ function StudioRoom({
         <ArtifactBoard workspace={workspace} preview={artifactPreview} busyAction={busyAction} onOpenArtifact={onOpenArtifact} />
       </section>
     </section>
+  );
+}
+
+function AssetImportPanel({
+  workspace,
+  busy,
+  onUpload
+}: {
+  workspace: ProjectWorkspace;
+  busy: boolean;
+  onUpload: (projectId: string, file: File) => Promise<void>;
+}) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const latestImport = [...workspace.artifacts].reverse().find((artifact) => artifact.kind === "asset-import-report");
+
+  return (
+    <div className="asset-import-box">
+      <div>
+        <p className="eyebrow">Creator Asset Upload</p>
+        <strong>{latestImport ? "Asset pack judged" : "Import a Kenney pack"}</strong>
+        <small>{latestImport ? "Latest report is available in artifacts." : "Upload a .zip or image pack before generating asset-driven builds."}</small>
+      </div>
+      <form
+        className="asset-import-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (selectedFile) void onUpload(workspace.project.id, selectedFile);
+        }}
+      >
+        <label className="file-import-label">
+          <span>Asset Pack</span>
+          <input
+            data-testid="asset-upload-input"
+            name="assetArchive"
+            type="file"
+            accept=".zip,.png,.jpg,.jpeg,.webp,.svg"
+            onChange={(event) => setSelectedFile(event.currentTarget.files?.[0] ?? null)}
+          />
+        </label>
+        <button className="secondary-button" type="submit" disabled={busy || !selectedFile}>
+          {busy ? <Loader2 className="spin" size={18} aria-hidden /> : <Upload size={18} aria-hidden />}
+          Import Assets
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -525,7 +798,7 @@ function RoadmapPanel({ workspace }: { workspace: ProjectWorkspace }) {
         </div>
         <div>
           <strong>3. Prepare adapter after gates</strong>
-          <span>Unity/Godot lanes wait for accepted artifacts.</span>
+          <span>Web, Unity, and Godot lanes wait for accepted artifacts.</span>
         </div>
       </div>
       <div className="gate-strip">

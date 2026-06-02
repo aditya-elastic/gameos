@@ -1,9 +1,20 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabasesForTests } from "./db";
-import { createStudioProject, getStudioDashboard, regenerateAgent } from "./studio";
+import {
+  createStudioProject,
+  generateGodotAdapter,
+  generateUnityAdapter,
+  generateWebAdapter,
+  getStudioDashboard,
+  importProjectAssets,
+  recordUnityAdvancedPlaytest,
+  recordWebPlaytest,
+  regenerateAgent
+} from "./studio";
 
 let dataDir = "";
 
@@ -28,16 +39,188 @@ describe("studio workflow", () => {
     });
 
     expect(workspace.project.status).toBe("swarm-ready");
-    expect(workspace.agents).toHaveLength(8);
+    expect(workspace.agents.length).toBeGreaterThanOrEqual(13);
     expect(workspace.assetPlan.items.length).toBeGreaterThanOrEqual(4);
     expect(workspace.platformPlans.find((plan) => plan.platform === "Steam Test")?.status).toBe("targeted");
-    expect(workspace.qaGates).toHaveLength(5);
+    expect(workspace.qaGates.length).toBeGreaterThanOrEqual(7);
     expect(workspace.studioPlan).toContain("Steam as test readiness only");
-    expect(workspace.artifacts.length).toBeGreaterThanOrEqual(17);
+    expect(workspace.artifacts.length).toBeGreaterThanOrEqual(25);
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("playtest-script");
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("engine-adapter-brief");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("rules-spec");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("memory-map");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("storage-manifest");
     expect(fs.existsSync(path.join(dataDir, "game-os.sqlite"))).toBe(true);
     expect(workspace.artifacts.every((artifact) => fs.existsSync(artifact.path))).toBe(true);
+  });
+
+  it("creates board-game aware artifacts for Ludo", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      targetPlatforms: ["Web", "PC Test"],
+      enginePreference: "Engine-neutral first"
+    });
+
+    expect(workspace.project.genre).toBe("Board Game Strategy");
+    expect(workspace.brief.coreLoop.join(" ")).toContain("Roll the dice");
+    expect(workspace.assetPlan.items.map((item) => item.name)).toContain("Ludo Board");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("rules-systems-designer");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("memory-manager");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("storage-manager");
+    const rulesSpec = workspace.artifacts.find((artifact) => artifact.kind === "rules-spec");
+    expect(rulesSpec && fs.readFileSync(rulesSpec.path, "utf8")).toContain("classic digital Ludo baseline");
+  });
+
+  it("generates a Godot adapter scaffold for Ludo", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      targetPlatforms: ["Godot", "PC Test"],
+      enginePreference: "Godot first"
+    });
+
+    const updated = generateGodotAdapter(workspace.project.id);
+    const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "godot-adapter");
+    const godotRoot = path.join(dataDir, "projects", workspace.project.id, "godot");
+
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Godot Adapter");
+    expect(fs.existsSync(path.join(godotRoot, "project.godot"))).toBe(true);
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "ludo_rules.gd"), "utf8")).toContain("win_token_target");
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "adapter_smoke.gd"), "utf8")).toContain("GODOT_ADAPTER_SMOKE");
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "player_agent.gd"), "utf8")).toContain("WORTH_PLAYING_FOR_RULES_PROTOTYPE");
+
+    const regenerated = generateGodotAdapter(workspace.project.id);
+    const regeneratedArtifact = regenerated.artifacts.find((artifact) => artifact.kind === "godot-adapter");
+    expect(regeneratedArtifact?.id).toBe(adapterArtifact?.id);
+  });
+
+  it("generates a Unity adapter scaffold for Ludo", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      targetPlatforms: ["Unity", "PC Test"],
+      enginePreference: "Unity first"
+    });
+
+    const updated = generateUnityAdapter(workspace.project.id);
+    const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "unity-adapter");
+    const unityRoot = path.join(dataDir, "projects", workspace.project.id, "unity");
+
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Unity Adapter");
+    expect(fs.existsSync(path.join(unityRoot, "ProjectSettings", "ProjectVersion.txt"))).toBe(true);
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Scripts", "LudoRules.cs"), "utf8")).toContain("WinTokenTarget");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnitySmoke.cs"), "utf8")).toContain("UNITY_ADAPTER_SMOKE");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityPlayerAgent.cs"), "utf8")).toContain("WORTH_PLAYING_FOR_RULES_PROTOTYPE");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityAdvancedPlaytest.cs"), "utf8")).toContain(
+      "UNITY_ADVANCED_PLAYTEST_REPORT"
+    );
+
+    const regenerated = generateUnityAdapter(workspace.project.id);
+    const regeneratedArtifact = regenerated.artifacts.find((artifact) => artifact.kind === "unity-adapter");
+    expect(regeneratedArtifact?.id).toBe(adapterArtifact?.id);
+  });
+
+  it("records a Unity advanced-player playtest as an OS artifact", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      targetPlatforms: ["Unity", "PC Test"],
+      enginePreference: "Unity first"
+    });
+
+    generateUnityAdapter(workspace.project.id);
+    const updated = recordUnityAdvancedPlaytest(workspace.project.id, {
+      agent: "Advanced Player - Unity Table Strategist",
+      claim: "scene-aware advanced-player playtest",
+      matches: 12,
+      average_turns: 208.3,
+      captures: 129,
+      releases: 286,
+      homes: 43,
+      passes: 265,
+      timeouts: 0,
+      branching_decisions: 1849,
+      finish_choices: 43,
+      capture_choices: 129,
+      safe_choices: 284,
+      release_choices: 286,
+      scene_loaded: true,
+      controller_found: true,
+      verdict: "ADVANCED_PLAYER_APPROVED_UNITY_SLICE"
+    });
+    const artifact = updated.artifacts.find((item) => item.kind === "unity-playtest-report");
+
+    expect(artifact?.label).toBe("Unity Advanced Playtest");
+    expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("ADVANCED_PLAYER_APPROVED_UNITY_SLICE");
+    expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("Branching decisions: 1849");
+  });
+
+  it("generates and records the Web adapter lane for Ludo", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      targetPlatforms: ["Web", "PC Test"],
+      enginePreference: "Web first"
+    });
+
+    const updated = generateWebAdapter(workspace.project.id);
+    const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "web-adapter");
+    const webRoot = path.join(dataDir, "projects", workspace.project.id, "web");
+
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Web Adapter");
+    expect(fs.existsSync(path.join(webRoot, "index.html"))).toBe(true);
+    expect(fs.readFileSync(path.join(webRoot, "scripts", "ludo-rules.js"), "utf8")).toContain("simulateMatches");
+    expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("__gameOsWebAdapter");
+
+    const played = recordWebPlaytest(workspace.project.id, {
+      agent: "Advanced Web Player - Browser Table Strategist",
+      claim: "browser-playable web-channel player-agent simulation",
+      matches: 8,
+      average_turns: 205.2,
+      captures: 84,
+      releases: 180,
+      homes: 28,
+      passes: 160,
+      timeouts: 0,
+      branching_decisions: 1200,
+      finish_choices: 28,
+      capture_choices: 84,
+      safe_choices: 180,
+      release_choices: 180,
+      verdict: "WORTH_PLAYING_FOR_WEB_RULES_PROTOTYPE"
+    });
+    const reportArtifact = played.artifacts.find((artifact) => artifact.kind === "web-playtest-report");
+
+    expect(reportArtifact?.label).toBe("Web Player Agent Report");
+    expect(reportArtifact && fs.readFileSync(reportArtifact.path, "utf8")).toContain("WORTH_PLAYING_FOR_WEB_RULES_PROTOTYPE");
+  });
+
+  it("imports a Kenney-like asset pack and generates an asset-driven Cut Rope web build", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "A physics puzzle game called Cut The Rope where the player cuts a rope, drops candy into a hungry character, collects stars, and proves the uploaded Kenney asset pipeline.",
+      targetPlatforms: ["Web", "PC Test"],
+      enginePreference: "Web first",
+      genre: "Physics Puzzle"
+    });
+    const assetZip = createKenneyLikeZipFixture();
+
+    const imported = importProjectAssets(workspace.project.id, "kenney-cut-rope-fixture.zip", fs.readFileSync(assetZip));
+    const importReport = imported.artifacts.find((artifact) => artifact.kind === "asset-import-report");
+    const manifest = imported.artifacts.find((artifact) => artifact.kind === "asset-pack-manifest");
+
+    expect(importReport && fs.readFileSync(importReport.path, "utf8")).toContain("APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE");
+    expect(manifest && fs.readFileSync(manifest.path, "utf8")).toContain("candy-ball.png");
+
+    const updated = generateWebAdapter(workspace.project.id);
+    const webRoot = path.join(dataDir, "projects", workspace.project.id, "web");
+    const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "web-adapter");
+
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Cut Rope physics puzzle");
+    expect(fs.existsSync(path.join(webRoot, "index.html"))).toBe(true);
+    expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE");
+    expect(fs.readdirSync(path.join(webRoot, "assets")).length).toBeGreaterThanOrEqual(6);
   });
 
   it("regenerates one agent without losing the rest of the swarm", () => {
@@ -59,3 +242,19 @@ describe("studio workflow", () => {
     expect(getStudioDashboard()).toHaveLength(1);
   });
 });
+
+function createKenneyLikeZipFixture(): string {
+  const fixtureRoot = fs.mkdtempSync(path.join(dataDir, "kenney-fixture-"));
+  const imageBytes = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+    "base64"
+  );
+  const names = ["candy-ball.png", "star-gold.png", "monster-mouth.png", "wood-background.png", "button-ui.png", "peg-hook.png"];
+  for (const name of names) {
+    fs.writeFileSync(path.join(fixtureRoot, name), imageBytes);
+  }
+
+  const zipPath = path.join(dataDir, "kenney-cut-rope-fixture.zip");
+  execFileSync("zip", ["-qr", zipPath, "."], { cwd: fixtureRoot });
+  return zipPath;
+}

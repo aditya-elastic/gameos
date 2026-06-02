@@ -65,8 +65,10 @@ a {
 
 .topbar-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
-  min-width: 190px;
+  min-width: 330px;
 }
 
 .brand-block,
@@ -218,6 +220,61 @@ h3 {
 .command-panel {
   display: grid;
   gap: 18px;
+}
+
+.adapter-actions {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.adapter-actions small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.asset-import-box {
+  align-items: end;
+  background: #fbfcfc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.75fr);
+  padding: 14px;
+}
+
+.asset-import-box strong {
+  display: block;
+  line-height: 1.2;
+}
+
+.asset-import-box small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.35;
+  margin-top: 5px;
+}
+
+.asset-import-form {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.file-import-label {
+  display: grid;
+  gap: 7px;
+}
+
+.file-import-label span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .wide-panel {
@@ -726,7 +783,9 @@ button:disabled {
   .platform-row,
   .qa-row,
   .artifact-row,
-  .artifact-layout {
+  .artifact-layout,
+  .asset-import-box,
+  .asset-import-form {
     grid-template-columns: 1fr;
   }
 

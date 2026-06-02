@@ -41,7 +41,7 @@ describe("QA gates", () => {
     const workspace = {
       qaGates: gates,
       agents: []
-    } as ProjectWorkspace;
+    } as unknown as ProjectWorkspace;
 
     expect(workspaceAcceptanceResult(workspace)).toBe("blocked");
   });

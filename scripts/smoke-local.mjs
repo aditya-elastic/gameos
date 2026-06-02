@@ -32,11 +32,13 @@ async function main() {
   const project = createJson.project;
 
   assert(project.project.name, "project should have a name");
-  assert(project.agents.length === 8, `expected 8 agents, got ${project.agents.length}`);
-  assert(project.qaGates.length === 5, `expected 5 QA gates, got ${project.qaGates.length}`);
-  assert(project.artifacts.length >= 17, `expected at least 17 artifacts, got ${project.artifacts.length}`);
+  assert(project.agents.length >= 13, `expected at least 13 agents, got ${project.agents.length}`);
+  assert(project.qaGates.length >= 7, `expected at least 7 QA gates, got ${project.qaGates.length}`);
+  assert(project.artifacts.length >= 25, `expected at least 25 artifacts, got ${project.artifacts.length}`);
   assert(project.artifacts.some((artifact) => artifact.kind === "playtest-script"), "playtest script artifact missing");
   assert(project.artifacts.some((artifact) => artifact.kind === "engine-adapter-brief"), "engine adapter brief artifact missing");
+  assert(project.artifacts.some((artifact) => artifact.kind === "memory-map"), "memory map artifact missing");
+  assert(project.artifacts.some((artifact) => artifact.kind === "storage-manifest"), "storage manifest artifact missing");
 
   const regenerate = await fetch(`${baseUrl}/api/projects/${project.project.id}/agents/game-designer`, { method: "POST" });
   assert(regenerate.ok, `agent regenerate returned ${regenerate.status}`);

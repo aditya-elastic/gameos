@@ -16,7 +16,18 @@ export type ArtifactKind =
   | "production-roadmap"
   | "risk-register"
   | "playtest-script"
-  | "engine-adapter-brief";
+  | "engine-adapter-brief"
+  | "rules-spec"
+  | "memory-map"
+  | "storage-manifest"
+  | "test-matrix"
+  | "asset-import-report"
+  | "asset-pack-manifest"
+  | "godot-adapter"
+  | "unity-adapter"
+  | "unity-playtest-report"
+  | "web-adapter"
+  | "web-playtest-report";
 
 export interface CreateProjectInput {
   prompt: string;
@@ -96,6 +107,52 @@ export interface AssetPlan {
   visualStyle: string;
   items: AssetItem[];
   createdAt: string;
+}
+
+export type ImportedAssetKind = "image" | "audio" | "data" | "other";
+
+export type AssetRelevanceTag =
+  | "rope"
+  | "candy"
+  | "character"
+  | "collectible"
+  | "ui"
+  | "background"
+  | "hazard"
+  | "physics-piece";
+
+export type AssetImportVerdict =
+  | "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE"
+  | "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS"
+  | "WRONG_ASSET_PACK_FOR_CUT_ROPE";
+
+export interface ImportedAssetFile {
+  name: string;
+  relativePath: string;
+  absolutePath: string;
+  kind: ImportedAssetKind;
+  sizeBytes: number;
+  tags: AssetRelevanceTag[];
+  score: number;
+}
+
+export interface AssetImportManifest {
+  projectId: string;
+  sourceFileName: string;
+  storedArchivePath: string;
+  extractedRoot: string;
+  importedAt: string;
+  totalFiles: number;
+  files: ImportedAssetFile[];
+  imageCount: number;
+  audioCount: number;
+  dataCount: number;
+  otherCount: number;
+  relevantTags: AssetRelevanceTag[];
+  verdict: AssetImportVerdict;
+  confidence: number;
+  missingCategories: AssetRelevanceTag[];
+  notes: string[];
 }
 
 export interface PlatformPlan {
