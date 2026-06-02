@@ -15,6 +15,7 @@ Homebrew release target:
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
+brew install aditya-elastic/gameos/gameos@0.1.0
 ```
 
 ## 60-Second Quickstart

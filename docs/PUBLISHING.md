@@ -25,6 +25,7 @@ npm pack
 shasum -a 256 gameos-*.tgz
 brew tap aditya-elastic/gameos
 brew install gameos
+brew install aditya-elastic/gameos/gameos@0.1.0
 brew test gameos
 brew audit --strict gameos
 ```
