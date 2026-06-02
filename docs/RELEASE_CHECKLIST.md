@@ -21,11 +21,11 @@ GAME_OS_DATA_DIR="$(mktemp -d)" gameos make --prompt "A small Ludo game for crea
 
 ## npm Release
 
-- Publish from GitHub Actions using npm trusted publishing/provenance.
-- Public package release command:
+- Preferred: publish from GitHub Actions using npm trusted publishing/provenance.
+- Manual fallback release command:
 
 ```bash
-npm publish --provenance
+npm publish
 ```
 
 ## Homebrew Release
