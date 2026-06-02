@@ -8,7 +8,8 @@ class Gameos < Formula
   depends_on "node"
 
   def install
-    system "npm", "install", *std_npm_args(prefix)
+    system "npm", "install", *std_npm_args
+    bin.install_symlink libexec/"bin/gameos"
   end
 
   test do
