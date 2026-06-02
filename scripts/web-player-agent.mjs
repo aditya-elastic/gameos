@@ -22,6 +22,22 @@ try {
 
   console.log(`WEB_PLAYER_AGENT_REPORT: ${JSON.stringify(report)}`);
   await recordReport(report);
+  assert(report.visual_verdict === "VISUAL_GATE_PASS", `Visual gate failed: ${report.visual_verdict}`);
+  assert(report.physics_verdict === "PHYSICS_GATE_PASS", `Physics gate failed: ${report.physics_verdict}`);
+  assert(report.physics_model === "pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet", `Physics model is too shallow: ${report.physics_model}`);
+  assert(report.timing_skill_verdict === "TIMING_SKILL_PASS", `Timing skill gate failed: ${report.timing_skill_verdict}`);
+  assert(report.agency_verdict === "AGENCY_GATE_PASS", `Agency gate failed: ${report.agency_verdict}`);
+  assert(report.mastery_verdict === "MASTERY_GATE_PASS", `Mastery gate failed: ${report.mastery_verdict}`);
+  assert(report.slice_gesture_verdict === "SLICE_GESTURE_PASS", `Slice gesture gate failed: ${report.slice_gesture_verdict}`);
+  assert(report.slice_gesture_pass === true, "Smooth swipe slice proof failed.");
+  assert(report.smooth_mouse_verdict === "SMOOTH_MOUSE_BLADE_PASS", `Smooth mouse blade gate failed: ${report.smooth_mouse_verdict}`);
+  assert(report.smooth_mouse_pass === true, "Smooth mouse blade proof failed.");
+  assert(report.early_miss_verified === true, "Early miss proof failed.");
+  assert(report.late_miss_verified === true, "Late miss proof failed.");
+  assert(Array.isArray(report.timing_windows) && report.timing_windows.length > 0, "No timing window was proven.");
+  assert(report.input_verdict === "INPUT_GATE_PASS", `Input gate failed: ${report.input_verdict}`);
+  assert(report.asset_fit_verdict === "ASSET_FIT_PASS", `Asset-fit gate failed: ${report.asset_fit_verdict}`);
+  assert(report.reset_recut_pass === true, "Reset/recut gate failed.");
   assert(
     String(report.verdict || "").startsWith("WORTH_PLAYING"),
     "Web player agent verdict was not worth playing. Upgrade architecture before accepting this prototype."
@@ -71,8 +87,9 @@ async function startStaticServer(root) {
 async function recordReport(report) {
   const projectId = inferProjectId(projectRoot);
   if (!projectId) return;
+  if (!process.env.GAME_OS_BASE_URL) return;
 
-  const baseUrl = normalizeBaseUrl(process.env.GAME_OS_BASE_URL ?? "http://localhost:3000");
+  const baseUrl = normalizeBaseUrl(process.env.GAME_OS_BASE_URL);
   try {
     const response = await fetch(`${baseUrl}/api/projects/${projectId}/adapters/web/playtest`, {
       method: "POST",

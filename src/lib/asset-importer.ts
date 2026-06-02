@@ -6,6 +6,8 @@ import type {
   AssetImportManifest,
   AssetImportVerdict,
   AssetRelevanceTag,
+  AssetRole,
+  AssetRoleAssignment,
   ImportedAssetFile,
   ImportedAssetKind,
   ProjectWorkspace
@@ -75,8 +77,9 @@ function importAssetPackFromSource(workspace: ProjectWorkspace, input: ImportInp
   const otherCount = files.filter((file) => file.kind === "other").length;
   const relevantTags = [...new Set(files.flatMap((file) => file.tags))].sort((a, b) => CUT_ROPE_TAGS.indexOf(a) - CUT_ROPE_TAGS.indexOf(b));
   const missingCategories = CUT_ROPE_TAGS.filter((tag) => !relevantTags.includes(tag));
-  const verdict = scoreCutRopeVerdict(files, relevantTags);
-  const confidence = calculateConfidence(verdict, imageCount, relevantTags.length);
+  const roleAssignments = assignCutRopeAssetRoles(files);
+  const verdict = scoreCutRopeVerdict(files, relevantTags, roleAssignments);
+  const confidence = calculateConfidence(verdict, imageCount, relevantTags.length, roleAssignments);
   const manifest: AssetImportManifest = {
     projectId: workspace.project.id,
     sourceFileName: input.fileName || safeName,
@@ -93,7 +96,8 @@ function importAssetPackFromSource(workspace: ProjectWorkspace, input: ImportInp
     verdict,
     confidence,
     missingCategories,
-    notes: buildImportNotes(workspace, verdict, imageCount, relevantTags, missingCategories)
+    roleAssignments,
+    notes: buildImportNotes(workspace, verdict, imageCount, relevantTags, missingCategories, roleAssignments)
   };
 
   const manifestPath = getLatestAssetManifestPath(workspace.project.id);
@@ -134,15 +138,21 @@ export function selectAssetForTag(manifest: AssetImportManifest | null, tag: Ass
 export function selectCutRopeImageAssets(manifest: AssetImportManifest | null): ImportedAssetFile[] {
   if (!manifest) return [];
 
-  const selected = [
-    selectAssetForTag(manifest, "background"),
-    selectAssetForTag(manifest, "candy"),
-    selectAssetForTag(manifest, "character", 1),
-    selectAssetForTag(manifest, "collectible", 2),
-    selectAssetForTag(manifest, "ui", 3),
-    selectAssetForTag(manifest, "physics-piece", 4),
-    selectAssetForTag(manifest, "hazard", 5)
-  ].filter(Boolean) as ImportedAssetFile[];
+  const roleFiles = (manifest.roleAssignments ?? [])
+    .filter((assignment) => assignment.status === "accepted" && assignment.file)
+    .map((assignment) => assignment.file) as ImportedAssetFile[];
+  const selected =
+    roleFiles.length > 0
+      ? roleFiles
+      : ([
+          selectAssetForTag(manifest, "background"),
+          selectAssetForTag(manifest, "candy"),
+          selectAssetForTag(manifest, "character", 1),
+          selectAssetForTag(manifest, "collectible", 2),
+          selectAssetForTag(manifest, "ui", 3),
+          selectAssetForTag(manifest, "physics-piece", 4),
+          selectAssetForTag(manifest, "hazard", 5)
+        ].filter(Boolean) as ImportedAssetFile[]);
 
   const seen = new Set<string>();
   const unique = selected.filter((file) => {
@@ -156,6 +166,120 @@ export function selectCutRopeImageAssets(manifest: AssetImportManifest | null): 
     .slice(0, Math.max(0, 10 - unique.length));
 
   return [...unique, ...extra];
+}
+
+export function assignCutRopeAssetRoles(files: ImportedAssetFile[]): AssetRoleAssignment[] {
+  const images = files.filter((file) => file.kind === "image");
+  const used = new Set<string>();
+  const roleOrder: AssetRole[] = ["hero-object", "goal-character", "collectible", "background", "hazard", "ui"];
+  const assignments = roleOrder.map((role) => assignRole(role, images, used));
+
+  assignments.push({
+    role: "rope-connector",
+    status: "procedural-required",
+    confidence: 0.92,
+    reason: "Rope is generated as a procedural physics connector so a decorative line or UI asset cannot fake gameplay affordance."
+  });
+
+  return sortRoleAssignments(assignments);
+}
+
+export function roleAssignmentFor(manifest: AssetImportManifest | null, role: AssetRole): AssetRoleAssignment | null {
+  return (manifest?.roleAssignments ?? []).find((assignment) => assignment.role === role) ?? null;
+}
+
+function assignRole(role: AssetRole, images: ImportedAssetFile[], used: Set<string>): AssetRoleAssignment {
+  const scored = images
+    .filter((file) => !used.has(file.absolutePath))
+    .map((file) => ({ file, score: scoreRoleCandidate(file, role), rejection: rejectionReason(file, role) }))
+    .sort((a, b) => b.score - a.score || b.file.score - a.file.score || a.file.relativePath.localeCompare(b.file.relativePath));
+  const best = scored[0];
+
+  if (!best || best.score < roleThreshold(role)) {
+    return {
+      role,
+      status: role === "hazard" || role === "ui" || role === "background" ? "procedural-required" : "missing",
+      confidence: 0,
+      reason: roleMissingReason(role, best?.rejection)
+    };
+  }
+
+  used.add(best.file.absolutePath);
+  return {
+    role,
+    status: "accepted",
+    confidence: Number(Math.min(0.95, 0.5 + best.score / 140).toFixed(2)),
+    reason: roleAcceptanceReason(best.file, role),
+    file: best.file
+  };
+}
+
+function sortRoleAssignments(assignments: AssetRoleAssignment[]): AssetRoleAssignment[] {
+  const order: AssetRole[] = ["background", "hero-object", "goal-character", "rope-connector", "collectible", "hazard", "ui"];
+  return assignments.sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+}
+
+function scoreRoleCandidate(file: ImportedAssetFile, role: AssetRole): number {
+  const source = file.relativePath.toLowerCase().replace(/[_-]/g, " ");
+  const has = (pattern: RegExp) => pattern.test(source);
+  const hasTag = (tag: AssetRelevanceTag) => file.tags.includes(tag);
+  const uiPenalty = hasTag("ui") || has(/\b(button|icon|cursor|pointer|label|hud|panel|ui)\b/) ? 80 : 0;
+  const backgroundPenalty = hasTag("background") && role !== "background" ? 35 : 0;
+  const hazardPenalty = hasTag("hazard") && role !== "hazard" ? 35 : 0;
+
+  if (role === "hero-object") {
+    const direct = has(/\b(candy|sweet|treat|cookie|cake|fruit|apple|balloon|bubble)\b/) ? 100 : 0;
+    const roundButNotUi = has(/\b(ball|circle|round)\b/) && !has(/\b(button|icon|outline)\b/) ? 42 : 0;
+    return direct + roundButNotUi + (hasTag("candy") ? 34 : 0) - uiPenalty - backgroundPenalty - hazardPenalty;
+  }
+
+  if (role === "goal-character") {
+    return (has(/\b(monster|creature|alien|mouth|face|character|player|frog|animal|bear|bunny|cat|dog)\b/) ? 100 : 0) + (hasTag("character") ? 34 : 0) - uiPenalty;
+  }
+
+  if (role === "collectible") {
+    return (has(/\b(star|coin|gem|diamond|collect|bonus|medal)\b/) ? 100 : 0) + (hasTag("collectible") ? 34 : 0) - (hasTag("background") ? 12 : 0);
+  }
+
+  if (role === "background") {
+    return (has(/\b(background|bg|sky|field|forest|grass|tile|ground|wood|stone|brick|wall|platform)\b/) ? 78 : 0) + (hasTag("background") ? 30 : 0) - (hasTag("hazard") ? 45 : 0) - uiPenalty;
+  }
+
+  if (role === "hazard") {
+    return (has(/\b(spike|saw|laser|hazard|trap|thorn|fire)\b/) ? 88 : 0) + (hasTag("hazard") ? 30 : 0) - uiPenalty;
+  }
+
+  if (role === "ui") {
+    return (has(/\b(button|panel|ui|icon|cursor|pointer|label|hud)\b/) ? 86 : 0) + (hasTag("ui") ? 28 : 0);
+  }
+
+  return 0;
+}
+
+function roleThreshold(role: AssetRole): number {
+  if (role === "background") return 48;
+  if (role === "hazard" || role === "ui") return 60;
+  return 72;
+}
+
+function rejectionReason(file: ImportedAssetFile, role: AssetRole): string {
+  if (role === "hero-object" && file.tags.includes("ui")) return "Best candidate looked like UI, not the main physics object.";
+  if (role === "background" && file.tags.includes("hazard")) return "Best candidate looked like a hazard, not a mature background.";
+  return `No strong ${role} candidate found.`;
+}
+
+function roleMissingReason(role: AssetRole, rejection?: string): string {
+  if (role === "hero-object") return rejection ?? "Missing a candy/hero physics object; Game OS must use a documented procedural object and cannot approve asset fit.";
+  if (role === "goal-character") return "Missing a readable goal character or mouth target.";
+  if (role === "collectible") return "Missing a star/coin/gem collectible for mastery readability.";
+  if (role === "background") return "No mature background was selected; Web generator should use a polished procedural scene instead.";
+  if (role === "hazard") return "No clear hazard asset selected; hazards are optional for the first level.";
+  if (role === "ui") return "No clear UI skin selected; native Web UI may be used.";
+  return "Role is generated procedurally.";
+}
+
+function roleAcceptanceReason(file: ImportedAssetFile, role: AssetRole): string {
+  return `${file.relativePath} selected for ${role} because its filename/tags matched that gameplay role without conflicting with higher-priority roles.`;
 }
 
 function extractUpload(archivePath: string, extractRoot: string): void {
@@ -306,29 +430,31 @@ function preferredTagScore(file: ImportedAssetFile, tag: AssetRelevanceTag): num
   return preferences[tag].reduce((score, token, index) => (name.includes(token) ? score + 100 - index : score), 0);
 }
 
-function scoreCutRopeVerdict(files: ImportedAssetFile[], relevantTags: AssetRelevanceTag[]): AssetImportVerdict {
+function scoreCutRopeVerdict(files: ImportedAssetFile[], relevantTags: AssetRelevanceTag[], roleAssignments: AssetRoleAssignment[]): AssetImportVerdict {
   const imageCount = files.filter((file) => file.kind === "image").length;
-  const hasCoreObject = relevantTags.includes("candy") || relevantTags.includes("physics-piece");
-  const hasGoalOrReadableSkin = relevantTags.includes("character") || relevantTags.includes("ui") || imageCount >= 8;
-  const hasLevelDecor = relevantTags.includes("background") || relevantTags.includes("collectible") || relevantTags.includes("hazard");
+  const acceptedRoles = new Set(roleAssignments.filter((assignment) => assignment.status === "accepted").map((assignment) => assignment.role));
+  const hasCoreObject = acceptedRoles.has("hero-object");
+  const hasGoal = acceptedRoles.has("goal-character");
+  const hasMasteryOrDecor = acceptedRoles.has("collectible") || acceptedRoles.has("background");
 
-  if (imageCount >= 6 && relevantTags.length >= 3 && hasCoreObject && hasGoalOrReadableSkin && hasLevelDecor) {
+  if (imageCount >= 6 && relevantTags.length >= 3 && hasCoreObject && hasGoal && hasMasteryOrDecor) {
     return "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE";
   }
 
-  if (imageCount >= 3 && (relevantTags.length >= 2 || hasCoreObject)) {
+  if (imageCount >= 3 && (hasGoal || hasCoreObject || acceptedRoles.has("collectible"))) {
     return "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS";
   }
 
   return "WRONG_ASSET_PACK_FOR_CUT_ROPE";
 }
 
-function calculateConfidence(verdict: AssetImportVerdict, imageCount: number, tagCount: number): number {
+function calculateConfidence(verdict: AssetImportVerdict, imageCount: number, tagCount: number, roleAssignments: AssetRoleAssignment[]): number {
   const verdictBase =
     verdict === "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE" ? 0.78 : verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS" ? 0.52 : 0.22;
   const imageBoost = Math.min(0.12, imageCount * 0.01);
   const tagBoost = Math.min(0.1, tagCount * 0.018);
-  return Number(Math.min(0.95, verdictBase + imageBoost + tagBoost).toFixed(2));
+  const roleBoost = Math.min(0.14, roleAssignments.filter((assignment) => assignment.status === "accepted").length * 0.025);
+  return Number(Math.min(0.95, verdictBase + imageBoost + tagBoost + roleBoost).toFixed(2));
 }
 
 function buildImportNotes(
@@ -336,18 +462,20 @@ function buildImportNotes(
   verdict: AssetImportVerdict,
   imageCount: number,
   relevantTags: AssetRelevanceTag[],
-  missingCategories: AssetRelevanceTag[]
+  missingCategories: AssetRelevanceTag[],
+  roleAssignments: AssetRoleAssignment[]
 ): string[] {
   const notes = [
     `${imageCount} image asset(s) are available for the web prototype skin.`,
     `Detected Cut-the-Rope-relevant tags: ${relevantTags.length > 0 ? relevantTags.join(", ") : "none"}.`,
-    `Missing categories: ${missingCategories.slice(0, 5).join(", ") || "none"}.`
+    `Missing categories: ${missingCategories.slice(0, 5).join(", ") || "none"}.`,
+    `Accepted asset roles: ${roleAssignments.filter((assignment) => assignment.status === "accepted").map((assignment) => assignment.role).join(", ") || "none"}.`
   ];
 
   if (verdict === "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE") {
     notes.push("Asset pack passes the V1 gate for a local Cut-the-Rope-style web prototype.");
   } else if (verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") {
-    notes.push("Game OS can build a playable slice, but procedural rope/goal/readability helpers must cover missing categories.");
+    notes.push("Game OS can build a playable slice, but procedural helpers must cover missing or rejected gameplay roles and QA cannot call asset fit perfect.");
   } else {
     notes.push("Game OS should not treat this as a correct Cut-the-Rope pack without creator review.");
   }
@@ -382,6 +510,11 @@ function renderAssetImportReport(workspace: ProjectWorkspace, manifest: AssetImp
     `- Tags found: ${manifest.relevantTags.length > 0 ? manifest.relevantTags.join(", ") : "none"}`,
     `- Missing categories: ${manifest.missingCategories.join(", ") || "none"}`,
     "",
+    "## Gameplay Role Mapping",
+    ...manifest.roleAssignments.map((assignment) =>
+      `- ${assignment.role}: ${assignment.status} (${Math.round(assignment.confidence * 100)}%)${assignment.file ? ` -> ${assignment.file.relativePath}` : ""} | ${assignment.reason}`
+    ),
+    "",
     "## Selected Image Candidates",
     ...(topAssets.length > 0
       ? topAssets.map((file) => `- ${file.relativePath} | tags: ${file.tags.join(", ") || "uncategorized"} | score: ${file.score}`)
@@ -412,11 +545,5 @@ function safeExtractName(entry: string, index: number, extension: string): strin
 
 function moveOrCopyFile(source: string, destination: string): void {
   if (path.resolve(source) === path.resolve(destination)) return;
-
-  try {
-    fs.renameSync(source, destination);
-  } catch {
-    fs.copyFileSync(source, destination);
-    fs.rmSync(source, { force: true });
-  }
+  fs.copyFileSync(source, destination);
 }

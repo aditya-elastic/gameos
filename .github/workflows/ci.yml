@@ -25,6 +25,9 @@ jobs:
         run: npm ci
       - name: Check
         run: npm run check
+      - name: Homebrew formula audit
+        if: matrix.os == 'macos-latest'
+        run: npm run homebrew:audit
       - name: Package smoke
         run: |
           npm pack

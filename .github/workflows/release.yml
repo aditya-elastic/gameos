@@ -25,5 +25,26 @@ jobs:
         run: npm ci
       - name: Check
         run: npm run check
+      - name: Verify version is not already published
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "gameos@$VERSION" version >/dev/null 2>&1; then
+            echo "gameos@$VERSION is already published. Bump package.json before releasing."
+            exit 1
+          fi
+      - name: Package smoke
+        run: |
+          npm pack
+          npm install -g ./gameos-*.tgz
+          gameos --version
+          gameos doctor --json
       - name: Publish
-        run: npm publish --provenance
+        run: npm publish
+      - name: Homebrew update instructions
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TARBALL_URL="$(npm view "gameos@$VERSION" dist.tarball)"
+          SHA256="$(curl -L "$TARBALL_URL" | shasum -a 256 | awk '{print $1}')"
+          echo "Update Formula/gameos.rb in the tap after npm publish:"
+          echo "  url \"$TARBALL_URL\""
+          echo "  sha256 \"$SHA256\""

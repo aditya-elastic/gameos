@@ -7,6 +7,13 @@ import type { ProjectWorkspace } from "../lib/types";
 declare global {
   var __gameOsWebAdapter: {
     smoke: () => { ok: boolean; kind?: string; [key: string]: unknown };
+    getState?: () => Record<string, unknown>;
+    getRopeForQa?: () => { a: { x: number; y: number }; b: { x: number; y: number } };
+    getCanvasForQa?: () => { width: number; height: number };
+    cutRope?: (source?: string) => boolean;
+    swipeRopeForQa?: () => Record<string, unknown>;
+    freeMoveRopeForQa?: () => Record<string, unknown>;
+    reset?: () => boolean;
     runPlayerAgent: (options: { matches: number; seed: number }) => Record<string, unknown>;
   };
 }
@@ -42,7 +49,8 @@ export async function runWebQa(projectId: string, options: WebQaOptions): Promis
       indexHtml: true,
       gameScript: path.relative(projectRoot, scriptPath),
       runtimeHook: script.includes("__gameOsWebAdapter"),
-      readyMarker: html.includes("data-game-os-web")
+      readyMarker: html.includes("data-game-os-web"),
+      watermarkMarkup: html.includes("Made with GameOS")
     }
   };
 
@@ -75,25 +83,186 @@ async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<
     await page.locator('[data-game-os-web="ready"]').waitFor({ state: "visible", timeout: 5000 });
     const smoke = await page.evaluate(() => globalThis.__gameOsWebAdapter.smoke());
     if (!smoke.ok) throw new Error("Web adapter runtime did not report ready.");
+    if (smoke.kind === "cut-rope" && !smoke.watermark) throw new Error("GameOS watermark was missing from the Web build.");
+    const screenshotPath = smoke.kind === "cut-rope" ? path.join(projectRoot, "qa", "cut-rope-visual-qa.png") : "";
+    if (screenshotPath) {
+      fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+    }
+    const interaction = smoke.kind === "cut-rope" ? await verifyCutRopeBrowserInteraction(page) : {};
     const playerReport = await page.evaluate(() => globalThis.__gameOsWebAdapter.runPlayerAgent({ matches: 8, seed: 20260601 }));
+    const interactionScreenshotPath = smoke.kind === "cut-rope" ? path.join(projectRoot, "qa", "cut-rope-interaction-qa.png") : "";
+    if (interactionScreenshotPath) await page.screenshot({ path: interactionScreenshotPath, fullPage: true });
     const { recordWebPlaytest } = await import("../lib/studio");
-    const workspace = recordWebPlaytest(projectId, playerReport);
+    const workspace = recordWebPlaytest(projectId, {
+      ...playerReport,
+      browser_interaction: interaction,
+      visual_screenshot: screenshotPath ? path.relative(projectRoot, screenshotPath) : undefined
+    });
     const report = {
       kind: String(playerReport.kind || smoke.kind || "web"),
       verdict: String(playerReport.verdict || "unknown"),
       projectRoot,
-      details: playerReport as Record<string, unknown>
+      details: {
+        smoke,
+        interaction,
+        screenshot: screenshotPath ? path.relative(projectRoot, screenshotPath) : null,
+        interactionScreenshot: interactionScreenshotPath ? path.relative(projectRoot, interactionScreenshotPath) : null,
+        ...(playerReport as Record<string, unknown>)
+      }
     };
-
-    if (!report.verdict.startsWith("WORTH_PLAYING")) {
-      throw new Error(`Web player agent verdict was ${report.verdict}. Upgrade architecture before accepting this prototype.`);
-    }
 
     return { workspace, report };
   } finally {
     await browser.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+}
+
+async function verifyCutRopeBrowserInteraction(page: import("playwright-core").Page): Promise<Record<string, unknown>> {
+  const firstSwipe = await performMouseSwipeCut(page);
+  const afterCut = firstSwipe.after;
+
+  await page.locator("#reset-button").click();
+  await page.waitForTimeout(120);
+  const afterReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+
+  await page.waitForTimeout(340);
+  const afterResetSettled = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+
+  const smoothMouseBlade = await performMouseBladeCut(page);
+  const afterSmoothMouseBlade = smoothMouseBlade.after;
+
+  await page.locator("#reset-button").click();
+  await page.waitForTimeout(340);
+  const afterBladeResetSettled = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+
+  const secondSwipe = await performMouseSwipeCut(page);
+  const afterRecut = secondSwipe.after;
+
+  const firstCutPass = firstSwipe.pass && afterCut.ropeCut === true && afterCut.status === "falling";
+  const resetSafePass = afterReset.ropeCut === false && afterReset.status === "ready";
+  const noAutoCutPass = afterResetSettled.ropeCut === false && afterResetSettled.status === "ready";
+  const smoothMousePass = smoothMouseBlade.pass && afterSmoothMouseBlade.ropeCut === true && afterSmoothMouseBlade.status === "falling";
+  const bladeResetSafePass = afterBladeResetSettled.ropeCut === false && afterBladeResetSettled.status === "ready";
+  const recutPass = secondSwipe.pass && afterRecut.ropeCut === true && afterRecut.status === "falling";
+
+  if (!firstCutPass || !resetSafePass || !noAutoCutPass || !smoothMousePass || !bladeResetSafePass || !recutPass) {
+    throw new Error(
+      `Cut Rope browser interaction failed: firstCut=${firstCutPass}, resetSafe=${resetSafePass}, noAutoCut=${noAutoCutPass}, smoothMouse=${smoothMousePass}, bladeResetSafe=${bladeResetSafePass}, recut=${recutPass}.`
+    );
+  }
+
+  return {
+    firstCutPass,
+    resetSafePass,
+    noAutoCutPass,
+    smoothMousePass,
+    bladeResetSafePass,
+    recutPass,
+    firstSwipe,
+    smoothMouseBlade,
+    secondSwipe,
+    afterCut,
+    afterReset,
+    afterResetSettled,
+    afterSmoothMouseBlade,
+    afterBladeResetSettled,
+    afterRecut
+  };
+}
+
+async function performMouseSwipeCut(page: import("playwright-core").Page): Promise<Record<string, unknown> & { pass: boolean; after: Record<string, unknown> }> {
+  const target = await page.evaluate(() => ({
+    rope: globalThis.__gameOsWebAdapter.getRopeForQa?.(),
+    canvas: globalThis.__gameOsWebAdapter.getCanvasForQa?.()
+  }));
+  const box = await page.locator("#game-canvas").boundingBox();
+  if (!box || !target.rope || !target.canvas) {
+    throw new Error("Cut Rope mouse swipe QA could not read canvas or rope geometry.");
+  }
+  const rope = target.rope;
+  const canvasSize = target.canvas;
+
+  const mid = {
+    x: (rope.a.x + rope.b.x) / 2,
+    y: (rope.a.y + rope.b.y) / 2
+  };
+  const dx = rope.b.x - rope.a.x;
+  const dy = rope.b.y - rope.a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const normal = { x: -dy / length, y: dx / length };
+  const start = { x: mid.x + normal.x * 96, y: mid.y + normal.y * 96 };
+  const end = { x: mid.x - normal.x * 96, y: mid.y - normal.y * 96 };
+  const toScreen = (point: { x: number; y: number }) => ({
+    x: box.x + (point.x / canvasSize.width) * box.width,
+    y: box.y + (point.y / canvasSize.height) * box.height
+  });
+  const screenStart = toScreen(start);
+  const screenEnd = toScreen(end);
+
+  await page.mouse.move(screenStart.x, screenStart.y);
+  await page.mouse.down();
+  for (let step = 1; step <= 8; step += 1) {
+    const t = step / 8;
+    await page.mouse.move(screenStart.x + (screenEnd.x - screenStart.x) * t, screenStart.y + (screenEnd.y - screenStart.y) * t);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+
+  const after = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+  return {
+    pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
+    rope,
+    start,
+    end,
+    after
+  };
+}
+
+async function performMouseBladeCut(page: import("playwright-core").Page): Promise<Record<string, unknown> & { pass: boolean; after: Record<string, unknown> }> {
+  const target = await page.evaluate(() => ({
+    rope: globalThis.__gameOsWebAdapter.getRopeForQa?.(),
+    canvas: globalThis.__gameOsWebAdapter.getCanvasForQa?.()
+  }));
+  const box = await page.locator("#game-canvas").boundingBox();
+  if (!box || !target.rope || !target.canvas) {
+    throw new Error("Cut Rope smooth mouse blade QA could not read canvas or rope geometry.");
+  }
+  const rope = target.rope;
+  const canvasSize = target.canvas;
+  const mid = {
+    x: (rope.a.x + rope.b.x) / 2,
+    y: (rope.a.y + rope.b.y) / 2
+  };
+  const dx = rope.b.x - rope.a.x;
+  const dy = rope.b.y - rope.a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const normal = { x: -dy / length, y: dx / length };
+  const start = { x: mid.x + normal.x * 104, y: mid.y + normal.y * 104 };
+  const end = { x: mid.x - normal.x * 104, y: mid.y - normal.y * 104 };
+  const toScreen = (point: { x: number; y: number }) => ({
+    x: box.x + (point.x / canvasSize.width) * box.width,
+    y: box.y + (point.y / canvasSize.height) * box.height
+  });
+  const screenStart = toScreen(start);
+  const screenEnd = toScreen(end);
+
+  await page.mouse.move(screenStart.x, screenStart.y);
+  for (let step = 1; step <= 10; step += 1) {
+    const t = step / 10;
+    await page.mouse.move(screenStart.x + (screenEnd.x - screenStart.x) * t, screenStart.y + (screenEnd.y - screenStart.y) * t);
+  }
+  await page.waitForTimeout(180);
+
+  const after = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
+  return {
+    pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
+    rope,
+    start,
+    end,
+    after
+  };
 }
 
 function assertWebBuild(projectRoot: string): void {

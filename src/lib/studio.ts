@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { writeArtifact, writeWorkspaceArtifacts } from "./artifacts";
+import { readArtifactContent, writeArtifact, writeWorkspaceArtifacts } from "./artifacts";
 import { loadAgentDefinitions, getAgentDefinition } from "./agent-registry";
 import { generateAgentRun, composeStudioPlan } from "./agents";
 import { importStoredAssetPack, importUploadedAssetPack, type AssetImportResult } from "./asset-importer";
@@ -9,6 +9,7 @@ import { generateGodotProject } from "./godot-adapter";
 import { createGameBrief, makeProjectFromInput, normalizeCreateProjectInput } from "./intake";
 import { createPlatformPlans } from "./platforms";
 import { createQAGates, workspaceAcceptanceResult } from "./qa";
+import { generateStudioScorecard, renderStudioScorecardMarkdown, type StudioScorecard } from "./scorecard";
 import type { ArtifactKind, CreateProjectInput, ProjectWorkspace } from "./types";
 import { generateUnityProject } from "./unity-adapter";
 import { generateWebProject } from "./web-adapter";
@@ -39,6 +40,30 @@ type WebPlaytestReport = {
   kind?: string;
   assets_used?: number;
   asset_gate?: string;
+  visual_verdict?: string;
+  physics_verdict?: string;
+  physics_model?: string;
+  timing_skill_verdict?: string;
+  agency_verdict?: string;
+  mastery_verdict?: string;
+  input_verdict?: string;
+  slice_gesture_verdict?: string;
+  slice_gesture_pass?: boolean;
+  smooth_mouse_verdict?: string;
+  smooth_mouse_pass?: boolean;
+  asset_fit_verdict?: string;
+  reset_recut_pass?: boolean;
+  role_assignments?: unknown;
+  browser_interaction?: unknown;
+  visual_screenshot?: string;
+  trials?: number;
+  best_cut_frame?: number | null;
+  best_cut_angle?: number | null;
+  best_stars?: number;
+  best_bumper_contacts?: number;
+  timing_windows?: unknown;
+  early_miss_verified?: boolean;
+  late_miss_verified?: boolean;
   completions?: number;
   stars_collected?: number;
   average_seconds?: number;
@@ -108,7 +133,8 @@ export function regenerateAgent(projectId: string, role: string): ProjectWorkspa
   const regenerated = generateAgentRun(definition, workspace.project, workspace.brief, {
     assetPlan: workspace.assetPlan,
     platformPlans: workspace.platformPlans,
-    runNumber
+    runNumber,
+    feedbackNotes: readRecentFeedbackNotes(workspace)
   });
   const artifact = writeArtifact(
     projectId,
@@ -268,6 +294,87 @@ export function recordWebPlaytest(projectId: string, report: WebPlaytestReport):
   return updatedWorkspace;
 }
 
+export function recordUserFeedback(projectId: string, note: string): ProjectWorkspace {
+  const workspace = getStudioProject(projectId);
+  if (!workspace) {
+    throw new Error(`Project not found: ${projectId}`);
+  }
+
+  const trimmed = note.trim();
+  if (trimmed.length < 8) {
+    throw new Error("Feedback note is too short. Add a concrete issue or desired change.");
+  }
+
+  const now = new Date().toISOString();
+  const safeTime = now.replace(/[:.]/g, "-");
+  const artifact = writeArtifact(
+    projectId,
+    "user-feedback",
+    "Creator Feedback",
+    `feedback/creator-feedback-${safeTime}.md`,
+    [
+      `# ${workspace.project.name} Creator Feedback`,
+      "",
+      `Recorded at: ${now}`,
+      "",
+      "## Note",
+      trimmed,
+      "",
+      "## Routing",
+      "- Studio Director: decide whether this changes the go/no-go.",
+      "- Visual Quality Director: inspect screenshot/readability complaints.",
+      "- Physics Gameplay Engineer: inspect reset, input, collision, and dynamics complaints.",
+      "- Asset Pipeline Director: inspect asset role-fit complaints.",
+      "- Advanced Player: rerun only after blockers are addressed."
+    ].join("\n")
+  );
+  addArtifact(artifact);
+
+  const updatedWorkspace = getWorkspace(projectId);
+  if (!updatedWorkspace) {
+    throw new Error(`Project disappeared after feedback recording: ${projectId}`);
+  }
+
+  return updatedWorkspace;
+}
+
+export function createStudioReview(projectId: string): { workspace: ProjectWorkspace; scorecard: StudioScorecard } {
+  const workspace = getStudioProject(projectId);
+  if (!workspace) {
+    throw new Error(`Project not found: ${projectId}`);
+  }
+
+  const scorecard = generateStudioScorecard(workspace);
+  const artifact = writeArtifact(
+    projectId,
+    "studio-scorecard",
+    "10/10 Studio Scorecard",
+    "studio-scorecard.md",
+    renderStudioScorecardMarkdown(scorecard)
+  );
+  addArtifact(artifact);
+
+  const reviewedWorkspace = getWorkspace(projectId);
+  if (!reviewedWorkspace) {
+    throw new Error(`Project disappeared after studio review: ${projectId}`);
+  }
+
+  saveWorkspace({
+    ...reviewedWorkspace,
+    qaGates: reviewedWorkspace.qaGates.map((gate) => ({
+      ...gate,
+      result: scorecard.verdict.startsWith("10_OUT_OF_10") ? "pass" : gate.name === "10/10 Studio Quality Gate" ? "blocked" : gate.result
+    }))
+  });
+
+  const updatedWorkspace = getWorkspace(projectId);
+  if (!updatedWorkspace) {
+    throw new Error(`Project disappeared after studio review: ${projectId}`);
+  }
+
+  return { workspace: updatedWorkspace, scorecard };
+}
+
 export function createAcceptanceSnapshot(workspace: ProjectWorkspace): {
   result: ReturnType<typeof workspaceAcceptanceResult>;
   passCount: number;
@@ -313,7 +420,8 @@ function ensureWorkspaceComplete(workspace: ProjectWorkspace): ProjectWorkspace 
             generateAgentRun(definition, workspace.project, workspace.brief, {
               assetPlan: workspace.assetPlan,
               platformPlans: workspace.platformPlans,
-              runNumber: 1
+              runNumber: 1,
+              feedbackNotes: readRecentFeedbackNotes(workspace)
             })
           )
         ]
@@ -350,8 +458,40 @@ function recordAssetImportArtifacts(projectId: string, result: AssetImportResult
     "asset-pack-manifest.json",
     `${JSON.stringify(result.manifest, null, 2)}\n`
   );
+  const previewArtifact = writeArtifact(
+    projectId,
+    "asset-preview-manifest",
+    "Asset Preview Manifest",
+    "asset-preview-manifest.json",
+    `${JSON.stringify(
+      {
+        projectId,
+        sourceFileName: result.manifest.sourceFileName,
+        verdict: result.manifest.verdict,
+        confidence: result.manifest.confidence,
+        roleAssignments: result.manifest.roleAssignments.map((assignment) => ({
+          role: assignment.role,
+          status: assignment.status,
+          confidence: assignment.confidence,
+          selectedFile: assignment.file?.relativePath ?? null,
+          tags: assignment.file?.tags ?? [],
+          reason: assignment.reason
+        })),
+        selectedFiles: result.manifest.roleAssignments
+          .filter((assignment) => assignment.file)
+          .map((assignment) => ({
+            role: assignment.role,
+            file: assignment.file?.relativePath,
+            reason: assignment.reason
+          }))
+      },
+      null,
+      2
+    )}\n`
+  );
   addArtifact(reportArtifact);
   addArtifact(manifestArtifact);
+  addArtifact(previewArtifact);
 }
 
 function renderUnityAdvancedPlaytestMarkdown(workspace: ProjectWorkspace, report: UnityAdvancedPlaytestReport): string {
@@ -398,15 +538,36 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
       "",
       "## Asset And Puzzle Metrics",
       `- Asset gate: ${report.asset_gate ?? "unknown"}`,
+      `- Asset fit verdict: ${report.asset_fit_verdict ?? "unknown"}`,
+      `- Visual verdict: ${report.visual_verdict ?? "unknown"}`,
+      `- Physics model: ${report.physics_model ?? "unknown"}`,
+      `- Physics verdict: ${report.physics_verdict ?? "unknown"}`,
+      `- Timing skill verdict: ${report.timing_skill_verdict ?? "unknown"}`,
+      `- Agency verdict: ${report.agency_verdict ?? "unknown"}`,
+      `- Mastery verdict: ${report.mastery_verdict ?? "unknown"}`,
+      `- Input verdict: ${report.input_verdict ?? "unknown"}`,
+      `- Slice gesture verdict: ${report.slice_gesture_verdict ?? "unknown"}`,
+      `- Slice gesture pass: ${String(Boolean(report.slice_gesture_pass))}`,
+      `- Smooth mouse verdict: ${report.smooth_mouse_verdict ?? "unknown"}`,
+      `- Smooth mouse pass: ${String(Boolean(report.smooth_mouse_pass))}`,
+      `- Reset/recut pass: ${String(Boolean(report.reset_recut_pass))}`,
+      `- Visual screenshot: ${report.visual_screenshot ?? "not captured"}`,
       `- Assets used: ${report.assets_used ?? 0}`,
       `- Matches: ${report.matches ?? 0}`,
+      `- Timing trials: ${report.trials ?? 0}`,
       `- Completions: ${report.completions ?? 0}`,
+      `- Best cut frame: ${report.best_cut_frame ?? "none"}`,
+      `- Best cut angle: ${report.best_cut_angle ?? "none"}`,
+      `- Best stars: ${report.best_stars ?? 0}`,
+      `- Best bumper contacts: ${report.best_bumper_contacts ?? 0}`,
+      `- Early miss verified: ${String(Boolean(report.early_miss_verified))}`,
+      `- Late miss verified: ${String(Boolean(report.late_miss_verified))}`,
       `- Stars collected: ${report.stars_collected ?? 0}`,
       `- Average seconds: ${report.average_seconds ?? 0}`,
       `- Timeouts: ${report.timeouts ?? 0}`,
       "",
       "## Architecture Decision",
-      "The Web lane is promoted as the fastest asset-pipeline proof channel when uploaded assets are copied into the build, the canvas loop renders, and the physics-puzzle player agent approves the level. Unity and Godot should inherit this only after asset relevance, storage, and QA reports are present."
+      "The Web lane is promoted only when uploaded assets are role-fit, the screenshot is coherent, reset/recut is reliable, physics is readable, and the Advanced Player approves the level. Unity and Godot should inherit this only after asset relevance, storage, and QA reports are present."
     ].join("\n");
   }
 
@@ -435,4 +596,20 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
     "## Architecture Decision",
     "The Web lane is promoted as the fastest local creator-playtest channel when the static prototype renders in a browser and the player agent approves rules pacing. Hosting, accounts, real-time multiplayer, and public publishing remain behind later adapter gates."
   ].join("\n");
+}
+
+function readRecentFeedbackNotes(workspace: ProjectWorkspace): string[] {
+  return workspace.artifacts
+    .filter((artifact) => artifact.kind === "user-feedback")
+    .slice(-3)
+    .map((artifact) => {
+      try {
+        const content = readArtifactContent(artifact.path);
+        const noteSection = content.split("## Note")[1]?.split("## Routing")[0]?.trim();
+        return noteSection || content.split("\n").filter(Boolean).slice(0, 4).join(" ");
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean);
 }

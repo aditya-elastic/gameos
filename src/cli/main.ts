@@ -6,7 +6,17 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readArtifactContent, toProjectRelativeArtifactPath } from "../lib/artifacts";
 import type { ArtifactRecord, CreateProjectInput, ProjectWorkspace } from "../lib/types";
-import { artifactSelector, printResult, renderArtifactList, renderProjectStatus, renderWorkspaceSummary, summarizeArtifactContent } from "./output";
+import {
+  artifactSelector,
+  printResult,
+  recommendNextCommand,
+  renderArtifactList,
+  renderJourney,
+  renderProjectStatus,
+  renderScorecardSummary,
+  renderWorkspaceSummary,
+  summarizeArtifactContent
+} from "./output";
 import { parseMakeTarget, parseQuality, type QualityLevel } from "./quality";
 import { runWebQa } from "./web-qa";
 
@@ -24,7 +34,7 @@ type CliOptions = {
   dataDir?: string;
 };
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const DEFAULT_DATA_DIR = path.join(os.homedir(), ".gameos");
 
 process.on("warning", (warning) => {
@@ -60,6 +70,12 @@ export async function runCli(argv: string[]): Promise<void> {
       return listProjects(parsed, options);
     case "status":
       return projectStatus(parsed, options);
+    case "journey":
+      return journey(parsed, options);
+    case "review":
+      return review(parsed, options);
+    case "feedback":
+      return feedback(parsed, options);
     case "agents":
       return agents(parsed, options, subcommand);
     case "assets":
@@ -107,7 +123,7 @@ export function parseArgv(argv: string[]): ParsedArgv {
   return { command, flags, positionals };
 }
 
-const valueFlags = new Set(["prompt", "platform", "engine", "genre", "audience", "target", "quality", "data-dir", "output", "name"]);
+const valueFlags = new Set(["prompt", "platform", "engine", "genre", "audience", "target", "quality", "data-dir", "output", "name", "assets", "note"]);
 
 function commandArity(command: string[], token: string): number {
   if (command.length === 0) return 1;
@@ -156,10 +172,16 @@ async function createProject(parsed: ParsedArgv, options: CliOptions): Promise<v
 }
 
 async function makeProject(parsed: ParsedArgv, options: CliOptions): Promise<void> {
-  const { createStudioProject, generateWebAdapter } = await import("../lib/studio");
+  const { createStudioProject, generateWebAdapter, importProjectAssetsFromStoredFile } = await import("../lib/studio");
   parseMakeTarget(firstFlag(parsed, "target"));
   const quality = parseQuality(firstFlag(parsed, "quality"));
-  const workspace = createStudioProject(projectInputFromFlags(parsed, true));
+  let workspace = createStudioProject(projectInputFromFlags(parsed, true));
+  const rawAssetPath = firstFlag(parsed, "assets");
+  const assetPath = rawAssetPath ? path.resolve(rawAssetPath) : "";
+  if (assetPath) {
+    if (!fs.existsSync(assetPath)) throw new Error(`Asset file not found: ${assetPath}`);
+    workspace = importProjectAssetsFromStoredFile(workspace.project.id, path.basename(assetPath), assetPath);
+  }
   const built = generateWebAdapter(workspace.project.id);
   const browser = quality !== "fast" && !hasFlag(parsed, "static");
   const qaResult = await runWebQa(built.project.id, { browser });
@@ -167,18 +189,21 @@ async function makeProject(parsed: ParsedArgv, options: CliOptions): Promise<voi
   const payload = {
     project: projectPayload(qaResult.workspace),
     quality,
+    assets: assetPath || null,
     qa: qaResult.report
   };
   const text = [
     renderWorkspaceSummary(qaResult.workspace),
     "",
     `Autopilot: ${quality}`,
+    `Asset import: ${assetPath || "none"}`,
     `Web build: ${qaResult.report.projectRoot}`,
     `QA verdict: ${qaResult.report.verdict}`,
-    `Next: gameos status ${qaResult.workspace.project.id}`
+    `Next: ${recommendNextCommand(qaResult.workspace)}`
   ].join("\n");
 
   printResult(options, payload, text);
+  if (browser && !qaResult.report.verdict.startsWith("WORTH_PLAYING")) process.exitCode = 1;
 }
 
 async function listProjects(_parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -193,6 +218,37 @@ async function listProjects(_parsed: ParsedArgv, options: CliOptions): Promise<v
 async function projectStatus(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const workspace = await requireProject(parsed.positionals[0]);
   printResult(options, projectPayload(workspace), renderProjectStatus(workspace));
+}
+
+async function journey(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const workspace = await requireProject(parsed.positionals[0]);
+  printResult(options, { project: projectPayload(workspace), journey: renderJourney(workspace) }, renderJourney(workspace));
+}
+
+async function review(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const { createStudioReview } = await import("../lib/studio");
+  const projectId = parsed.positionals[0];
+  if (!projectId) throw new Error("Usage: gameos review <project-id>");
+  const result = createStudioReview(projectId);
+  printResult(
+    options,
+    { project: projectPayload(result.workspace), scorecard: result.scorecard },
+    renderScorecardSummary(result.scorecard)
+  );
+  if (!result.scorecard.verdict.startsWith("10_OUT_OF_10")) process.exitCode = 1;
+}
+
+async function feedback(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const { recordUserFeedback } = await import("../lib/studio");
+  const projectId = parsed.positionals[0];
+  const note = firstFlag(parsed, "note") || parsed.positionals.slice(1).join(" ");
+  if (!projectId || !note) throw new Error('Usage: gameos feedback <project-id> --note "what got stuck or should improve"');
+  const workspace = recordUserFeedback(projectId, note);
+  printResult(
+    options,
+    projectPayload(workspace),
+    [`Feedback recorded for ${workspace.project.name}.`, `Next: gameos agents rerun ${workspace.project.id} visual-quality-director`].join("\n")
+  );
 }
 
 async function agents(parsed: ParsedArgv, options: CliOptions, subcommand?: string): Promise<void> {
@@ -254,6 +310,7 @@ async function qa(parsed: ParsedArgv, options: CliOptions, lane?: string): Promi
       { project: projectPayload(result.workspace), qa: result.report },
       [`QA verdict: ${result.report.verdict}`, `Project: ${result.workspace.project.id}`, `Next: gameos status ${result.workspace.project.id}`].join("\n")
     );
+    if (!hasFlag(parsed, "static") && !result.report.verdict.startsWith("WORTH_PLAYING")) process.exitCode = 1;
     return;
   }
 
@@ -417,9 +474,12 @@ Game OS CLI
 Usage:
   gameos doctor [--json]
   gameos create --prompt "..." --platform Web
-  gameos make --prompt "..." --target web-playable --quality fast|standard|strict
+  gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
   gameos list
   gameos status <project-id>
+  gameos journey <project-id>
+  gameos review <project-id>
+  gameos feedback <project-id> --note "what got stuck or should improve"
   gameos agents run <project-id>
   gameos agents rerun <project-id> <role>
   gameos assets import <project-id> ./assets.zip

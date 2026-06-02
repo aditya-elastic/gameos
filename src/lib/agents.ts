@@ -8,19 +8,21 @@ export function generateAgentRun(
   context: {
     assetPlan?: AssetPlan;
     platformPlans?: PlatformPlan[];
+    feedbackNotes?: string[];
     runNumber?: number;
   } = {}
 ): AgentRun {
   const runNumber = context.runNumber ?? 1;
-  const output = renderAgentOutput(definition, project, brief, context.assetPlan, context.platformPlans, runNumber);
+  const output = renderAgentOutput(definition, project, brief, context.assetPlan, context.platformPlans, runNumber, context.feedbackNotes);
   const blockers = inferBlockers(definition.role, project, context.platformPlans);
+  const feedbackInput = context.feedbackNotes?.length ? `\n\nRecent creator feedback:\n${context.feedbackNotes.map((note) => `- ${note}`).join("\n")}` : "";
 
   return {
     id: randomUUID(),
     projectId: project.id,
     role: definition.role,
     title: definition.title,
-    input: project.prompt,
+    input: `${project.prompt}${feedbackInput}`,
     output,
     status: blockers.length > 2 ? "blocked" : "complete",
     artifacts: [],
@@ -105,7 +107,8 @@ function renderAgentOutput(
   brief: GameBrief,
   assetPlan?: AssetPlan,
   platformPlans?: PlatformPlan[],
-  runNumber = 1
+  runNumber = 1,
+  feedbackNotes: string[] = []
 ): string {
   const relevantSkills = deriveStyleSkills(project);
   const platforms = platformPlans?.filter((plan) => plan.status === "targeted").map((plan) => plan.platform) ?? project.targetPlatforms;
@@ -117,6 +120,7 @@ function renderAgentOutput(
     `Mission: ${definition.mission}`,
     `Project: ${project.name}`,
     `Relevant skills: ${[...definition.skills, ...relevantSkills].join(", ")}`,
+    feedbackNotes.length ? `Recent creator feedback: ${feedbackNotes.slice(-3).join(" | ")}` : "Recent creator feedback: none",
     ""
   ].join("\n");
 
@@ -154,6 +158,19 @@ function renderAgentOutput(
     ].join("\n")}`;
   }
 
+  if (definition.role === "gameplay-developer") {
+    return `${commonHeader}${[
+      "## Implementation Slice Contract",
+      "- Implement only the smallest playable loop that proves the approved design.",
+      "- Keep runtime state explicit: setup, ready, input, resolve, success/fail, reset.",
+      "- Use adapter code as generated implementation, but keep Game OS artifacts as the source of truth.",
+      "- Treat controls, collision, reset, save/resume, and watermark as implementation requirements, not polish extras.",
+      "",
+      "## Code Review Gate",
+      "No playable build is accepted unless the implementation can be tested by the QA Director and challenged by the Advanced Player."
+    ].join("\n")}`;
+  }
+
   if (definition.role === "technical-architect") {
     return `${commonHeader}${[
       "## Architecture",
@@ -166,6 +183,19 @@ function renderAgentOutput(
       "",
       "## Runtime Risks",
       ...brief.risks.map((risk) => `- ${risk}`)
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "ux-flow-director") {
+    return `${commonHeader}${[
+      "## Creator Journey Doctrine",
+      "- One command should create a project, import assets when provided, build Web, run QA, and print the next best command.",
+      "- Status and journey output must name exact blockers instead of asking users to inspect raw files.",
+      "- Artifact reads are summarized by default; large outputs require --full.",
+      "- Feedback must become durable context for the next agent regeneration.",
+      "",
+      "## Blocker Rule",
+      "If a creator cannot tell what is ready, risky, missing, and next from the CLI, the OS flow is not release-quality."
     ].join("\n")}`;
   }
 
@@ -211,12 +241,69 @@ function renderAgentOutput(
     ].join("\n")}`;
   }
 
+  if (definition.role === "asset-pipeline-director") {
+    return `${commonHeader}${[
+      "## Asset Intake Doctrine",
+      "- Classify uploaded assets by gameplay role before any adapter consumes them.",
+      "- Reject UI buttons, icons, hazards, or backgrounds when they are mistakenly selected as hero physics objects.",
+      "- Preserve the source archive and write a preview manifest listing selected files and reasons.",
+      "",
+      "## Promotion Rule",
+      "A build can be playable with procedural helpers, but it cannot be called asset-fit approved unless hero object, goal character, and collectible roles are selected intentionally."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "visual-quality-director") {
+    return `${commonHeader}${[
+      "## Visual Quality Doctrine",
+      "- Use one focused play surface with a compact HUD; no scattered explanatory text over the playfield.",
+      "- Prefer mature procedural composition when imported backgrounds are weak, noisy, or role-incompatible.",
+      "- Ensure the uploaded assets appear as intentional gameplay actors, not decorative leftovers.",
+      "",
+      "## Blocker Rule",
+      "Do not promote a Web prototype as worth playing when the screenshot would look confusing, childish by accident, or visually incoherent at first glance."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "game-feel-director") {
+    return `${commonHeader}${[
+      "## Game Feel Doctrine",
+      "- The first interaction must feel intentional, responsive, and readable without debug text.",
+      "- A failed attempt should teach the player what to try next.",
+      "- Reset must be fast enough that retrying feels natural.",
+      "- Controls, timing windows, visual feedback, and short-session pacing must be judged together.",
+      "",
+      "## No-Go Rule",
+      "A prototype that only passes scripted completion but feels stiff, confusing, ugly, or unrewarding is not worth-playing."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "physics-gameplay-engineer") {
+    return `${commonHeader}${[
+      "## Physics Slice Doctrine",
+      "- Keep the first level deterministic enough for QA while preserving readable swing, gravity, projectile arc, collision, and retry feel.",
+      "- Do not use hidden goal attraction, forced win paths, or scripted completion to fake physics.",
+      "- Prove a timing window: early and late cuts should miss, while a skilled cut should win.",
+      "- For cut/slice games, pointer, mouse, and touch gestures must feel like a smooth blade: forgiving, visible, buffered across recent movement, and tested separately from button fallbacks.",
+      "- Include at least one meaningful redirect, bumper, obstacle, or trajectory decision when the game fantasy depends on physics.",
+      "- Reset must recreate physics state, clear stale input, and debounce the next pointer/click event.",
+      "- Cutting, missing, winning, resetting, and recutting are separate acceptance checks.",
+      "",
+      "## Blocker Rule",
+      "A technically rendered canvas is not playable unless timing changes the outcome and the loop can be cut, reset, and replayed without accidental state carryover."
+    ].join("\n")}`;
+  }
+
   if (definition.role === "advanced-player") {
     return `${commonHeader}${[
       "## Stress Test",
       "- Can a skilled player express mastery in under 60 seconds?",
       "- Can a viewer understand why a run failed without reading debug text?",
       "- Is there a meaningful risk-reward choice in every short session?",
+      "- Does the game look coherent, use assets correctly, reset reliably, and prove its physics loop?",
+      "- Does the primary control feel natural under smooth mouse/touch movement, including a blade-like pass across the rope, not only through a UI button or scripted cut?",
+      "- Do early, careless, and late actions fail while a timed action succeeds?",
+      "- Would a real player improve on a second or third try, or is the game merely an animation?",
       "",
       "## Retention Bet",
       project.targetAudience.toLowerCase().includes("youtube")
@@ -267,6 +354,20 @@ function renderAgentOutput(
     ].join("\n")}`;
   }
 
+  if (definition.role === "security-privacy-reviewer") {
+    return `${commonHeader}${[
+      "## Security And Privacy Doctrine",
+      "- V1 remains local-first: no telemetry, accounts, hidden cloud calls, or automatic publishing.",
+      "- Generated projects, caches, uploaded archives, and local data must stay out of the npm package.",
+      "- Asset archives must be copied into project storage intentionally and referenced through manifests.",
+      "- Destructive, expensive, or heavy engine work must require explicit flags.",
+      "- Package publish readiness requires license, security policy, audit, and clean package contents.",
+      "",
+      "## Blocker Rule",
+      "Do not call Game OS production-ready if user data movement, package contents, or dependency risk is unclear."
+    ].join("\n")}`;
+  }
+
   if (definition.role === "prototype-producer") {
     return `${commonHeader}${[
       "## Prototype Slice",
@@ -298,24 +399,49 @@ function renderAgentOutput(
     return `${commonHeader}${[
       "## Swarm Order",
       "- Studio Director locks intent.",
-      "- Game Designer and Rules Systems Designer define play and state.",
+      "- Game Designer, Gameplay Developer, Rules Systems Designer, UX Flow Director, and Game Feel Director define play, implementation shape, user journey, and first-minute feel.",
       "- Technical Architect, Memory Manager, and Storage Manager define implementation boundaries.",
-      "- Art Director and QA Director set acceptance gates.",
-      "- Platform Producer, Prototype Producer, and Build Sentinel sequence execution.",
+      "- Art Director, Asset Pipeline Director, Visual Quality Director, Physics Gameplay Engineer, QA Director, and Security Privacy Reviewer set acceptance gates.",
+      "- Platform Producer, Prototype Producer, Build Sentinel, and Open Source Release Engineer sequence execution and release hygiene.",
       "",
       "## Regeneration Rule",
       "Regenerate the narrowest agent that owns the uncertainty, then re-read memory and QA artifacts before implementation."
     ].join("\n")}`;
   }
 
+  if (definition.role === "build-sentinel") {
+    return `${commonHeader}${[
+      "## Build Rule",
+      "- Only one heavy engine/build lane may run at a time.",
+      "- Record process status before and after every heavy command.",
+      "- Keep generated project artifacts separate from local caches and build output.",
+      "",
+      "## Future Commands",
+      "Unity, Godot, Xcode, SteamCMD, and headed QA commands must be serialized behind this role."
+    ].join("\n")}`;
+  }
+
+  if (definition.role === "open-source-release-engineer") {
+    return `${commonHeader}${[
+      "## Open Source Release Doctrine",
+      "- npm package contents must include only dist, docs, agent definitions, README, license, changelog, security policy, and code of conduct.",
+      "- Generated projects, .next output, local data, tmp files, and plugin packages stay out of the publish path.",
+      "- Release checks must include tests, CLI build, CLI smoke, package dry-run, audit, and install smoke.",
+      "- Homebrew readiness must pin npm tarball version and sha256 before public tap submission.",
+      "",
+      "## Go-Live Rule",
+      "A release is not user-ready unless installation, one-command Web generation, QA verdicts, docs, and uninstall/data behavior are documented and tested."
+    ].join("\n")}`;
+  }
+
   return `${commonHeader}${[
     "## Build Rule",
-    "- Only one heavy engine/build lane may run at a time.",
-    "- Record process status before and after every heavy command.",
-    "- Keep generated project artifacts separate from local caches and build output.",
+    "- Follow the Studio Director's scope lock.",
+    "- Write evidence as artifacts.",
+    "- Route blockers to the narrowest owning agent.",
     "",
     "## Future Commands",
-    "Unity, Godot, Xcode, SteamCMD, and headed QA commands must be serialized behind this role."
+    "Regenerate this agent after creator feedback or new QA evidence."
   ].join("\n")}`;
 }
 

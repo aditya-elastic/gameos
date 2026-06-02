@@ -6,11 +6,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabasesForTests } from "./db";
 import {
   createStudioProject,
+  createStudioReview,
   generateGodotAdapter,
   generateUnityAdapter,
   generateWebAdapter,
   getStudioDashboard,
   importProjectAssets,
+  recordUserFeedback,
   recordUnityAdvancedPlaytest,
   recordWebPlaytest,
   regenerateAgent
@@ -39,12 +41,12 @@ describe("studio workflow", () => {
     });
 
     expect(workspace.project.status).toBe("swarm-ready");
-    expect(workspace.agents.length).toBeGreaterThanOrEqual(13);
+    expect(workspace.agents.length).toBeGreaterThanOrEqual(21);
     expect(workspace.assetPlan.items.length).toBeGreaterThanOrEqual(4);
     expect(workspace.platformPlans.find((plan) => plan.platform === "Steam Test")?.status).toBe("targeted");
-    expect(workspace.qaGates.length).toBeGreaterThanOrEqual(7);
+    expect(workspace.qaGates.length).toBeGreaterThanOrEqual(8);
     expect(workspace.studioPlan).toContain("Steam as test readiness only");
-    expect(workspace.artifacts.length).toBeGreaterThanOrEqual(25);
+    expect(workspace.artifacts.length).toBeGreaterThanOrEqual(30);
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("playtest-script");
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("engine-adapter-brief");
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("rules-spec");
@@ -68,6 +70,14 @@ describe("studio workflow", () => {
     expect(workspace.agents.map((agent) => agent.role)).toContain("rules-systems-designer");
     expect(workspace.agents.map((agent) => agent.role)).toContain("memory-manager");
     expect(workspace.agents.map((agent) => agent.role)).toContain("storage-manager");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("asset-pipeline-director");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("visual-quality-director");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("physics-gameplay-engineer");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("gameplay-developer");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("ux-flow-director");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("game-feel-director");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("security-privacy-reviewer");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("open-source-release-engineer");
     const rulesSpec = workspace.artifacts.find((artifact) => artifact.kind === "rules-spec");
     expect(rulesSpec && fs.readFileSync(rulesSpec.path, "utf8")).toContain("classic digital Ludo baseline");
   });
@@ -194,6 +204,13 @@ describe("studio workflow", () => {
 
     expect(reportArtifact?.label).toBe("Web Player Agent Report");
     expect(reportArtifact && fs.readFileSync(reportArtifact.path, "utf8")).toContain("WORTH_PLAYING_FOR_WEB_RULES_PROTOTYPE");
+
+    const reviewed = createStudioReview(workspace.project.id);
+    const scorecardArtifact = reviewed.workspace.artifacts.find((artifact) => artifact.kind === "studio-scorecard");
+    expect(reviewed.scorecard.overallScore).toBe(10);
+    expect(reviewed.scorecard.verdict).toBe("10_OUT_OF_10_READY_FOR_LOCAL_USERS");
+    expect(scorecardArtifact?.label).toBe("10/10 Studio Scorecard");
+    expect(scorecardArtifact && fs.readFileSync(scorecardArtifact.path, "utf8")).toContain("Open Source Release Readiness");
   });
 
   it("imports a Kenney-like asset pack and generates an asset-driven Cut Rope web build", () => {
@@ -209,9 +226,11 @@ describe("studio workflow", () => {
     const imported = importProjectAssets(workspace.project.id, "kenney-cut-rope-fixture.zip", fs.readFileSync(assetZip));
     const importReport = imported.artifacts.find((artifact) => artifact.kind === "asset-import-report");
     const manifest = imported.artifacts.find((artifact) => artifact.kind === "asset-pack-manifest");
+    const preview = imported.artifacts.find((artifact) => artifact.kind === "asset-preview-manifest");
 
     expect(importReport && fs.readFileSync(importReport.path, "utf8")).toContain("APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE");
     expect(manifest && fs.readFileSync(manifest.path, "utf8")).toContain("candy-ball.png");
+    expect(preview && fs.readFileSync(preview.path, "utf8")).toContain('"role": "hero-object"');
 
     const updated = generateWebAdapter(workspace.project.id);
     const webRoot = path.join(dataDir, "projects", workspace.project.id, "web");
@@ -240,6 +259,25 @@ describe("studio workflow", () => {
     expect(afterDesigner?.runNumber).toBe((beforeDesigner?.runNumber ?? 0) + 1);
     expect(updated.agents.find((agent) => agent.role === "studio-director")?.runNumber).toBe(1);
     expect(getStudioDashboard()).toHaveLength(1);
+  });
+
+  it("records creator feedback and routes it into regenerated agents", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "A rope cut physics puzzle for web players where the first prototype must use uploaded assets, clean reset behavior, and mature visual composition.",
+      targetPlatforms: ["Web"],
+      enginePreference: "Web first"
+    });
+    const note = "reset auto-cuts, background ugly, and uploaded assets are not role-fit";
+
+    const feedbackWorkspace = recordUserFeedback(workspace.project.id, note);
+    const feedbackArtifact = feedbackWorkspace.artifacts.find((artifact) => artifact.kind === "user-feedback");
+    const updated = regenerateAgent(workspace.project.id, "visual-quality-director");
+    const agent = updated.agents.find((run) => run.role === "visual-quality-director");
+
+    expect(feedbackArtifact && fs.readFileSync(feedbackArtifact.path, "utf8")).toContain(note);
+    expect(agent?.input).toContain(note);
+    expect(agent?.output).toContain(note);
   });
 });
 

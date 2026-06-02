@@ -21,8 +21,11 @@ export type ArtifactKind =
   | "memory-map"
   | "storage-manifest"
   | "test-matrix"
+  | "studio-scorecard"
   | "asset-import-report"
   | "asset-pack-manifest"
+  | "asset-preview-manifest"
+  | "user-feedback"
   | "godot-adapter"
   | "unity-adapter"
   | "unity-playtest-report"
@@ -126,6 +129,17 @@ export type AssetImportVerdict =
   | "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS"
   | "WRONG_ASSET_PACK_FOR_CUT_ROPE";
 
+export type AssetRole =
+  | "background"
+  | "hero-object"
+  | "goal-character"
+  | "rope-connector"
+  | "collectible"
+  | "hazard"
+  | "ui";
+
+export type AssetRoleStatus = "accepted" | "procedural-required" | "missing" | "rejected";
+
 export interface ImportedAssetFile {
   name: string;
   relativePath: string;
@@ -134,6 +148,14 @@ export interface ImportedAssetFile {
   sizeBytes: number;
   tags: AssetRelevanceTag[];
   score: number;
+}
+
+export interface AssetRoleAssignment {
+  role: AssetRole;
+  status: AssetRoleStatus;
+  confidence: number;
+  reason: string;
+  file?: ImportedAssetFile;
 }
 
 export interface AssetImportManifest {
@@ -152,6 +174,7 @@ export interface AssetImportManifest {
   verdict: AssetImportVerdict;
   confidence: number;
   missingCategories: AssetRelevanceTag[];
+  roleAssignments: AssetRoleAssignment[];
   notes: string[];
 }
 

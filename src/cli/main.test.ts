@@ -19,6 +19,21 @@ describe("gameos cli parser", () => {
     expect(parsed.flags.get("full")).toEqual(["true"]);
   });
 
+  it("parses make assets and feedback notes", () => {
+    const make = parseArgv(["make", "--prompt", "A rope cut physics puzzle for web players", "--target", "web-playable", "--assets", "./assets.zip"]);
+    const feedback = parseArgv(["feedback", "game_123", "--note", "reset auto-cuts and asset roles are wrong"]);
+    const review = parseArgv(["review", "game_123", "--json"]);
+
+    expect(make.command).toEqual(["make"]);
+    expect(make.flags.get("assets")).toEqual(["./assets.zip"]);
+    expect(feedback.command).toEqual(["feedback"]);
+    expect(feedback.positionals).toEqual(["game_123"]);
+    expect(feedback.flags.get("note")).toEqual(["reset auto-cuts and asset roles are wrong"]);
+    expect(review.command).toEqual(["review"]);
+    expect(review.positionals).toEqual(["game_123"]);
+    expect(review.flags.get("json")).toEqual(["true"]);
+  });
+
   it("validates quality and target values", () => {
     expect(parseQuality("fast")).toBe("fast");
     expect(parseQuality(undefined)).toBe("standard");

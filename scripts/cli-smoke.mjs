@@ -25,6 +25,9 @@ try {
   run(["status", projectId, "--json"]);
   run(["artifact", "list", projectId, "--json"]);
   run(["artifact", "read", projectId, "game-bible", "--json"]);
+  const review = runExpectFailure(["review", projectId, "--json"]);
+  const reviewPayload = JSON.parse(review.stdout);
+  assert(reviewPayload.scorecard.verdict !== "10_OUT_OF_10_READY_FOR_LOCAL_USERS", "fast/static smoke review must not claim 10/10.");
   console.log(JSON.stringify({ ok: true, projectId, dataDir }, null, 2));
 } finally {
   fs.rmSync(dataDir, { recursive: true, force: true });
@@ -40,4 +43,22 @@ function run(args) {
       NODE_OPTIONS: "--disable-warning=ExperimentalWarning"
     }
   });
+}
+
+function runExpectFailure(args) {
+  try {
+    const stdout = run(args);
+    throw new Error(`Expected command to fail but it passed: ${args.join(" ")}\n${stdout}`);
+  } catch (error) {
+    if (!error || typeof error !== "object" || !("status" in error)) throw error;
+    if (error.status === 0) throw error;
+    return {
+      stdout: String(error.stdout || ""),
+      stderr: String(error.stderr || "")
+    };
+  }
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
 }

@@ -12,10 +12,22 @@
     "skills": ["core loop design", "difficulty rhythm", "controls", "progression"]
   },
   {
+    "role": "gameplay-developer",
+    "title": "Gameplay Developer",
+    "mission": "Translate approved design, rules, assets, controls, and QA gates into small playable implementation slices with clear runtime contracts.",
+    "skills": ["playable slice implementation", "runtime state contracts", "input loops", "prototype code review", "adapter handoff"]
+  },
+  {
     "role": "technical-architect",
     "title": "Technical Architect",
     "mission": "Choose engine constraints, repo shape, data flow, runtime risks, and prototype boundaries.",
     "skills": ["engine-neutral architecture", "runtime constraints", "build planning", "systems decomposition"]
+  },
+  {
+    "role": "ux-flow-director",
+    "title": "UX Flow Director",
+    "mission": "Own the creator journey through CLI commands, status, blockers, artifact summaries, feedback loops, and first-run ergonomics.",
+    "skills": ["CLI user journey", "blocker clarity", "status design", "artifact summaries", "feedback routing"]
   },
   {
     "role": "rules-systems-designer",
@@ -30,10 +42,34 @@
     "skills": ["visual language", "ComfyUI prompts", "Stable Diffusion planning", "asset promotion gates"]
   },
   {
+    "role": "asset-pipeline-director",
+    "title": "Asset Pipeline Director",
+    "mission": "Classify uploaded assets by gameplay role, reject wrong-role selections, preserve source provenance, and decide whether placeholders are allowed.",
+    "skills": ["asset role mapping", "source provenance", "wrong-asset rejection", "preview manifests", "asset-fit gates"]
+  },
+  {
+    "role": "visual-quality-director",
+    "title": "Visual Quality Director",
+    "mission": "Judge screenshot maturity, UI hierarchy, playfield composition, asset coherence, and whether the first playable looks worth testing.",
+    "skills": ["visual QA", "layout hierarchy", "screenshot critique", "readability gates", "polish triage"]
+  },
+  {
+    "role": "game-feel-director",
+    "title": "Game Feel Director",
+    "mission": "Judge controls, feedback, timing, failure readability, retry motivation, juice, pacing, and whether the first minute feels professionally playable.",
+    "skills": ["control feel", "feedback loops", "pacing critique", "retry motivation", "first-minute polish", "juice triage"]
+  },
+  {
+    "role": "physics-gameplay-engineer",
+    "title": "Physics Gameplay Engineer",
+    "mission": "Own readable physics dynamics, swing or force models, player timing windows, smooth blade-like mouse/touch input, input state machines, reset safety, collision proof, and retry reliability for physics-led prototypes.",
+    "skills": ["physics dynamics", "pendulum and projectile feel", "timing-window tuning", "smooth blade controls", "mouse/touch gesture buffers", "input state machines", "reset debouncing", "collision gates", "replayable slices"]
+  },
+  {
     "role": "advanced-player",
     "title": "Advanced Player",
-    "mission": "Stress-test fun, difficulty, mastery, retention, spectator clarity, and exploit risk.",
-    "skills": ["skill ceiling", "retention pressure", "spectator readability", "edge-case play"]
+    "mission": "Stress-test fun, timing agency, smooth blade controls, difficulty, mastery, retention, spectator clarity, exploit risk, and whether a prototype deserves a worth-playing verdict.",
+    "skills": ["skill ceiling", "timing agency", "smooth mouse/touch blade feel", "retention pressure", "spectator readability", "edge-case play", "shallow-play rejection"]
   },
   {
     "role": "qa-director",
@@ -52,6 +88,12 @@
     "title": "Storage Manager",
     "mission": "Own SQLite records, file-backed artifacts, exportability, integrity checks, and local data hygiene.",
     "skills": ["SQLite storage", "artifact manifests", "backup planning", "integrity checks", "local-first data safety"]
+  },
+  {
+    "role": "security-privacy-reviewer",
+    "title": "Security Privacy Reviewer",
+    "mission": "Verify local-first privacy, no telemetry, no hidden cloud calls, package boundaries, dependency risk, archive handling, and user data hygiene.",
+    "skills": ["privacy review", "supply-chain hygiene", "local data safety", "archive handling", "package boundary audit", "no-telemetry gates"]
   },
   {
     "role": "prototype-producer",
@@ -76,5 +118,11 @@
     "title": "Build Sentinel",
     "mission": "Serialize heavy builds, protect local processes, and record build artifacts when engine lanes arrive.",
     "skills": ["process hygiene", "build serialization", "artifact capture", "machine safety"]
+  },
+  {
+    "role": "open-source-release-engineer",
+    "title": "Open Source Release Engineer",
+    "mission": "Own npm/Homebrew readiness, package contents, install smoke tests, docs, changelog, license, security policy, and publish provenance.",
+    "skills": ["npm package readiness", "Homebrew formula readiness", "release checks", "docs completeness", "license hygiene", "provenance planning"]
   }
 ]

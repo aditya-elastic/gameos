@@ -31,9 +31,16 @@ try {
   assert(smoke.ok, "Web adapter runtime did not report ready.");
   if (smoke.kind === "ludo") {
     assert(smoke.cells === 52, `Expected 52 track cells, got ${smoke.cells}.`);
+    assert(smoke.watermark === true, "Ludo Web build is missing the visible GameOS watermark.");
   } else if (smoke.kind === "cut-rope") {
     assert(smoke.canvasWidth >= 900 && smoke.canvasHeight >= 580, "Cut Rope canvas did not initialize at playable size.");
     assert(smoke.assetsUsed > 0, "Cut Rope build did not copy any imported image assets.");
+    assert(smoke.watermark === true, "Cut Rope build is missing the visible GameOS watermark.");
+    assert(["VISUAL_GATE_PASS", "VISUAL_GATE_REVIEW"].includes(smoke.visualGate), `Cut Rope visual gate is not acceptable for smoke: ${smoke.visualGate}.`);
+    assert(smoke.physicsModel === "pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet", `Cut Rope physics model is too shallow: ${smoke.physicsModel}.`);
+    assert(smoke.hasTimingArc === true && smoke.hasPrediction === true, "Cut Rope build lacks timing/prediction playability helpers.");
+    assert(smoke.hasSwipeSlice === true, "Cut Rope build lacks smooth swipe slicing support.");
+    assert(smoke.hasSmoothMouseBlade === true, "Cut Rope build lacks smooth mouse blade support.");
   } else {
     throw new Error(`Unknown Web prototype kind: ${smoke.kind || "missing"}.`);
   }
@@ -43,8 +50,29 @@ try {
     await page.locator("#save-button").click();
     await page.locator("#load-button").click();
   } else {
-    await page.locator("#cut-button").click();
+    const swipeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.swipeRopeForQa());
+    assert(swipeProof.pass === true, "Cut Rope swipe gesture did not cut the rope.");
+    const afterCut = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterCut.ropeCut === true && afterCut.status === "falling" && afterCut.sliceGestureCut === true, "Cut Rope swipe did not cut into falling state.");
     await page.locator("#reset-button").click();
+    await page.waitForTimeout(120);
+    const afterReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterReset.ropeCut === false && afterReset.status === "ready", "Cut Rope reset did not restore ready state.");
+    await page.waitForTimeout(340);
+    const afterResetSettled = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterResetSettled.ropeCut === false && afterResetSettled.status === "ready", "Cut Rope reset caused an automatic recut.");
+    const bladeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.freeMoveRopeForQa());
+    assert(bladeProof.pass === true, "Cut Rope smooth mouse blade did not cut the rope.");
+    const afterBlade = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterBlade.ropeCut === true && afterBlade.status === "falling" && afterBlade.sliceGestureCut === true, "Cut Rope smooth mouse blade did not cut into falling state.");
+    await page.locator("#reset-button").click();
+    await page.waitForTimeout(340);
+    const afterBladeReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterBladeReset.ropeCut === false && afterBladeReset.status === "ready", "Cut Rope reset after smooth mouse blade did not restore ready state.");
+    const recutSwipeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.swipeRopeForQa());
+    assert(recutSwipeProof.pass === true, "Cut Rope swipe gesture could not recut after reset.");
+    const afterRecut = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(afterRecut.ropeCut === true && afterRecut.status === "falling" && afterRecut.sliceGestureCut === true, "Cut Rope could not be swipe-cut again after reset debounce.");
   }
   await page.screenshot({ path: path.join(outputDir, "web-adapter-desktop.png"), fullPage: true });
 
