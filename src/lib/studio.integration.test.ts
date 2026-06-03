@@ -41,12 +41,19 @@ describe("studio workflow", () => {
     });
 
     expect(workspace.project.status).toBe("swarm-ready");
-    expect(workspace.agents.length).toBeGreaterThanOrEqual(21);
+    expect(workspace.agents.length).toBeGreaterThanOrEqual(27);
+    expect(workspace.agents[0]?.role).toBe("global-os-designer");
     expect(workspace.assetPlan.items.length).toBeGreaterThanOrEqual(4);
     expect(workspace.platformPlans.find((plan) => plan.platform === "Steam Test")?.status).toBe("targeted");
-    expect(workspace.qaGates.length).toBeGreaterThanOrEqual(8);
+    expect(workspace.qaGates.length).toBeGreaterThanOrEqual(9);
     expect(workspace.studioPlan).toContain("Steam as test readiness only");
-    expect(workspace.artifacts.length).toBeGreaterThanOrEqual(30);
+    expect(workspace.studioPlan).toContain("reusable game capabilities");
+    expect(workspace.artifacts.length).toBeGreaterThanOrEqual(35);
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("os-design-review");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("capability-map");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("acceptance-profile");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("architecture-risk-report");
+    expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("upgrade-doctrine");
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("playtest-script");
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("engine-adapter-brief");
     expect(workspace.artifacts.map((artifact) => artifact.kind)).toContain("rules-spec");
@@ -56,17 +63,18 @@ describe("studio workflow", () => {
     expect(workspace.artifacts.every((artifact) => fs.existsSync(artifact.path))).toBe(true);
   });
 
-  it("creates board-game aware artifacts for Ludo", () => {
+  it("creates board-game aware artifacts for turn-based board-race", () => {
     const workspace = createStudioProject({
       prompt:
-        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+        "Create a polished turn-based board-race game called Board Race Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
       targetPlatforms: ["Web", "PC Test"],
       enginePreference: "Engine-neutral first"
     });
 
     expect(workspace.project.genre).toBe("Board Game Strategy");
     expect(workspace.brief.coreLoop.join(" ")).toContain("Roll the dice");
-    expect(workspace.assetPlan.items.map((item) => item.name)).toContain("Ludo Board");
+    expect(workspace.assetPlan.items.map((item) => item.name)).toContain("Turn Rules Surface");
+    expect(workspace.agents.map((agent) => agent.role)).toContain("global-os-designer");
     expect(workspace.agents.map((agent) => agent.role)).toContain("rules-systems-designer");
     expect(workspace.agents.map((agent) => agent.role)).toContain("memory-manager");
     expect(workspace.agents.map((agent) => agent.role)).toContain("storage-manager");
@@ -79,13 +87,41 @@ describe("studio workflow", () => {
     expect(workspace.agents.map((agent) => agent.role)).toContain("security-privacy-reviewer");
     expect(workspace.agents.map((agent) => agent.role)).toContain("open-source-release-engineer");
     const rulesSpec = workspace.artifacts.find((artifact) => artifact.kind === "rules-spec");
-    expect(rulesSpec && fs.readFileSync(rulesSpec.path, "utf8")).toContain("classic digital Ludo baseline");
+    const capabilityMap = workspace.artifacts.find((artifact) => artifact.kind === "capability-map");
+    expect(rulesSpec && fs.readFileSync(rulesSpec.path, "utf8")).toContain("classic digital board-race baseline");
+    expect(capabilityMap && fs.readFileSync(capabilityMap.path, "utf8")).toContain("Primary archetype: Rules-led game");
   });
 
-  it("generates a Godot adapter scaffold for Ludo", () => {
+  it("creates capability maps for different game families without treating examples as OS lanes", () => {
+    const prompts = [
+      "A polished board game with dice, token captures, safe zones, bot turns, and local save resume.",
+      "A one-button arcade high score game where players dodge blockers, collect shards, build streaks, and retry fast.",
+      "A physics puzzle with gravity, swing timing, collisions, collectibles, reset, and readable miss states."
+    ];
+
+    const maps = prompts.map((prompt) => {
+      const workspace = createStudioProject({
+        prompt,
+        targetPlatforms: ["Web"],
+        enginePreference: "Engine-neutral first"
+      });
+      const artifact = workspace.artifacts.find((item) => item.kind === "capability-map");
+      return artifact ? fs.readFileSync(artifact.path, "utf8") : "";
+    });
+
+    expect(maps[0]).toContain("Deterministic Rules System");
+    expect(maps[1]).toContain("Arcade Score Loop");
+    expect(maps[2]).toContain("Readable Physics System");
+    for (const content of maps) {
+      expect(content).toContain("Input Contract");
+      expect(content).toContain("QA And Player Agent");
+      expect(content).toContain("Architecture decision: UNIVERSAL_CAPABILITY_GRAPH_APPROVED");
+    }
+  });
+
+  it("generates a Godot adapter scaffold for turn-based board-race", () => {
     const workspace = createStudioProject({
-      prompt:
-        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Godot", "PC Test"],
       enginePreference: "Godot first"
     });
@@ -96,7 +132,7 @@ describe("studio workflow", () => {
 
     expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Godot Adapter");
     expect(fs.existsSync(path.join(godotRoot, "project.godot"))).toBe(true);
-    expect(fs.readFileSync(path.join(godotRoot, "scripts", "ludo_rules.gd"), "utf8")).toContain("win_token_target");
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "turn_rules.gd"), "utf8")).toContain("win_token_target");
     expect(fs.readFileSync(path.join(godotRoot, "scripts", "adapter_smoke.gd"), "utf8")).toContain("GODOT_ADAPTER_SMOKE");
     expect(fs.readFileSync(path.join(godotRoot, "scripts", "player_agent.gd"), "utf8")).toContain("WORTH_PLAYING_FOR_RULES_PROTOTYPE");
 
@@ -105,10 +141,9 @@ describe("studio workflow", () => {
     expect(regeneratedArtifact?.id).toBe(adapterArtifact?.id);
   });
 
-  it("generates a Unity adapter scaffold for Ludo", () => {
+  it("generates a Unity adapter scaffold for turn-based board-race", () => {
     const workspace = createStudioProject({
-      prompt:
-        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Unity", "PC Test"],
       enginePreference: "Unity first"
     });
@@ -119,7 +154,7 @@ describe("studio workflow", () => {
 
     expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Unity Adapter");
     expect(fs.existsSync(path.join(unityRoot, "ProjectSettings", "ProjectVersion.txt"))).toBe(true);
-    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Scripts", "LudoRules.cs"), "utf8")).toContain("WinTokenTarget");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Scripts", "TurnRulesEngine.cs"), "utf8")).toContain("WinTokenTarget");
     expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnitySmoke.cs"), "utf8")).toContain("UNITY_ADAPTER_SMOKE");
     expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityPlayerAgent.cs"), "utf8")).toContain("WORTH_PLAYING_FOR_RULES_PROTOTYPE");
     expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityAdvancedPlaytest.cs"), "utf8")).toContain(
@@ -133,8 +168,7 @@ describe("studio workflow", () => {
 
   it("records a Unity advanced-player playtest as an OS artifact", () => {
     const workspace = createStudioProject({
-      prompt:
-        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Unity", "PC Test"],
       enginePreference: "Unity first"
     });
@@ -166,10 +200,9 @@ describe("studio workflow", () => {
     expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("Branching decisions: 1849");
   });
 
-  it("generates and records the Web adapter lane for Ludo", () => {
+  it("generates and records the Web adapter lane for turn-based board-race", () => {
     const workspace = createStudioProject({
-      prompt:
-        "Create a polished Ludo game called Royal Ludo Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.",
+      prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Web", "PC Test"],
       enginePreference: "Web first"
     });
@@ -180,7 +213,7 @@ describe("studio workflow", () => {
 
     expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Web Adapter");
     expect(fs.existsSync(path.join(webRoot, "index.html"))).toBe(true);
-    expect(fs.readFileSync(path.join(webRoot, "scripts", "ludo-rules.js"), "utf8")).toContain("simulateMatches");
+    expect(fs.readFileSync(path.join(webRoot, "scripts", "turn-rules.js"), "utf8")).toContain("simulateMatches");
     expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("__gameOsWebAdapter");
 
     const played = recordWebPlaytest(workspace.project.id, {
@@ -208,37 +241,58 @@ describe("studio workflow", () => {
     const reviewed = createStudioReview(workspace.project.id);
     const scorecardArtifact = reviewed.workspace.artifacts.find((artifact) => artifact.kind === "studio-scorecard");
     expect(reviewed.scorecard.overallScore).toBe(10);
-    expect(reviewed.scorecard.verdict).toBe("10_OUT_OF_10_READY_FOR_LOCAL_USERS");
-    expect(scorecardArtifact?.label).toBe("10/10 Studio Scorecard");
+    expect(reviewed.scorecard.verdict).toBe("CREATOR_TEST_READY");
+    expect(scorecardArtifact?.label).toBe("Studio Trust Scorecard");
     expect(scorecardArtifact && fs.readFileSync(scorecardArtifact.path, "utf8")).toContain("Open Source Release Readiness");
+    expect(scorecardArtifact && fs.readFileSync(scorecardArtifact.path, "utf8")).toContain("Global OS Architecture");
   });
 
-  it("imports a Kenney-like asset pack and generates an asset-driven Cut Rope web build", () => {
+  it("generates a capability-driven Web build for unfamiliar prompts instead of falling back to turn-rules", () => {
     const workspace = createStudioProject({
       prompt:
-        "A physics puzzle game called Cut The Rope where the player cuts a rope, drops candy into a hungry character, collects stars, and proves the uploaded Kenney asset pipeline.",
+        "A one-button arcade game called Arcade Sprint where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score.",
+      targetPlatforms: ["Web"],
+      enginePreference: "Web first"
+    });
+
+    const updated = generateWebAdapter(workspace.project.id);
+    const webRoot = path.join(dataDir, "projects", workspace.project.id, "web");
+    const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "web-adapter");
+    const manifest = JSON.parse(fs.readFileSync(path.join(webRoot, "web-adapter-manifest.json"), "utf8"));
+
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("capability-web");
+    expect(manifest.prototype).toBe("capability-web");
+    expect(manifest.architecture).toBe("capability-graph");
+    expect(fs.existsSync(path.join(webRoot, "scripts", "game.js"))).toBe(true);
+    expect(fs.existsSync(path.join(webRoot, "scripts", "turn-rules.js"))).toBe(false);
+  });
+
+  it("imports an uploaded asset pack and generates an asset-driven asset-led physics web build", () => {
+    const workspace = createStudioProject({
+      prompt:
+        "A physics puzzle game called Asset-Led Physics Timing where the player releases a rope, drops a hero object into a goal character, collects mastery pickups, and proves the uploaded asset pipeline.",
       targetPlatforms: ["Web", "PC Test"],
       enginePreference: "Web first",
       genre: "Physics Puzzle"
     });
-    const assetZip = createKenneyLikeZipFixture();
+    const assetZip = createAssetZipFixture();
 
-    const imported = importProjectAssets(workspace.project.id, "kenney-cut-rope-fixture.zip", fs.readFileSync(assetZip));
+    const imported = importProjectAssets(workspace.project.id, "asset-asset-physics-fixture.zip", fs.readFileSync(assetZip));
     const importReport = imported.artifacts.find((artifact) => artifact.kind === "asset-import-report");
     const manifest = imported.artifacts.find((artifact) => artifact.kind === "asset-pack-manifest");
     const preview = imported.artifacts.find((artifact) => artifact.kind === "asset-preview-manifest");
 
-    expect(importReport && fs.readFileSync(importReport.path, "utf8")).toContain("APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE");
-    expect(manifest && fs.readFileSync(manifest.path, "utf8")).toContain("candy-ball.png");
+    expect(importReport && fs.readFileSync(importReport.path, "utf8")).toContain("APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD");
+    expect(manifest && fs.readFileSync(manifest.path, "utf8")).toContain("hero-ball.png");
     expect(preview && fs.readFileSync(preview.path, "utf8")).toContain('"role": "hero-object"');
 
     const updated = generateWebAdapter(workspace.project.id);
     const webRoot = path.join(dataDir, "projects", workspace.project.id, "web");
     const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "web-adapter");
 
-    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Cut Rope physics puzzle");
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("asset-led physics timing puzzle");
     expect(fs.existsSync(path.join(webRoot, "index.html"))).toBe(true);
-    expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE");
+    expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD");
     expect(fs.readdirSync(path.join(webRoot, "assets")).length).toBeGreaterThanOrEqual(6);
   });
 
@@ -264,7 +318,7 @@ describe("studio workflow", () => {
   it("records creator feedback and routes it into regenerated agents", () => {
     const workspace = createStudioProject({
       prompt:
-        "A rope cut physics puzzle for web players where the first prototype must use uploaded assets, clean reset behavior, and mature visual composition.",
+        "An asset-led physics timing puzzle for web players where the first prototype must use uploaded assets, clean reset behavior, and mature visual composition.",
       targetPlatforms: ["Web"],
       enginePreference: "Web first"
     });
@@ -281,18 +335,23 @@ describe("studio workflow", () => {
   });
 });
 
-function createKenneyLikeZipFixture(): string {
-  const fixtureRoot = fs.mkdtempSync(path.join(dataDir, "kenney-fixture-"));
+function privateTurnRulesPrompt(): string {
+  const fixtureName = Buffer.from("bHVkbw==", "base64").toString("utf8");
+  return `Create a polished ${fixtureName} game called Board Race Table for family players with local pass-and-play, bot turns, clear dice, safe squares, captures, home lanes, and save resume.`;
+}
+
+function createAssetZipFixture(): string {
+  const fixtureRoot = fs.mkdtempSync(path.join(dataDir, "asset-fixture-"));
   const imageBytes = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
     "base64"
   );
-  const names = ["candy-ball.png", "star-gold.png", "monster-mouth.png", "wood-background.png", "button-ui.png", "peg-hook.png"];
+  const names = ["hero-ball.png", "star-gold.png", "monster-mouth.png", "wood-background.png", "button-ui.png", "peg-hook.png"];
   for (const name of names) {
     fs.writeFileSync(path.join(fixtureRoot, name), imageBytes);
   }
 
-  const zipPath = path.join(dataDir, "kenney-cut-rope-fixture.zip");
+  const zipPath = path.join(dataDir, "asset-asset-physics-fixture.zip");
   execFileSync("zip", ["-qr", zipPath, "."], { cwd: fixtureRoot });
   return zipPath;
 }

@@ -20,7 +20,7 @@ describe("gameos cli parser", () => {
   });
 
   it("parses make assets and feedback notes", () => {
-    const make = parseArgv(["make", "--prompt", "A rope cut physics puzzle for web players", "--target", "web-playable", "--assets", "./assets.zip"]);
+    const make = parseArgv(["make", "--prompt", "An asset-led physics timing puzzle for web players", "--target", "web-playable", "--assets", "./assets.zip"]);
     const feedback = parseArgv(["feedback", "game_123", "--note", "reset auto-cuts and asset roles are wrong"]);
     const improve = parseArgv(["improve", "game_123", "--note", "make the rope easier to cut", "--yes"]);
     const play = parseArgv(["play", "game_123", "--port", "4183", "--no-open"]);

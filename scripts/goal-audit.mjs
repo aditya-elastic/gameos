@@ -9,8 +9,21 @@ const problems = [];
 
 const categories = [
   category("Agent Swarm And Skills", [
-    check("21-agent registry exists", agents.length >= 21, `${agents.length} agents are registered.`, "Register at least 21 specialist agents."),
+    check("ownership-grade agent registry exists", agents.length >= 27, `${agents.length} agents are registered.`, "Register the ownership-grade specialist agent stack."),
+    check("Global OS Designer is first", agents[0]?.role === "global-os-designer", "Global OS Designer is the first registry role.", "Global OS Designer must be the first and highest-priority role."),
+    check(
+      "Ownership governance runs before Studio Director",
+      agents.slice(0, 6).map((agent) => agent.role).join(",") === "global-os-designer,product-truth-officer,acceptance-architect,advanced-player-council,evidence-auditor,universal-capability-steward",
+      "Truth, acceptance, player council, evidence, and capability governance precede Studio Director.",
+      "Ownership governance agents must appear immediately after Global OS Designer and before Studio Director."
+    ),
     checkRoles([
+      "global-os-designer",
+      "product-truth-officer",
+      "acceptance-architect",
+      "advanced-player-council",
+      "evidence-auditor",
+      "universal-capability-steward",
       "studio-director",
       "game-designer",
       "gameplay-developer",
@@ -39,41 +52,56 @@ const categories = [
       "Every registered agent has a title, mission, and at least three skills.",
       "One or more agents are too thin to be useful."
     ),
-    fileCheck("Agent doctrines are implemented", "src/lib/agents.ts", [/Game Feel Doctrine/, /Physics Slice Doctrine/, /Security And Privacy Doctrine/, /Open Source Release Doctrine/])
+    fileCheck("Agent doctrines are implemented", "src/lib/agents.ts", [/Global Market Vision/, /Universal Product Direction/, /Business Expansion Lens/, /Public Language Approval/, /Game Feel Doctrine/, /Physics Slice Doctrine/, /Security And Privacy Doctrine/, /Open Source Release Doctrine/])
+  ]),
+  category("Global OS Architecture", [
+    fileCheck("Global OS Designer has visionary market skills", "studio-agents/agents.json", [/ultra-global business expansion/, /category-defining product vision/, /global market strategy/, /ecosystem platform strategy/, /public package direction/, /release-blocking architecture governance/]),
+    fileCheck("Capability graph maps reusable systems", "src/lib/capability-graph.ts", [/GameCapabilityId/, /createCapabilityMap/, /regressionFixtures/, /UNIVERSAL_CAPABILITY_GRAPH_APPROVED/]),
+    fileCheck("OS artifacts are created with every workspace", "src/lib/artifacts.ts", [/os-design-review/, /capability-map/, /acceptance-profile/, /architecture-risk-report/, /upgrade-doctrine/]),
+    fileCheck("Trust module owns acceptance and diagnosis", "src/lib/trust.ts", [/createAcceptanceProfile/, /diagnoseTrust/, /trustVerdictFromScore/, /LOCAL_PROTOTYPE_READY/, /CREATOR_TEST_READY/, /BLOCKED/]),
+    fileCheck("Scorecard gates OS architecture", "src/lib/scorecard.ts", [/Global OS Architecture/, /global-os-designer/, /Capability graph approved/, /trustVerdictFromScore/]),
+    fileCheck("OS design artifacts include expansion language", "src/lib/capability-graph.ts", [/Global Market Vision/, /Universal Product Direction/, /Public Language Approval/, /globally expandable developer platform/]),
+    fileCheck("Web adapter uses capability routing", "src/lib/web-adapter.ts", [/createCapabilityMap/, /capability-web/, /regressionFixtures/]),
+    fileCheck("CLI smoke asserts capability artifacts", "scripts/cli-smoke.mjs", [/capability-map/, /os-design-review/]),
+    fileCheck("Architecture docs forbid example lanes", "docs/ARCHITECTURE.md", [/Global OS Design Doctrine/, /regression fixtures only/, /reusable systems/])
   ]),
   category("Game Direction Design And Developer", [
     fileCheck("Scorecard covers direction and implementation", "src/lib/scorecard.ts", [/Game Direction And Design/, /Gameplay Developer owns implementation-slice contract/]),
     fileCheck("Prompt intake expands physics-puzzle intent", "src/lib/intake.ts", [/physics puzzle/i, /coreLoop/, /risks/]),
-    fileCheck("Game rules spec records Cut Rope loop", "src/lib/artifacts.ts", [/Candy starts attached to a rope/, /Reset restores rope, candy, star, and goal state/]),
+    fileCheck("Game rules spec records asset-physics loop", "src/lib/artifacts.ts", [/Hero object starts attached to a rope/, /Reset restores rope, hero object, mastery pickups, and goal state/]),
     fileCheck("Playable builds must be testable", "src/lib/agents.ts", [/No playable build is accepted unless the implementation can be tested by the QA Director and challenged by the Advanced Player/])
   ]),
   category("Creator UX Flow", [
-    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "cockpit"/, /case "make"/, /case "journey"/, /case "review"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "artifact"/]),
+    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "cockpit"/, /case "make"/, /case "journey"/, /case "review"/, /case "diagnose"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "artifact"/]),
     fileCheck("Cockpit keeps actions simple", "src/cli/actions.ts", [/slice\(0, 5\)/, /Create Game/, /Fix With Autopilot/]),
     fileCheck("Cockpit uses keyboard-first controls", "src/cli/cockpit.ts", [/Game OS Cockpit/, /↑\/↓ select/, /n new/, /i improve/]),
     fileCheck("CLI output explains blockers", "src/cli/output.ts", [/Current blockers/, /Next best command/, /Advanced Player did not approve/]),
-    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos cockpit/, /gameos improve/, /gameos play/, /Studio Review/]),
+    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos cockpit/, /gameos improve/, /gameos play/, /Trust Review/, /gameos diagnose/]),
     fileCheck("Artifact output is summary-first", "src/cli/main.ts", [/--full/, /summarizeArtifactContent/]),
     fileCheck("Playable HUD labels are player-facing", "src/lib/web-adapter.ts", [/formatGameOsStatusLabel/, /displayStatusLabel/])
   ]),
   category("Asset Pipeline And Visual Quality", [
-    fileCheck("Role-based asset classifier exists", "src/lib/asset-importer.ts", [/hero-object/, /goal-character/, /collectible/, /WRONG_ASSET_PACK_FOR_CUT_ROPE/]),
+    fileCheck("Role-based asset classifier exists", "src/lib/asset-importer.ts", [/hero-object/, /goal-character/, /collectible/, /WRONG_ASSET_PACK_FOR_ASSET_PHYSICS/]),
     fileCheck("Wrong-role asset tests exist", "src/lib/asset-importer.test.ts", [/rejects UI buttons as the hero physics object/, /goal-character/]),
     fileCheck("Visual quality director owns screenshot maturity", "src/lib/agents.ts", [/Visual Quality Doctrine/, /Do not promote a Web prototype as worth playing/]),
     fileCheck("Asset-led docs require role fit", "docs/V1_ACCEPTANCE.md", [/Asset packs produce role assignments/, /wrong-role assets block promotion/i])
   ]),
   category("Web Game Playability", [
-    fileCheck("Web generator uses V3 physics prototype", "src/lib/web-adapter.ts", [/renderCutRopeGameScriptV3/, /pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet/]),
+    fileCheck("Web generator uses V3 physics prototype", "src/lib/web-adapter.ts", [/renderAssetPhysicsGameScriptV3/, /pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet/]),
     fileCheck("No-goal-magnet physics gate is enforced", "scripts/web-player-agent.mjs", [/physics_model.*no-goal-magnet/, /Timing skill gate failed/, /Agency gate failed/]),
     fileCheck("Slow human blade input is implemented", "src/lib/web-adapter.ts", [/slowFreeMoveRopeForQa/, /pointerrawupdate/, /bladeTrailCutsRope/]),
     fileCheck("Web smoke requires watermark and slow blade", "scripts/web-smoke.mjs", [/GameOS watermark/, /hasSlowMouseBlade/, /slow human mouse blade/]),
     fileCheck("Web smoke rejects machine-verdict HUD leaks", "scripts/web-smoke.mjs", [/Visible HUD leaked machine verdict constants/])
   ]),
   category("QA Player Agent Evidence", [
-    scriptCheck("acceptance:cutrope", "node scripts/cutrope-acceptance.mjs"),
-    fileCheck("Acceptance test proves 10/10 game", "scripts/cutrope-acceptance.mjs", [/10_OUT_OF_10_READY_FOR_LOCAL_USERS/, /WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE/, /agentCount >= 21/]),
+    scriptCheck("acceptance:web-quality", "node scripts/web-quality-acceptance.mjs"),
+    scriptCheck("acceptance:universal-trust", "node scripts/universal-trust-acceptance.mjs"),
+    scriptCheck("trust:audit", "node scripts/trust-audit.mjs"),
+    fileCheck("Acceptance tests prove trust evidence", "scripts/web-quality-acceptance.mjs", [/CREATOR_TEST_READY/, /WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD/, /acceptance-profile/]),
+    fileCheck("Universal trust acceptance covers prompt families", "scripts/universal-trust-acceptance.mjs", [/arcade score loop/, /deterministic rules strategy/, /asset-led physics timing/, /platform movement/, /combat\/survival loop/, /diagnose/]),
+    fileCheck("Trust audit blocks overclaiming", "scripts/trust-audit.mjs", [/10\/10/, /publish-ready/, /diagnose/]),
     fileCheck("Advanced Player blocks shallow games", "scripts/web-player-agent.mjs", [/WEB_PLAYER_AGENT_REPORT/, /MASTERY_GATE_PASS/, /SLOW_MOUSE_BLADE_PASS/]),
-    fileCheck("CLI browser QA proves cut reset recut", "src/cli/web-qa.ts", [/firstCutPass/, /noAutoCutPass/, /slowMousePass/, /recutPass/])
+    fileCheck("CLI browser QA proves release reset retry", "src/cli/web-qa.ts", [/firstCutPass/, /noAutoCutPass/, /slowMousePass/, /recutPass/])
   ]),
   category("Security Privacy And Storage", [
     fileCheck("Security policy is local-first", "SECURITY.md", [/No telemetry/, /No hidden network calls/, /GAME_OS_DATA_DIR/]),
@@ -92,16 +120,18 @@ const categories = [
     fileExists("LICENSE"),
     fileExists("CODE_OF_CONDUCT.md"),
     fileExists("CHANGELOG.md"),
-    fileCheck("README explains quickstart and privacy", "README.md", [/npm install -g gameos/, /V1 has no telemetry/, /Web Worth-Playing Gates/]),
+    fileCheck("README explains quickstart and privacy", "README.md", [/npm install -g gameos/, /V1 has no telemetry/, /Web Worth-Playing Gates/, /Trust Review/]),
     fileCheck("Publishing docs explain npm/Homebrew", "docs/PUBLISHING.md", [/trusted publishing/, /npm run homebrew:update/]),
-    fileCheck("Goal audit docs exist", "docs/GOAL_AUDIT.md", [/10\/10 Goal Audit/, /Agent Swarm And Skills/])
+    fileCheck("Goal audit docs exist", "docs/GOAL_AUDIT.md", [/Goal Trust Audit/, /Agent Swarm And Skills/])
   ]),
   category("Goal Completion Discipline", [
     scriptCheck("goal:audit", "node scripts/goal-audit.mjs"),
+    check("npm run check includes trust:audit", packageJson.scripts?.check?.includes("npm run trust:audit"), "check runs trust:audit before release/build gates.", "npm run check does not include trust:audit."),
+    check("npm run check includes universal trust acceptance", packageJson.scripts?.check?.includes("npm run acceptance:universal-trust"), "check runs universal trust acceptance before release/build gates.", "npm run check does not include acceptance:universal-trust."),
     check("npm run check includes goal:audit", packageJson.scripts?.check?.includes("npm run goal:audit"), "check runs goal:audit before release/build gates.", "npm run check does not include goal:audit."),
     fileCheck("Release audit requires goal audit", "scripts/release-audit.mjs", [/goal:audit/, /docs\/GOAL_AUDIT\.md/]),
-    fileCheck("Architecture documents 10/10 doctrine", "docs/ARCHITECTURE.md", [/10\/10 Review Doctrine/, /npm run acceptance:cutrope/]),
-    fileCheck("V1 acceptance documents goal audit", "docs/V1_ACCEPTANCE.md", [/npm run goal:audit/, /10\/10 local-readiness proof/])
+    fileCheck("Architecture documents trust doctrine", "docs/ARCHITECTURE.md", [/Trust Review Doctrine/, /npm run acceptance:universal-trust/, /npm run acceptance:web-quality/]),
+    fileCheck("V1 acceptance documents goal audit", "docs/V1_ACCEPTANCE.md", [/npm run goal:audit/, /npm run trust:audit/, /honest trust tier/])
   ])
 ];
 
@@ -116,7 +146,7 @@ const summary = {
   package: `${packageJson.name}@${packageJson.version}`,
   categories: categories.length,
   minimumCategoryScore: Math.min(...categories.map((result) => result.score)),
-  verdict: problems.length === 0 ? "10_OUT_OF_10_LOCAL_GOAL_READY" : "NEEDS_GOAL_EVIDENCE",
+  verdict: problems.length === 0 ? "TRUST_ARCHITECTURE_READY" : "NEEDS_GOAL_EVIDENCE",
   results: categories
 };
 

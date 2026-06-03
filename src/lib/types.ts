@@ -6,6 +6,8 @@ export type PlatformStatus = "targeted" | "planned" | "later" | "blocked";
 
 export type GateResult = "pass" | "watch" | "blocked";
 
+export type TrustVerdictTier = "LOCAL_PROTOTYPE_READY" | "CREATOR_TEST_READY" | "NEEDS_IMPROVEMENT" | "BLOCKED";
+
 export type ArtifactKind =
   | "brief"
   | "agent-output"
@@ -22,6 +24,8 @@ export type ArtifactKind =
   | "storage-manifest"
   | "test-matrix"
   | "studio-scorecard"
+  | "acceptance-profile"
+  | "trust-diagnosis"
   | "asset-import-report"
   | "asset-pack-manifest"
   | "asset-preview-manifest"
@@ -30,7 +34,11 @@ export type ArtifactKind =
   | "unity-adapter"
   | "unity-playtest-report"
   | "web-adapter"
-  | "web-playtest-report";
+  | "web-playtest-report"
+  | "os-design-review"
+  | "capability-map"
+  | "architecture-risk-report"
+  | "upgrade-doctrine";
 
 export interface CreateProjectInput {
   prompt: string;
@@ -116,7 +124,7 @@ export type ImportedAssetKind = "image" | "audio" | "data" | "other";
 
 export type AssetRelevanceTag =
   | "rope"
-  | "candy"
+  | "hero-object"
   | "character"
   | "collectible"
   | "ui"
@@ -125,9 +133,9 @@ export type AssetRelevanceTag =
   | "physics-piece";
 
 export type AssetImportVerdict =
-  | "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE"
+  | "APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD"
   | "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS"
-  | "WRONG_ASSET_PACK_FOR_CUT_ROPE";
+  | "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS";
 
 export type AssetRole =
   | "background"
@@ -194,6 +202,30 @@ export interface QAGate {
   headedPlaytestChecks: string[];
   playerFeelChecks: string[];
   result: GateResult;
+}
+
+export interface AcceptanceProfile {
+  projectId: string;
+  verdictPolicy: string;
+  selectedCapabilities: string[];
+  requiredPlayerActions: string[];
+  requiredVisualChecks: string[];
+  requiredInputChecks: string[];
+  requiredAssetRoleChecks: string[];
+  requiredAdvancedPlayerChecks: string[];
+  blockedPublishClaims: string[];
+  createdAt: string;
+}
+
+export interface TrustDiagnosis {
+  projectId: string;
+  verdict: TrustVerdictTier;
+  blocker: string;
+  failedCapability: string;
+  failedEvidence: string;
+  owningAgent: string;
+  nextCommand: string;
+  evidence: string[];
 }
 
 export interface ProjectWorkspace {

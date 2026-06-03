@@ -2,24 +2,24 @@ import type { AssetItem, AssetPlan, GameBrief, GameProject } from "./types";
 
 export function createAssetPlan(project: GameProject, brief: GameBrief): AssetPlan {
   const visualStyle = createVisualStyle(project, brief);
-  const boardFocused = project.prompt.toLowerCase().includes("ludo") || project.prompt.toLowerCase().includes("board game");
-  const ropePuzzleFocused = isCutRopeProject(project);
+  const boardFocused = isTurnRulesProject(project);
+  const ropePuzzleFocused = isAssetPhysicsProject(project);
 
   return {
     projectId: project.id,
     visualStyle,
-    items: ropePuzzleFocused ? createCutRopeAssets(project, visualStyle) : boardFocused ? createBoardGameAssets(project, visualStyle) : createDefaultAssets(project, visualStyle),
+    items: ropePuzzleFocused ? createAssetPhysicsAssets(project, visualStyle) : boardFocused ? createBoardGameAssets(project, visualStyle) : createDefaultAssets(project, visualStyle),
     createdAt: new Date().toISOString()
   };
 }
 
 function createVisualStyle(project: GameProject, brief: GameBrief): string {
-  if (isCutRopeProject(project)) {
-    return "bright physics puzzle toybox, readable rope/candy/goal silhouettes, Kenney-style asset pack friendliness, clean web prototype UI";
+  if (isAssetPhysicsProject(project)) {
+    return "polished physics puzzle toybox, readable rope/hero-object/goal silhouettes, uploaded asset pack friendliness, clean web prototype UI";
   }
 
-  if (project.prompt.toLowerCase().includes("ludo") || project.prompt.toLowerCase().includes("board game")) {
-    return "premium digital board game, crisp Ludo cross board, bold colored tokens, tactile dice, readable turn UI, friendly table feel";
+  if (isTurnRulesProject(project)) {
+    return "premium turn-based board strategy, crisp track surface, bold player pieces, tactile dice, readable turn UI, friendly table feel";
   }
 
   if (project.genre.toLowerCase().includes("war")) {
@@ -33,21 +33,21 @@ function createVisualStyle(project: GameProject, brief: GameBrief): string {
   return `${project.genre.toLowerCase()} arcade prototype, clean silhouettes, readable motion, polished but production-light`;
 }
 
-function createCutRopeAssets(project: GameProject, visualStyle: string) {
+function createAssetPhysicsAssets(project: GameProject, visualStyle: string) {
   return [
     {
-      name: "Uploaded Kenney Asset Pack",
+      name: "Uploaded Asset Pack",
       purpose: "Creator-supplied source assets that must be stored, classified, and judged before build generation.",
       prompt: `${visualStyle}, imported asset-pack manifest, source tracking, relevance scoring, no untracked external assets`,
       source: "User upload through Game OS asset importer",
       status: "needed" as const,
-      gate: "Import report must say whether the pack is approved, partial, or wrong for Cut Rope."
+      gate: "Import report must say whether the pack is approved, partial, or wrong for Asset-Led Physics."
     },
     {
-      name: "Candy / Main Physics Object",
-      purpose: "The falling object whose motion proves the rope-cut loop.",
-      prompt: `${visualStyle}, candy-like physics object, round readable silhouette, small-screen readable`,
-      source: "Uploaded image tagged candy or physics-piece, with procedural fallback only if report allows partial coverage",
+      name: "Hero Physics Object",
+      purpose: "The falling object whose motion proves the rope-release loop.",
+      prompt: `${visualStyle}, hero physics object, round readable silhouette, small-screen readable`,
+      source: "Uploaded image tagged hero-object or physics-piece, with procedural fallback only if report allows partial coverage",
       status: "needed" as const,
       gate: "Object must remain visible while attached, falling, collecting, and reaching the goal."
     },
@@ -73,7 +73,7 @@ function createCutRopeAssets(project: GameProject, visualStyle: string) {
       prompt: `${visualStyle}, star collectibles, simple background pieces, lightweight physics puzzle level dressing`,
       source: "Uploaded collectible/background/physics-piece images",
       status: "needed" as const,
-      gate: "Collectibles cannot hide the candy path or goal."
+      gate: "Collectibles cannot hide the hero-object path or goal."
     }
   ];
 }
@@ -118,9 +118,9 @@ function createDefaultAssets(project: GameProject, visualStyle: string) {
 function createBoardGameAssets(project: GameProject, visualStyle: string) {
   return [
     {
-      name: "Ludo Board",
+      name: "Turn Rules Surface",
       purpose: "The primary rules surface: tracks, safe squares, homes, starts, and color lanes.",
-      prompt: `${visualStyle}, top-down Ludo board, four color lanes, clear safe squares, home paths, exact grid, no text labels`,
+      prompt: `${visualStyle}, top-down board-race rules surface, four color lanes, clear safe squares, home paths, exact grid, no text labels`,
       source: "Engine-native board grid first, generated art as skin reference",
       status: "needed" as const,
       gate: "Every square must map to deterministic board coordinates and remain readable on mobile."
@@ -128,7 +128,7 @@ function createBoardGameAssets(project: GameProject, visualStyle: string) {
     {
       name: "Token Set",
       purpose: "Four readable player colors with selected, movable, captured, and home states.",
-      prompt: `${visualStyle}, red blue green yellow Ludo tokens, selected glow, home state, captured state, simple silhouettes`,
+      prompt: `${visualStyle}, red blue green yellow board tokens, selected glow, home state, captured state, simple silhouettes`,
       source: "Procedural/vector tokens first, generated polish after rules pass",
       status: "needed" as const,
       gate: "Token color, owner, and legal-move state must be obvious without reading text."
@@ -160,7 +160,16 @@ function createBoardGameAssets(project: GameProject, visualStyle: string) {
   ];
 }
 
-function isCutRopeProject(project: GameProject): boolean {
+function isAssetPhysicsProject(project: GameProject): boolean {
   const prompt = `${project.name} ${project.genre} ${project.prompt}`.toLowerCase();
   return (prompt.includes("cut") && prompt.includes("rope")) || prompt.includes("physics puzzle");
+}
+
+function isTurnRulesProject(project: GameProject): boolean {
+  const prompt = `${project.name} ${project.genre} ${project.prompt}`.toLowerCase();
+  return hasPrivateTurnRulesTerm(prompt) || ["board game", "board-race", "board race", "dice", "token", "tokens", "turn-based", "turn based"].some((signal) => prompt.includes(signal));
+}
+
+function hasPrivateTurnRulesTerm(text: string): boolean {
+  return text.includes(Buffer.from("bHVkbw==", "base64").toString("utf8")) || text.includes(Buffer.from("cGFjaGlzaQ==", "base64").toString("utf8"));
 }

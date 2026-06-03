@@ -39,18 +39,18 @@ const demoGame = {
   targetAudience: "creator and YouTube playtest audience"
 };
 
-const ludoGame = {
+const turnRulesGame = {
   prompt:
-    "Royal Ludo Table is a polished digital Ludo board game for YouTube creator playtesting. Two to four players roll dice, release tokens on sixes, capture rivals, use safe squares, race all four tokens home, and support local pass-and-play plus simple bot turns for PC and Steam test readiness before Unity and Godot adapters.",
+    "Board Race Table is a polished turn-based board strategy game for creator playtesting. Two to four players roll dice, release tokens on special rolls, capture rivals, use safe squares, race tokens home, and support local pass-and-play plus simple bot turns for PC and Steam test readiness before Unity and Godot adapters.",
   targetPlatforms: ["PC Test", "Steam Test", "Web", "Unity", "Godot"],
   enginePreference: "Engine-neutral first",
   genre: "Board Game Strategy",
   targetAudience: "creator and YouTube playtest audience"
 };
 
-const cutRopeGame = {
+const assetPhysicsGame = {
   prompt:
-    "A physics puzzle game called Cut The Rope where a creator uploads a Kenney asset pack, cuts a rope to drop a candy-like object into a hungry character or goal, collects stars, and proves the asset pipeline through fast web playtesting.",
+    "A physics timing puzzle where a creator uploads an asset pack, releases a rope to drop a hero object into a goal, collects mastery pickups, and proves the asset pipeline through fast web playtesting.",
   targetPlatforms: ["PC Test", "Web"],
   enginePreference: "Web first",
   genre: "Physics Puzzle",
@@ -357,13 +357,13 @@ export function GameOsApp({
           </div>
         </div>
         <div className="topbar-actions">
-          <button className="secondary-button dark" type="button" onClick={() => void createProject(ludoGame, "ludo")} disabled={busyAction === "ludo"}>
-            {busyAction === "ludo" ? <Loader2 className="spin" size={18} aria-hidden /> : <Sparkles size={18} aria-hidden />}
-            Run Ludo Flow
+          <button className="secondary-button dark" type="button" onClick={() => void createProject(turnRulesGame, "turn-rules")} disabled={busyAction === "turn-rules"}>
+            {busyAction === "turn-rules" ? <Loader2 className="spin" size={18} aria-hidden /> : <Sparkles size={18} aria-hidden />}
+            Run Turn Rules Flow
           </button>
-          <button className="secondary-button dark" type="button" onClick={() => void createProject(cutRopeGame, "cut-rope")} disabled={busyAction === "cut-rope"}>
-            {busyAction === "cut-rope" ? <Loader2 className="spin" size={18} aria-hidden /> : <Sparkles size={18} aria-hidden />}
-            Run Cut Rope Flow
+          <button className="secondary-button dark" type="button" onClick={() => void createProject(assetPhysicsGame, "asset-physics")} disabled={busyAction === "asset-physics"}>
+            {busyAction === "asset-physics" ? <Loader2 className="spin" size={18} aria-hidden /> : <Sparkles size={18} aria-hidden />}
+            Run Asset-Led Physics Flow
           </button>
           <button className="secondary-button dark" type="button" onClick={() => void createProject(demoGame, "demo")} disabled={busyAction === "demo"}>
             {busyAction === "demo" ? <Loader2 className="spin" size={18} aria-hidden /> : <WandSparkles size={18} aria-hidden />}
@@ -693,7 +693,7 @@ function AssetImportPanel({
     <div className="asset-import-box">
       <div>
         <p className="eyebrow">Creator Asset Upload</p>
-        <strong>{latestImport ? "Asset pack judged" : "Import a Kenney pack"}</strong>
+        <strong>{latestImport ? "Asset pack judged" : "Import an asset pack"}</strong>
         <small>{latestImport ? "Latest report is available in artifacts." : "Upload a .zip or image pack before generating asset-driven builds."}</small>
       </div>
       <form

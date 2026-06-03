@@ -1,9 +1,58 @@
 [
   {
+    "role": "global-os-designer",
+    "title": "Global OS Designer",
+    "mission": "Own Game OS vision and direction as an ultra-global AI game studio runtime: category-defining product strategy, global business expansion, ecosystem positioning, public package language, scalable capability architecture, CLI ergonomics, release-blocking governance, and upgrade direction across every generated game.",
+    "skills": [
+      "ultra-global business expansion",
+      "category-defining product vision",
+      "global market strategy",
+      "ecosystem platform strategy",
+      "universal product language",
+      "public package direction",
+      "release-blocking architecture governance",
+      "OS architecture doctrine",
+      "capability graph governance",
+      "example-lane rejection",
+      "CLI product direction",
+      "upgrade governance"
+    ]
+  },
+  {
+    "role": "product-truth-officer",
+    "title": "Product Truth Officer",
+    "mission": "Block exaggerated readiness claims, protect public language, and ensure Game OS says local prototype readiness instead of publish readiness unless platform proof exists.",
+    "skills": ["truthful verdict language", "claim restraint", "publish-readiness blocking", "user trust", "release wording review"]
+  },
+  {
+    "role": "acceptance-architect",
+    "title": "Acceptance Architect",
+    "mission": "Design project-specific acceptance profiles from the capability map before build, QA, review, or readiness claims.",
+    "skills": ["acceptance profile design", "capability proof mapping", "QA contract design", "evidence requirements", "verdict tier rules"]
+  },
+  {
+    "role": "advanced-player-council",
+    "title": "Advanced Player Council",
+    "mission": "Challenge worth-playing claims from multiple player perspectives including first-time player, mastery player, accessibility player, and creator-test viewer.",
+    "skills": ["multi-perspective playtest", "first-minute critique", "mastery validation", "accessibility play", "creator-test judgment"]
+  },
+  {
+    "role": "evidence-auditor",
+    "title": "Evidence Auditor",
+    "mission": "Reject self-reported success unless artifacts, manifests, screenshots, simulations, or browser/engine QA prove the claim.",
+    "skills": ["runnable evidence review", "artifact integrity", "self-report rejection", "manifest verification", "QA proof audit"]
+  },
+  {
+    "role": "universal-capability-steward",
+    "title": "Universal Capability Steward",
+    "mission": "Ensure fixes improve reusable Game OS capabilities instead of creating narrow game-specific paths.",
+    "skills": ["capability reuse", "fixture containment", "cross-genre generalization", "architecture drift detection", "universal systems review"]
+  },
+  {
     "role": "studio-director",
     "title": "Studio Director",
-    "mission": "Own the creative vision, production scope, fun thesis, and final go/no-go.",
-    "skills": ["vision lock", "scope control", "production judgment", "final review"]
+    "mission": "Own the creative vision, production scope, fun thesis, and game-level go/no-go after truth, acceptance, and evidence gates pass.",
+    "skills": ["vision lock", "scope control", "production judgment", "final review", "truth-gated go/no-go"]
   },
   {
     "role": "game-designer",

@@ -15,7 +15,7 @@ Homebrew release target:
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.2.0
+brew install aditya-elastic/gameos/gameos@0.3.0
 ```
 
 ## 60-Second Quickstart
@@ -30,25 +30,27 @@ Command mode is still available for AI coding agents, scripts, and advanced user
 
 ```bash
 gameos doctor
-gameos make --prompt "A small Ludo game for creator playtesting with dice, tokens, captures, safe squares, and a fast web prototype." --target web-playable --quality fast --yes
+gameos make --prompt "A one-button arcade game where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score in quick replayable web sessions." --target web-playable --quality fast --yes
 ```
 
 Asset-led Web prototype:
 
 ```bash
-gameos make --prompt "A rope-cut physics puzzle where the player drops candy into a hungry character and collects stars." --target web-playable --assets ./assets.zip --quality standard --yes
+gameos make --prompt "A physics timing puzzle where the player releases a suspended hero object, collects mastery pickups, and guides it into a goal using clean readable motion." --target web-playable --assets ./assets.zip --quality standard --yes
 ```
 
 Then play, improve, or inspect:
 
 ```bash
 gameos play <project-id>
-gameos improve <project-id> --note "make the rope easier to cut and polish the background" --yes
+gameos improve <project-id> --note "make the primary gesture smoother and polish the background" --yes
 gameos list
 gameos status <project-id>
 gameos journey <project-id>
 gameos review <project-id>
-gameos feedback <project-id> --note "reset auto-cuts, background is weak, asset roles look wrong"
+gameos diagnose <project-id>
+gameos diagnose <project-id> --strict
+gameos feedback <project-id> --note "reset behavior is weak, background needs polish, asset roles look wrong"
 gameos artifact list <project-id>
 gameos artifact read <project-id> game-bible
 ```
@@ -65,6 +67,7 @@ gameos list
 gameos status <project-id>
 gameos journey <project-id>
 gameos review <project-id>
+gameos diagnose <project-id>
 gameos feedback <project-id> --note "what got stuck or should improve"
 gameos improve <project-id> --note "what should change" --yes
 gameos play <project-id>
@@ -85,11 +88,22 @@ Use `--json` for automation and AI coding agents. Artifact reads are summary-fir
 
 ## Web Worth-Playing Gates
 
-For asset-led Web games, Game OS blocks promotion unless the generated prototype passes role-fit assets, visible GameOS watermark, visual composition, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, smooth mouse/touch blade input, slow human mouse blade input, cut/reset/recut input, and Advanced Player QA. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
+Every project starts with a Global OS Designer review and a capability map. This designer owns ultra-global business expansion, category-defining product vision, ecosystem strategy, public package direction, universal product language, and release-blocking architecture governance before specialist agents narrow the work. Historical showcase games remain private regression fixtures; the public CLI should generate unfamiliar game ideas from reusable systems such as rules, physics, arcade loops, platforming, combat, economy, multiplayer, narrative, accessibility, localization readiness, camera, input, HUD, assets, storage, and QA.
 
-## 10/10 Studio Review
+For asset-led Web games, Game OS blocks promotion unless the generated prototype passes role-fit assets, visible GameOS watermark, visual composition, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, deliberate pointer/touch input, reset/retry input, and Advanced Player QA. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
 
-Run `gameos review <project-id>` after build and QA. It writes a `studio-scorecard` artifact and exits non-zero unless every category reaches 10/10 with evidence:
+## Trust Review
+
+Run `gameos review <project-id>` after build and QA. It writes a `studio-scorecard` artifact and assigns an honest readiness tier:
+
+- `LOCAL_PROTOTYPE_READY`
+- `CREATOR_TEST_READY`
+- `NEEDS_IMPROVEMENT`
+- `BLOCKED`
+
+Game OS only claims local prototype or creator-test readiness in V1. Commercial launch claims require later engine export, platform compliance, packaging, and human review.
+
+The scorecard covers:
 
 - agent swarm and skills
 - game direction and design
@@ -102,7 +116,9 @@ Run `gameos review <project-id>` after build and QA. It writes a `studio-scoreca
 - security and privacy
 - open-source release readiness
 
-Run `npm run goal:audit` for the repository-level 10/10 local-readiness gate across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, and open-source release evidence.
+Run `gameos diagnose <project-id>` for the exact blocker, failed capability, failed evidence, owning agent, and next best command. Use `--strict` in automation when `NEEDS_IMPROVEMENT` should fail the command.
+
+Run `npm run goal:audit`, `npm run acceptance:universal-trust`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, and open-source release evidence.
 
 ## Data And Privacy
 
@@ -137,7 +153,9 @@ npm test
 npm run build:cli
 npm run test:cli
 npm run goal:audit
-npm run acceptance:cutrope
+npm run acceptance:universal-trust
+npm run trust:audit
+npm run acceptance:web-quality
 npm run release:audit
 npm run homebrew:audit
 npm run homebrew:update -- 0.1.0 --check

@@ -34,7 +34,7 @@ type CliOptions = {
   dataDir?: string;
 };
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 const DEFAULT_DATA_DIR = path.join(os.homedir(), ".gameos");
 
 process.on("warning", (warning) => {
@@ -79,6 +79,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return projectStatus(parsed, options);
     case "journey":
       return journey(parsed, options);
+    case "diagnose":
+      return diagnose(parsed, options);
     case "review":
       return review(parsed, options);
     case "feedback":
@@ -192,7 +194,7 @@ async function cockpit(parsed: ParsedArgv, _options: CliOptions): Promise<void> 
 async function createProject(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const { createStudioProject } = await import("../lib/studio");
   const workspace = createStudioProject(projectInputFromFlags(parsed, false));
-  printResult(options, projectPayload(workspace), renderWorkspaceSummary(workspace));
+  printResult(options, projectPayload(workspace, options.full), renderWorkspaceSummary(workspace));
 }
 
 async function makeProject(parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -211,7 +213,7 @@ async function makeProject(parsed: ParsedArgv, options: CliOptions): Promise<voi
   const qaResult = await runWebQa(built.project.id, { browser });
 
   const payload = {
-    project: projectPayload(qaResult.workspace),
+    project: projectPayload(qaResult.workspace, options.full),
     quality,
     assets: assetPath || null,
     qa: qaResult.report
@@ -236,17 +238,39 @@ async function listProjects(_parsed: ParsedArgv, options: CliOptions): Promise<v
   const text = projects.length
     ? projects.map((workspace) => `${workspace.project.id} | ${workspace.project.name} | ${workspace.project.targetPlatforms.join(", ")}`).join("\n")
     : "No Game OS projects yet. Run gameos create --prompt \"...\" --platform Web";
-  printResult(options, { projects: projects.map(projectPayload) }, text);
+  printResult(options, { projects: projects.map((workspace) => projectPayload(workspace, options.full)) }, text);
 }
 
 async function projectStatus(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const workspace = await requireProject(parsed.positionals[0]);
-  printResult(options, projectPayload(workspace), renderProjectStatus(workspace));
+  printResult(options, projectPayload(workspace, options.full), renderProjectStatus(workspace));
 }
 
 async function journey(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const workspace = await requireProject(parsed.positionals[0]);
-  printResult(options, { project: projectPayload(workspace), journey: renderJourney(workspace) }, renderJourney(workspace));
+  printResult(options, { project: projectPayload(workspace, options.full), journey: renderJourney(workspace) }, renderJourney(workspace));
+}
+
+async function diagnose(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const { createTrustDiagnosis } = await import("../lib/studio");
+  const projectId = parsed.positionals[0];
+  if (!projectId) throw new Error("Usage: gameos diagnose <project-id>");
+  const result = createTrustDiagnosis(projectId);
+  const text = [
+    `Game OS diagnosis: ${result.workspace.project.name}`,
+    `Project id: ${result.workspace.project.id}`,
+    `Verdict: ${result.diagnosis.verdict}`,
+    `Blocker: ${result.diagnosis.blocker}`,
+    `Failed capability: ${result.diagnosis.failedCapability}`,
+    `Failed evidence: ${result.diagnosis.failedEvidence}`,
+    `Owning agent: ${result.diagnosis.owningAgent}`,
+    `Next: ${result.diagnosis.nextCommand}`,
+    "",
+    "Evidence:",
+    ...result.diagnosis.evidence.map((item) => `- ${item}`)
+  ].join("\n");
+  printResult(options, { project: projectPayload(result.workspace, options.full), diagnosis: result.diagnosis }, text);
+  if (result.diagnosis.verdict === "BLOCKED" || (hasFlag(parsed, "strict") && result.diagnosis.verdict === "NEEDS_IMPROVEMENT")) process.exitCode = 1;
 }
 
 async function review(parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -256,10 +280,10 @@ async function review(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const result = createStudioReview(projectId);
   printResult(
     options,
-    { project: projectPayload(result.workspace), scorecard: result.scorecard },
+    { project: projectPayload(result.workspace, options.full), scorecard: result.scorecard },
     renderScorecardSummary(result.scorecard)
   );
-  if (!result.scorecard.verdict.startsWith("10_OUT_OF_10")) process.exitCode = 1;
+  if (result.scorecard.verdict === "BLOCKED" || result.scorecard.verdict === "NEEDS_IMPROVEMENT") process.exitCode = 1;
 }
 
 async function feedback(parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -270,7 +294,7 @@ async function feedback(parsed: ParsedArgv, options: CliOptions): Promise<void> 
   const workspace = recordUserFeedback(projectId, note);
   printResult(
     options,
-    projectPayload(workspace),
+    projectPayload(workspace, options.full),
     [`Feedback recorded for ${workspace.project.name}.`, `Next: gameos agents rerun ${workspace.project.id} visual-quality-director`].join("\n")
   );
 }
@@ -285,7 +309,7 @@ async function improve(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const result = await improveProjectWithAutopilot(projectId, note, { browser: !hasFlag(parsed, "static") });
   const payload = {
     status: result.status,
-    project: projectPayload(result.workspace),
+    project: projectPayload(result.workspace, options.full),
     roles: result.roles,
     qaVerdict: result.qaVerdict,
     reviewVerdict: result.reviewVerdict,
@@ -298,11 +322,11 @@ async function improve(parsed: ParsedArgv, options: CliOptions): Promise<void> {
     `QA verdict: ${result.qaVerdict}`,
     `Review verdict: ${result.reviewVerdict}`,
     `Blocker: ${result.blocker}`,
-    `Next: ${result.status === "Improved" ? `gameos play ${result.workspace.project.id}` : `gameos journey ${result.workspace.project.id}`}`
+    `Next: ${result.status !== "Still blocked" ? `gameos play ${result.workspace.project.id}` : `gameos journey ${result.workspace.project.id}`}`
   ].join("\n");
 
   printResult(options, payload, text);
-  if (result.status !== "Improved") process.exitCode = 1;
+  if (result.status === "Still blocked") process.exitCode = 1;
 }
 
 async function play(parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -337,7 +361,7 @@ async function agents(parsed: ParsedArgv, options: CliOptions, subcommand?: stri
     throw new Error("Usage: gameos agents run <project-id> OR gameos agents rerun <project-id> <role>");
   }
 
-  printResult(options, projectPayload(workspace), renderWorkspaceSummary(workspace));
+  printResult(options, projectPayload(workspace, options.full), renderWorkspaceSummary(workspace));
 }
 
 async function assets(parsed: ParsedArgv, options: CliOptions, subcommand?: string): Promise<void> {
@@ -348,7 +372,7 @@ async function assets(parsed: ParsedArgv, options: CliOptions, subcommand?: stri
   const filePath = path.resolve(rawFile);
   if (!fs.existsSync(filePath)) throw new Error(`Asset file not found: ${filePath}`);
   const workspace = importProjectAssetsFromStoredFile(projectId, path.basename(filePath), filePath);
-  printResult(options, projectPayload(workspace), renderWorkspaceSummary(workspace));
+  printResult(options, projectPayload(workspace, options.full), renderWorkspaceSummary(workspace));
 }
 
 async function build(parsed: ParsedArgv, options: CliOptions, lane?: string): Promise<void> {
@@ -366,7 +390,7 @@ async function build(parsed: ParsedArgv, options: CliOptions, lane?: string): Pr
   } else {
     throw new Error("Usage: gameos build <web|godot|unity> <project-id>");
   }
-  printResult(options, projectPayload(workspace), renderWorkspaceSummary(workspace));
+  printResult(options, projectPayload(workspace, options.full), renderWorkspaceSummary(workspace));
 }
 
 async function qa(parsed: ParsedArgv, options: CliOptions, lane?: string): Promise<void> {
@@ -377,7 +401,7 @@ async function qa(parsed: ParsedArgv, options: CliOptions, lane?: string): Promi
     const result = await runWebQa(projectId, { browser: !hasFlag(parsed, "static") });
     printResult(
       options,
-      { project: projectPayload(result.workspace), qa: result.report },
+      { project: projectPayload(result.workspace, options.full), qa: result.report },
       [`QA verdict: ${result.report.verdict}`, `Project: ${result.workspace.project.id}`, `Next: gameos status ${result.workspace.project.id}`].join("\n")
     );
     if (!hasFlag(parsed, "static") && !result.report.verdict.startsWith("WORTH_PLAYING")) process.exitCode = 1;
@@ -451,13 +475,13 @@ function getCliOptions(parsed: ParsedArgv): CliOptions {
   };
 }
 
-function projectPayload(workspace: ProjectWorkspace): Record<string, unknown> {
-  return {
+function projectPayload(workspace: ProjectWorkspace, includeArtifacts = false): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
     id: workspace.project.id,
     name: workspace.project.name,
     genre: workspace.project.genre,
     targetPlatforms: workspace.project.targetPlatforms,
-    artifacts: workspace.artifacts.length,
+    artifactCount: workspace.artifacts.length,
     agents: workspace.agents.length,
     qa: {
       pass: workspace.qaGates.filter((gate) => gate.result === "pass").length,
@@ -465,6 +489,8 @@ function projectPayload(workspace: ProjectWorkspace): Record<string, unknown> {
       blocked: workspace.qaGates.filter((gate) => gate.result === "blocked").length
     }
   };
+  if (includeArtifacts) payload.artifacts = workspace.artifacts.map(artifactPayload);
+  return payload;
 }
 
 function artifactPayload(artifact: ArtifactRecord): Record<string, unknown> {
@@ -550,6 +576,7 @@ Usage:
   gameos list
   gameos status <project-id>
   gameos journey <project-id>
+  gameos diagnose <project-id> [--strict]
   gameos review <project-id>
   gameos feedback <project-id> --note "what got stuck or should improve"
   gameos improve <project-id> --note "what should change" --yes

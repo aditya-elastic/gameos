@@ -14,6 +14,7 @@ checkAgentRegistry();
 checkDocs();
 checkWorkflowsAndFormulae();
 checkPackContents();
+checkUniversalPackageLanguage();
 
 if (problems.length > 0) {
   console.error("GAMEOS_RELEASE_AUDIT: FAIL");
@@ -44,7 +45,9 @@ function checkPackageMetadata() {
   assert(packageJson.bin?.gameos === "dist/cli.js", "package bin must expose gameos -> dist/cli.js.");
   assert(packageJson.license === "MIT", "package license must be MIT.");
   assert(packageJson.engines?.node === ">=24.0.0", "Node 24+ engine requirement must be explicit.");
-  assert(packageJson.scripts?.["acceptance:cutrope"] === "node scripts/cutrope-acceptance.mjs", "package scripts must expose acceptance:cutrope.");
+  assert(packageJson.scripts?.["acceptance:web-quality"] === "node scripts/web-quality-acceptance.mjs", "package scripts must expose acceptance:web-quality.");
+  assert(packageJson.scripts?.["acceptance:universal-trust"] === "node scripts/universal-trust-acceptance.mjs", "package scripts must expose acceptance:universal-trust.");
+  assert(packageJson.scripts?.["trust:audit"] === "node scripts/trust-audit.mjs", "package scripts must expose trust:audit.");
   assert(packageJson.scripts?.["goal:audit"] === "node scripts/goal-audit.mjs", "package scripts must expose goal:audit.");
   assert(packageJson.scripts?.["release:audit"] === "node scripts/release-audit.mjs", "package scripts must expose release:audit.");
   assert(packageJson.scripts?.["homebrew:audit"] === "node scripts/homebrew-audit.mjs", "package scripts must expose homebrew:audit.");
@@ -75,6 +78,8 @@ function checkCliBinary() {
 
     const help = runCli(["--help"], dataDir);
     assert(help.includes("gameos review <project-id>"), "CLI help must expose gameos review.");
+    assert(help.includes("gameos diagnose <project-id>"), "CLI help must expose gameos diagnose.");
+    assert(help.includes("--strict"), "CLI help must expose strict diagnosis mode.");
     assert(help.includes("--allow-heavy"), "CLI help must expose heavy-lane guardrails.");
 
     const doctor = JSON.parse(runCli(["doctor", "--json"], dataDir));
@@ -88,6 +93,12 @@ function checkCliBinary() {
 
 function checkAgentRegistry() {
   const requiredRoles = [
+    "global-os-designer",
+    "product-truth-officer",
+    "acceptance-architect",
+    "advanced-player-council",
+    "evidence-auditor",
+    "universal-capability-steward",
     "studio-director",
     "game-designer",
     "gameplay-developer",
@@ -113,10 +124,80 @@ function checkAgentRegistry() {
   const roles = new Set(agents.map((agent) => agent.role));
 
   assert(agents.length >= requiredRoles.length, `agent registry must contain at least ${requiredRoles.length} agents.`);
+  assert(agents[0]?.role === "global-os-designer", "Global OS Designer must be the first agent in the registry.");
+  assert(
+    agents.slice(0, 6).map((agent) => agent.role).join(",") ===
+      "global-os-designer,product-truth-officer,acceptance-architect,advanced-player-council,evidence-auditor,universal-capability-steward",
+    "Ownership governance agents must run before Studio Director."
+  );
   for (const role of requiredRoles) assert(roles.has(role), `agent registry missing ${role}.`);
+  const globalOsDesigner = agents[0];
+  for (const skill of [
+    "ultra-global business expansion",
+    "category-defining product vision",
+    "global market strategy",
+    "ecosystem platform strategy",
+    "universal product language",
+    "public package direction",
+    "release-blocking architecture governance"
+  ]) {
+    assert(globalOsDesigner.skills.includes(skill), `Global OS Designer must include ${skill}.`);
+  }
   for (const agent of agents) {
     assert(agent.title && agent.mission && Array.isArray(agent.skills) && agent.skills.length > 0, `agent ${agent.role} must have title, mission, and skills.`);
   }
+}
+
+function checkUniversalPackageLanguage() {
+  const shippedTextFiles = [
+    "dist/cli.js",
+    "README.md",
+    "CHANGELOG.md",
+    "docs/CLI.md",
+    "docs/ARCHITECTURE.md",
+    "docs/GOAL_AUDIT.md",
+    "docs/PUBLISHING.md",
+    "docs/RELEASE_CHECKLIST.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/V1_ACCEPTANCE.md",
+    "studio-agents/agents.json"
+  ];
+  const forbidden = [
+    "bHVkbw==",
+    "cGFjaGlzaQ==",
+    "Y3V0LXJvcGU=",
+    "Y3V0IHJvcGU=",
+    "Y3V0IHRoZSByb3Bl",
+    "a2VubmV5",
+    "Y2FuZHk=",
+    "cHVsc2UgaG9wcGVy",
+    "cnVuIHRoZSBzdHJhaXQ=",
+    "cm95YWwgbHVkbw==",
+    "b20gbm9t",
+    "cm9wZSBwaHlzaWNz",
+    "Ym9hcmQtcnVsZXM=",
+    "YWNjZXB0YW5jZTphc3NldC1waHlzaWNz"
+  ].map((encoded) => {
+    const term = Buffer.from(encoded, "base64").toString("utf8");
+    return { encoded, pattern: new RegExp(`\\b${escapeRegex(term)}\\b`, "i") };
+  });
+
+  for (const file of shippedTextFiles) {
+    const absolute = path.join(root, file);
+    if (!fs.existsSync(absolute)) continue;
+    const content = fs.readFileSync(absolute, "utf8");
+    assert(!/\b10\/10\b/.test(content), `${file} must not market numeric perfection.`);
+    assert(!/\b10_OUT_OF_10\b/.test(content), `${file} must not ship obsolete readiness constants.`);
+    assert(!/\bpublish-ready\b/i.test(content), `${file} must not claim publish-ready local Web proof.`);
+    assert(!/\bstore-ready\b/i.test(content), `${file} must not claim store-ready local Web proof.`);
+    for (const { encoded, pattern } of forbidden) {
+      assert(!pattern.test(content), `${file} must use universal Game OS language; forbidden narrow term matched encoded:${encoded}.`);
+    }
+  }
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function checkDocs() {
@@ -140,25 +221,35 @@ function checkDocs() {
   const readme = readText("README.md");
   assert(readme.includes("npm install -g gameos"), "README must include npm install instructions.");
   assert(readme.includes("gameos review <project-id>"), "README must document gameos review.");
-  assert(readme.includes("npm run acceptance:cutrope"), "README must document acceptance:cutrope.");
+  assert(readme.includes("gameos diagnose <project-id>"), "README must document gameos diagnose.");
+  assert(readme.includes("npm run acceptance:universal-trust"), "README must document acceptance:universal-trust.");
+  assert(readme.includes("npm run trust:audit"), "README must document trust:audit.");
+  assert(readme.includes("npm run acceptance:web-quality"), "README must document acceptance:web-quality.");
   assert(readme.includes("npm run goal:audit"), "README must document goal:audit.");
   assert(readme.includes("npm run homebrew:update"), "README must document homebrew:update.");
   assert(readme.includes("V1 has no telemetry"), "README must document privacy posture.");
 
   const cliDocs = readText("docs/CLI.md");
-  assert(cliDocs.includes("Studio Review"), "CLI docs must document Studio Review.");
-  assert(cliDocs.includes("npm run acceptance:cutrope"), "CLI docs must document acceptance:cutrope.");
-  assert(cliDocs.includes("10-category score"), "CLI docs must explain the 10-category score.");
+  assert(cliDocs.includes("Trust Review"), "CLI docs must document Trust Review.");
+  assert(cliDocs.includes("gameos diagnose <project-id>"), "CLI docs must document diagnose.");
+  assert(cliDocs.includes("npm run acceptance:universal-trust"), "CLI docs must document acceptance:universal-trust.");
+  assert(cliDocs.includes("npm run trust:audit"), "CLI docs must document trust:audit.");
+  assert(cliDocs.includes("npm run acceptance:web-quality"), "CLI docs must document acceptance:web-quality.");
+  assert(cliDocs.includes("11-category score"), "CLI docs must explain the 11-category score.");
 
   const architecture = readText("docs/ARCHITECTURE.md");
-  assert(architecture.includes("10/10 Review Doctrine"), "Architecture docs must explain 10/10 Review Doctrine.");
+  assert(architecture.includes("Trust Review Doctrine"), "Architecture docs must explain Trust Review Doctrine.");
+  assert(architecture.includes("acceptance profile"), "Architecture docs must explain acceptance profiles.");
+  assert(architecture.includes("Global OS Designer"), "Architecture docs must list Global OS Designer.");
+  assert(architecture.includes("capability map"), "Architecture docs must explain capability mapping.");
   assert(architecture.includes("Security Privacy Reviewer"), "Architecture docs must list security/privacy agent.");
   assert(architecture.includes("Open Source Release Engineer"), "Architecture docs must list open-source release agent.");
 
   const goalAudit = readText("docs/GOAL_AUDIT.md");
-  assert(goalAudit.includes("10/10 Goal Audit"), "Goal audit docs must explain the 10/10 goal audit.");
+  assert(goalAudit.includes("Goal Trust Audit"), "Goal audit docs must explain the trust audit.");
   assert(goalAudit.includes("Agent Swarm And Skills"), "Goal audit docs must list the agent swarm category.");
   assert(goalAudit.includes("npm run goal:audit"), "Goal audit docs must include the command.");
+  assert(goalAudit.includes("npm run trust:audit"), "Goal audit docs must include trust:audit.");
 
   const publishing = readText("docs/PUBLISHING.md");
   assert(publishing.includes("npm run homebrew:update"), "Publishing docs must document deterministic Homebrew formula updates.");

@@ -7,6 +7,7 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
   const agentComplete = requiredRoles.every((role) => agents.some((agent) => agent.role === role && agent.status === "complete"));
   const assetReady = assetPlan.items.every((item) => item.status !== "rejected");
   const platformScore = platformReadinessScore(platformPlans);
+  const hasGlobalOsDesigner = agents.some((agent) => agent.role === "global-os-designer" && agent.status === "complete");
   const hasMemoryAgent = agents.some((agent) => agent.role === "memory-manager" && agent.status === "complete");
   const hasStorageAgent = agents.some((agent) => agent.role === "storage-manager" && agent.status === "complete");
   const hasRulesAgent = agents.some((agent) => agent.role === "rules-systems-designer" && agent.status === "complete");
@@ -18,6 +19,9 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
   const hasGameFeelDirector = agents.some((agent) => agent.role === "game-feel-director" && agent.status === "complete");
   const hasSecurityReviewer = agents.some((agent) => agent.role === "security-privacy-reviewer" && agent.status === "complete");
   const hasReleaseEngineer = agents.some((agent) => agent.role === "open-source-release-engineer" && agent.status === "complete");
+  const hasTruthOfficer = agents.some((agent) => agent.role === "product-truth-officer" && agent.status === "complete");
+  const hasAcceptanceArchitect = agents.some((agent) => agent.role === "acceptance-architect" && agent.status === "complete");
+  const hasEvidenceAuditor = agents.some((agent) => agent.role === "evidence-auditor" && agent.status === "complete");
 
   return [
     {
@@ -28,6 +32,15 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
       headedPlaytestChecks: ["None until prototype exists."],
       playerFeelChecks: ["Fantasy can be explained in one sentence."],
       result: "pass"
+    },
+    {
+      id: `${projectId}_os_architecture`,
+      projectId,
+      name: "Global OS Architecture Gate",
+      automatedChecks: ["Global OS Designer generated an OS direction verdict.", "Capability map exists before adapter generation.", "Named examples are treated as regression fixtures."],
+      headedPlaytestChecks: ["Every playable build must prove reusable capabilities, not only a demo-specific path."],
+      playerFeelChecks: ["The generated game should improve a reusable Game OS system when it fails."],
+      result: hasGlobalOsDesigner ? "pass" : "blocked"
     },
     {
       id: `${projectId}_swarm`,
@@ -88,11 +101,15 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
       result: hasVisualQualityAgent && hasPhysicsAgent ? "watch" : "blocked"
     },
     {
-      id: `${projectId}_studio_quality_10`,
+      id: `${projectId}_studio_trust`,
       projectId,
-      name: "10/10 Studio Quality Gate",
+      name: "Studio Trust Quality Gate",
       automatedChecks: [
-        "Studio review scorecard exists before release claims.",
+        "Studio review scorecard exists before readiness claims.",
+        "Acceptance profile exists before build and QA claims.",
+        "Product Truth Officer blocks exaggerated commercial launch language.",
+        "Evidence Auditor rejects self-reported success without runnable proof.",
+        "Global OS Designer owns architecture direction.",
         "Gameplay Developer owns implementation-slice quality.",
         "UX Flow Director owns creator command journey.",
         "Game Feel Director owns first-minute playability.",
@@ -100,8 +117,8 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
         "Open Source Release Engineer owns npm/Homebrew readiness."
       ],
       headedPlaytestChecks: ["Browser or engine QA evidence must support the scorecard.", "Screenshots and interaction proof must back visual/game-feel claims."],
-      playerFeelChecks: ["No 10/10 claim is allowed unless every scorecard category has explicit evidence."],
-      result: hasGameplayDeveloper && hasUxFlowDirector && hasGameFeelDirector && hasSecurityReviewer && hasReleaseEngineer ? "watch" : "blocked"
+      playerFeelChecks: ["No readiness claim is allowed unless the verdict tier is backed by acceptance-profile evidence and runnable QA."],
+      result: hasGlobalOsDesigner && hasGameplayDeveloper && hasUxFlowDirector && hasGameFeelDirector && hasSecurityReviewer && hasReleaseEngineer && hasTruthOfficer && hasAcceptanceArchitect && hasEvidenceAuditor ? "watch" : "blocked"
     },
     {
       id: `${projectId}_web_quality`,
@@ -109,11 +126,11 @@ export function createQAGates(projectId: string, agents: AgentRun[], assetPlan: 
       name: "Web Worth Playing Gate",
       automatedChecks: [
         "Web smoke reports the GameOS watermark.",
-        "Browser QA cuts, resets, verifies no auto-cut, proves fast swipe, smooth mouse blade, slow human mouse blade, recuts, and runs the Advanced Player.",
-        "Player report includes visual, physics, timing skill, agency, mastery, input, smooth mouse, slow mouse, asset-fit, and reset/recut verdicts."
+        "Browser QA proves the selected capability interactions and runs the Advanced Player.",
+        "Physics games additionally prove cut/reset/recut, smooth mouse blade, slow human mouse blade, timing, agency, mastery, and asset-fit verdicts."
       ],
-      headedPlaytestChecks: ["Screenshot composition must be mature enough for creator feedback.", "Physics motion must be readable without debug text.", "Slow human mouse movement across the rope must cut reliably.", "Early and late actions must visibly fail."],
-      playerFeelChecks: ["Advanced Player blocks promotion unless visual, physics, timing, agency, mastery, fast swipe, smooth mouse, slow mouse, asset-fit, and fun gates pass."],
+      headedPlaytestChecks: ["Screenshot composition must be mature enough for creator feedback.", "Primary interaction must be readable without debug text.", "Selected core capabilities must visibly affect the result."],
+      playerFeelChecks: ["Advanced Player blocks promotion unless visual, input, capability, asset, and fun gates pass."],
       result: "watch"
     }
   ];

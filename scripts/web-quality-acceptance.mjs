@@ -5,10 +5,10 @@ import { execFileSync } from "node:child_process";
 
 const root = process.cwd();
 const cli = path.join(root, "dist", "cli.js");
-const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gameos-cutrope-acceptance-"));
+const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gameos-web-quality-acceptance-"));
 const dataDir = path.join(workDir, "data");
 const assetRoot = path.join(workDir, "assets");
-const assetZip = path.join(workDir, "cutrope-assets.zip");
+const assetZip = path.join(workDir, "web-quality-assets.zip");
 const imageBytes = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
   "base64"
@@ -16,14 +16,14 @@ const imageBytes = Buffer.from(
 
 try {
   assert(fs.existsSync(cli), "dist/cli.js is missing. Run npm run build:cli first.");
-  assert(fs.existsSync(chromePath()), `Chrome executable not found at ${chromePath()}. Cut Rope acceptance requires browser QA.`);
+  assert(fs.existsSync(chromePath()), `Chrome executable not found at ${chromePath()}. Web quality acceptance requires browser QA.`);
   createAssetZip();
 
   const make = JSON.parse(
     runCli([
       "make",
       "--prompt",
-      "A rope-cut physics puzzle for web players where the player smoothly cuts a swinging rope, drops candy into a hungry character, collects stars, uses timing and momentum, and proves uploaded assets create a beautiful mature playable web prototype.",
+      "An asset-led physics timing puzzle for web players where the player smoothly releases a swinging connector, drops a hero object into a goal, collects mastery pickups, uses timing and momentum, and proves uploaded assets create a beautiful mature playable web prototype.",
       "--target",
       "web-playable",
       "--assets",
@@ -36,25 +36,31 @@ try {
   );
   const projectId = make.project.id;
   const projectRoot = path.join(dataDir, "projects", projectId, "web");
+  const artifactList = JSON.parse(runCli(["artifact", "list", projectId, "--json"]));
+  const artifactKinds = new Set((artifactList.artifacts ?? []).map((artifact) => artifact.kind));
 
-  assert(make.qa.verdict === "WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE", `make QA verdict was ${make.qa.verdict}.`);
+  assert(make.qa.verdict === "WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD", `make QA verdict was ${make.qa.verdict}.`);
   assert(fs.existsSync(path.join(projectRoot, "index.html")), "Web build index.html was not created.");
   assert(fs.existsSync(path.join(projectRoot, "web-adapter-manifest.json")), "Web adapter manifest was not created.");
+  assert(artifactKinds.has("acceptance-profile"), "Acceptance profile artifact was not created.");
 
   const review = JSON.parse(runCli(["review", projectId, "--json"]));
   assert(review.scorecard.overallScore === 10, `scorecard overall score was ${review.scorecard.overallScore}.`);
   assert(review.scorecard.minimumCategoryScore === 10, `scorecard minimum category score was ${review.scorecard.minimumCategoryScore}.`);
-  assert(review.scorecard.verdict === "10_OUT_OF_10_READY_FOR_LOCAL_USERS", `scorecard verdict was ${review.scorecard.verdict}.`);
-  assert(review.scorecard.agentCount >= 21, `scorecard reviewed only ${review.scorecard.agentCount} agents.`);
+  assert(review.scorecard.verdict === "CREATOR_TEST_READY", `scorecard verdict was ${review.scorecard.verdict}.`);
+  assert(review.scorecard.agentCount >= 27, `scorecard reviewed only ${review.scorecard.agentCount} agents.`);
+
+  const diagnosis = JSON.parse(runCli(["diagnose", projectId, "--json"]));
+  assert(diagnosis.diagnosis?.verdict === "CREATOR_TEST_READY", `diagnosis verdict was ${diagnosis.diagnosis?.verdict}.`);
 
   const statusText = runCli(["status", projectId]);
-  assert(statusText.includes("QA: 9 pass, 0 watch, 0 blocked"), "status did not promote all QA gates after review.");
-  assert(statusText.includes("PASS Studio Review: 10/10"), "journey did not show 10/10 studio review pass.");
+  assert(/QA: \d+ pass, 0 watch, 0 blocked/.test(statusText), "status did not promote all QA gates after creator-test review.");
+  assert(statusText.includes("PASS Trust Review: CREATOR_TEST_READY"), "journey did not show creator-test trust review pass.");
 
   runNpm("web:smoke", { GAME_OS_WEB_PROJECT: projectRoot });
   runNpm("web:player", { GAME_OS_WEB_PROJECT: projectRoot });
 
-  console.log("GAMEOS_CUTROPE_ACCEPTANCE: PASS");
+  console.log("GAMEOS_WEB_QUALITY_ACCEPTANCE: PASS");
   console.log(
     JSON.stringify(
       {
@@ -64,6 +70,7 @@ try {
         webRoot: projectRoot,
         qaVerdict: make.qa.verdict,
         scorecard: review.scorecard.verdict,
+        diagnosis: diagnosis.diagnosis.verdict,
         agents: review.scorecard.agentCount
       },
       null,
@@ -77,7 +84,7 @@ try {
 function createAssetZip() {
   execFileSync("zip", ["-v"], { stdio: "ignore" });
   fs.mkdirSync(assetRoot, { recursive: true });
-  for (const name of ["candy-ball.png", "monster-mouth.png", "star-gold.png", "wood-background.png", "spike-hazard.png", "button-ui.png"]) {
+  for (const name of ["hero-ball.png", "goal-mouth.png", "star-gold.png", "wood-background.png", "spike-hazard.png", "button-ui.png"]) {
     fs.writeFileSync(path.join(assetRoot, name), imageBytes);
   }
   execFileSync("zip", ["-qr", assetZip, "."], { cwd: assetRoot });

@@ -12,7 +12,7 @@ try {
     run([
       "make",
       "--prompt",
-      "A small Ludo game called Smoke Ludo for local creator playtesting with dice, tokens, captures, safe squares, and a fast web prototype.",
+      "A one-button arcade game called Smoke Hopper where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score.",
       "--target",
       "web-playable",
       "--quality",
@@ -23,11 +23,14 @@ try {
   );
   const projectId = make.project.id;
   run(["status", projectId, "--json"]);
-  run(["artifact", "list", projectId, "--json"]);
+  const artifactList = JSON.parse(run(["artifact", "list", projectId, "--json"]));
+  assert(artifactList.artifacts.some((artifact) => artifact.kind === "capability-map"), "make must generate a capability map artifact.");
+  assert(artifactList.artifacts.some((artifact) => artifact.kind === "acceptance-profile"), "make must generate an acceptance profile artifact.");
+  assert(artifactList.artifacts.some((artifact) => artifact.kind === "os-design-review"), "make must generate a Global OS design review artifact.");
   run(["artifact", "read", projectId, "game-bible", "--json"]);
   const review = runExpectFailure(["review", projectId, "--json"]);
   const reviewPayload = JSON.parse(review.stdout);
-  assert(reviewPayload.scorecard.verdict !== "10_OUT_OF_10_READY_FOR_LOCAL_USERS", "fast/static smoke review must not claim 10/10.");
+  assert(["LOCAL_PROTOTYPE_READY", "NEEDS_IMPROVEMENT", "BLOCKED"].includes(reviewPayload.scorecard.verdict), "fast/static smoke review must stay below creator-test readiness.");
   console.log(JSON.stringify({ ok: true, projectId, dataDir }, null, 2));
 } finally {
   fs.rmSync(dataDir, { recursive: true, force: true });

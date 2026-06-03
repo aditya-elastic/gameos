@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { getProjectArtifactRoot, readArtifactContent } from "./artifacts";
 import { loadAgentDefinitions } from "./agent-registry";
-import type { ArtifactRecord, ProjectWorkspace } from "./types";
+import { trustVerdictFromScore } from "./trust";
+import type { ArtifactRecord, ProjectWorkspace, TrustVerdictTier } from "./types";
 
 export type StudioScorecardCheck = {
   label: string;
@@ -24,7 +25,7 @@ export type StudioScorecard = {
   projectName: string;
   overallScore: number;
   minimumCategoryScore: number;
-  verdict: "10_OUT_OF_10_READY_FOR_LOCAL_USERS" | "NEEDS_FINAL_POLISH" | "NEEDS_ARCHITECTURE_UPGRADE";
+  verdict: TrustVerdictTier;
   agentCount: number;
   categoryCount: number;
   categories: StudioScorecardCategory[];
@@ -32,6 +33,7 @@ export type StudioScorecard = {
 
 export function generateStudioScorecard(workspace: ProjectWorkspace): StudioScorecard {
   const categories = [
+    scoreOsArchitecture(workspace),
     scoreAgentSwarm(workspace),
     scoreStudioDesign(workspace),
     scoreAssetPipeline(workspace),
@@ -45,12 +47,9 @@ export function generateStudioScorecard(workspace: ProjectWorkspace): StudioScor
   ];
   const overallScore = roundScore(categories.reduce((total, category) => total + category.score, 0) / categories.length);
   const minimumCategoryScore = Math.min(...categories.map((category) => category.score));
-  const verdict =
-    minimumCategoryScore === 10
-      ? "10_OUT_OF_10_READY_FOR_LOCAL_USERS"
-      : minimumCategoryScore >= 8 && categories.every((category) => category.verdict !== "BLOCKED")
-        ? "NEEDS_FINAL_POLISH"
-        : "NEEDS_ARCHITECTURE_UPGRADE";
+  const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
+  const webVerdict = readMarkdownValue(webReport, "Verdict") ?? "";
+  const verdict = trustVerdictFromScore(minimumCategoryScore, webVerdict, Boolean(readLatestMarkdownArtifact(workspace, "acceptance-profile")), hasRunnableEvidence(workspace));
 
   return {
     projectId: workspace.project.id,
@@ -66,7 +65,7 @@ export function generateStudioScorecard(workspace: ProjectWorkspace): StudioScor
 
 export function renderStudioScorecardMarkdown(scorecard: StudioScorecard): string {
   return [
-    `# ${scorecard.projectName} 10/10 Studio Scorecard`,
+    `# ${scorecard.projectName} Studio Trust Scorecard`,
     "",
     "## Verdict",
     `- Overall score: ${formatScore(scorecard.overallScore)}/10`,
@@ -89,8 +88,42 @@ export function renderStudioScorecardMarkdown(scorecard: StudioScorecard): strin
       ""
     ]),
     "## Director Rule",
-    "Game OS can only claim 10/10 when every category reaches 10/10 with artifact-backed evidence. Any gap routes to the owning agent before release."
+    "Game OS can only claim local prototype or creator-test readiness when the acceptance profile, runnable QA evidence, provenance, and project-specific gates agree. Platform-store and commercial launch claims are out of scope for this local Web proof."
   ].join("\n");
+}
+
+function scoreOsArchitecture(workspace: ProjectWorkspace): StudioScorecardCategory {
+  const osReview = readLatestMarkdownArtifact(workspace, "os-design-review");
+  const capabilityMap = readLatestMarkdownArtifact(workspace, "capability-map");
+  const riskReport = readLatestMarkdownArtifact(workspace, "architecture-risk-report");
+  const upgradeDoctrine = readLatestMarkdownArtifact(workspace, "upgrade-doctrine");
+
+  return categoryFromChecks("Global OS Architecture", [
+    agentCheck(workspace, "global-os-designer", "Global OS Designer owns OS direction and upgrade discipline."),
+    artifactCheck(workspace, "os-design-review", "OS design review exists."),
+    artifactCheck(workspace, "capability-map", "Capability map exists before build generation."),
+    artifactCheck(workspace, "acceptance-profile", "Acceptance profile exists before build and QA claims."),
+    artifactCheck(workspace, "architecture-risk-report", "Architecture risk report exists."),
+    artifactCheck(workspace, "upgrade-doctrine", "Upgrade doctrine exists."),
+    {
+      label: "Capability graph approved",
+      pass: /UNIVERSAL_CAPABILITY_GRAPH_APPROVED/.test(osReview) && /Selected Capabilities/.test(capabilityMap),
+      evidence: "OS review approves capability-driven generation and the capability map lists selected systems.",
+      gap: "OS review or capability map does not prove capability-driven generation."
+    },
+    {
+      label: "Examples are regression fixtures",
+      pass: /regression fixture/i.test(osReview) && /Regression Fixtures/.test(capabilityMap),
+      evidence: "OS artifacts distinguish example fixtures from reusable architecture.",
+      gap: "OS artifacts do not clearly prevent example games from becoming product architecture."
+    },
+    {
+      label: "Upgrade doctrine is reusable",
+      pass: /Every failed game test must upgrade a reusable Game OS capability/i.test(upgradeDoctrine) && /one-off named game lane/i.test(riskReport),
+      evidence: "Upgrade doctrine and risk report route failures into reusable Game OS capabilities.",
+      gap: "Upgrade doctrine does not force reusable capability improvement."
+    }
+  ]);
 }
 
 function scoreAgentSwarm(workspace: ProjectWorkspace): StudioScorecardCategory {
@@ -111,11 +144,18 @@ function scoreAgentSwarm(workspace: ProjectWorkspace): StudioScorecardCategory {
   return categoryFromChecks("Agent Swarm And Skills", checks);
 }
 
+function hasRunnableEvidence(workspace: ProjectWorkspace): boolean {
+  const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
+  const manifest = readWebAdapterManifest(workspace);
+  return Boolean(webReport && workspace.artifacts.some((artifact) => artifact.kind === "web-adapter" && fs.existsSync(artifact.path)) && manifest?.generatedBy === "Game OS" && manifest?.watermark?.required);
+}
+
 function scoreStudioDesign(workspace: ProjectWorkspace): StudioScorecardCategory {
   return categoryFromChecks("Game Direction And Design", [
     artifactCheck(workspace, "brief", "Game bible exists."),
     artifactCheck(workspace, "studio-plan", "Studio execution plan exists."),
     artifactCheck(workspace, "rules-spec", "Rules/state spec exists."),
+    artifactCheck(workspace, "capability-map", "Reusable capability map exists."),
     agentCheck(workspace, "studio-director", "Studio Director owns go/no-go."),
     agentCheck(workspace, "game-designer", "Game Designer owns mechanics and motivation."),
     agentCheck(workspace, "gameplay-developer", "Gameplay Developer owns implementation-slice contract.")
@@ -123,7 +163,7 @@ function scoreStudioDesign(workspace: ProjectWorkspace): StudioScorecardCategory
 }
 
 function scoreAssetPipeline(workspace: ProjectWorkspace): StudioScorecardCategory {
-  const wantsAssets = /cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt);
+  const wantsAssets = needsAssetLedPhysicsProof(workspace);
   const assetManifest = readLatestJsonArtifact<Record<string, unknown>>(workspace, "asset-pack-manifest");
   const preview = readLatestJsonArtifact<{ roleAssignments?: Array<Record<string, unknown>> }>(workspace, "asset-preview-manifest");
   const roles = preview?.roleAssignments ?? [];
@@ -141,9 +181,9 @@ function scoreAssetPipeline(workspace: ProjectWorkspace): StudioScorecardCategor
     },
     {
       label: "Asset verdict approved",
-      pass: !wantsAssets || assetManifest?.verdict === "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE",
+      pass: !wantsAssets || assetManifest?.verdict === "APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD",
       evidence: `Asset verdict is ${String(assetManifest?.verdict)}.`,
-      gap: "Asset verdict is not approved for the rope physics prototype."
+      gap: "Asset verdict is not approved for the asset-led physics prototype."
     },
     {
       label: "Critical asset roles accepted",
@@ -156,12 +196,12 @@ function scoreAssetPipeline(workspace: ProjectWorkspace): StudioScorecardCategor
 
 function scoreWebPlayability(workspace: ProjectWorkspace): StudioScorecardCategory {
   const webTargeted = workspace.platformPlans.some((plan) => plan.platform === "Web" && plan.status === "targeted");
-  const needsPhysicsPlayability = /cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt);
+  const needsPhysicsPlayability = needsPhysicsProof(workspace);
   const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
   const manifest = readWebAdapterManifest(workspace);
   const verdict = readMarkdownValue(webReport, "Verdict") ?? "";
 
-  return categoryFromChecks("Playable Web Build", [
+  const universalChecks: StudioScorecardCheck[] = [
     {
       label: "Web target selected",
       pass: webTargeted,
@@ -175,25 +215,36 @@ function scoreWebPlayability(workspace: ProjectWorkspace): StudioScorecardCatego
       evidence: `Advanced Player verdict is ${verdict || "missing"}.`,
       gap: "Advanced Player has not approved the Web build."
     },
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Visual verdict", "VISUAL_GATE_PASS", "Visual gate passed.") : numericMarkdownCheck(webReport, "Branching decisions", 1, "Rules playability produced branching decisions."),
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Physics verdict", "PHYSICS_GATE_PASS", "Physics gate passed.") : numericMarkdownCheck(webReport, "Captures", 1, "Rules playability produced captures."),
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Timing skill verdict", "TIMING_SKILL_PASS", "Timing skill gate passed.") : numericMarkdownCheck(webReport, "Releases", 1, "Rules playability released tokens/pieces."),
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Agency verdict", "AGENCY_GATE_PASS", "Player agency gate passed.") : numericMarkdownCheck(webReport, "Finish choices", 1, "Rules playability produced finish choices."),
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Mastery verdict", "MASTERY_GATE_PASS", "Mastery gate passed.") : numericMarkdownCheck(webReport, "Safe-square choices", 1, "Rules playability produced safe choices."),
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Smooth mouse verdict", "SMOOTH_MOUSE_BLADE_PASS", "Smooth mouse blade gate passed.") : passingCheck("Smooth mouse blade is not required for this non-physics target."),
-    needsPhysicsPlayability ? markdownValueCheck(webReport, "Slow mouse verdict", "SLOW_MOUSE_BLADE_PASS", "Slow human mouse blade gate passed.") : passingCheck("Slow mouse blade is not required for this non-physics target."),
     {
       label: "Manifest provenance and watermark",
       pass: manifest?.generatedBy === "Game OS" && Boolean(manifest?.watermark?.required),
       evidence: "Web manifest records generatedBy Game OS and required watermark.",
       gap: "Web manifest is missing Game OS provenance or watermark policy."
     }
-  ]);
+  ];
+
+  const capabilityChecks = needsPhysicsPlayability
+    ? [
+        markdownValueCheck(webReport, "Visual verdict", "VISUAL_GATE_PASS", "Visual gate passed."),
+        markdownValueCheck(webReport, "Physics verdict", "PHYSICS_GATE_PASS", "Physics gate passed."),
+        markdownValueCheck(webReport, "Timing skill verdict", "TIMING_SKILL_PASS", "Timing skill gate passed."),
+        markdownValueCheck(webReport, "Agency verdict", "AGENCY_GATE_PASS", "Player agency gate passed."),
+        markdownValueCheck(webReport, "Mastery verdict", "MASTERY_GATE_PASS", "Mastery gate passed."),
+        markdownValueCheck(webReport, "Smooth mouse verdict", "SMOOTH_MOUSE_BLADE_PASS", "Smooth mouse blade gate passed."),
+        markdownValueCheck(webReport, "Slow mouse verdict", "SLOW_MOUSE_BLADE_PASS", "Slow human mouse blade gate passed.")
+      ]
+    : [
+        numericMarkdownCheck(webReport, "Matches", 1, "Player-agent simulation ran at least one short session."),
+        numericMarkdownCheck(webReport, "Branching decisions", 1, "Selected capabilities produced player choices or state branches."),
+        passingCheck("Capability-specific input and visual feel are covered by the non-physics Advanced Player report.")
+      ];
+
+  return categoryFromChecks("Playable Web Build", [...universalChecks, ...capabilityChecks]);
 }
 
 function scoreQaEvidence(workspace: ProjectWorkspace): StudioScorecardCategory {
   const projectRoot = getProjectArtifactRoot(workspace.project.id);
-  const needsPhysicsScreenshots = /cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt);
+  const needsPhysicsScreenshots = needsPhysicsProof(workspace);
   return categoryFromChecks("QA Evidence And Player Agents", [
     artifactCheck(workspace, "qa-plan", "QA gates artifact exists."),
     artifactCheck(workspace, "test-matrix", "Test matrix exists."),
@@ -202,13 +253,13 @@ function scoreQaEvidence(workspace: ProjectWorkspace): StudioScorecardCategory {
     agentCheck(workspace, "advanced-player", "Advanced Player owns worth-playing verdict."),
     {
       label: "Visual QA screenshot captured",
-      pass: !needsPhysicsScreenshots || fs.existsSync(path.join(projectRoot, "web", "qa", "cut-rope-visual-qa.png")),
+      pass: !needsPhysicsScreenshots || fs.existsSync(path.join(projectRoot, "web", "qa", "asset-physics-visual-qa.png")),
       evidence: needsPhysicsScreenshots ? "Visual QA screenshot exists under the generated Web build." : "Visual QA screenshot is not mandatory for this non-physics proof target.",
       gap: "Visual QA screenshot is missing."
     },
     {
       label: "Interaction QA screenshot captured",
-      pass: !needsPhysicsScreenshots || fs.existsSync(path.join(projectRoot, "web", "qa", "cut-rope-interaction-qa.png")),
+      pass: !needsPhysicsScreenshots || fs.existsSync(path.join(projectRoot, "web", "qa", "asset-physics-interaction-qa.png")),
       evidence: needsPhysicsScreenshots ? "Interaction QA screenshot exists under the generated Web build." : "Interaction QA screenshot is not mandatory for this non-physics proof target.",
       gap: "Interaction QA screenshot is missing."
     }
@@ -244,7 +295,7 @@ function scoreUxFlow(workspace: ProjectWorkspace): StudioScorecardCategory {
 
 function scoreGameFeel(workspace: ProjectWorkspace): StudioScorecardCategory {
   const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
-  const needsPhysicsFeel = /cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt);
+  const needsPhysicsFeel = needsPhysicsProof(workspace);
   return categoryFromChecks("Game Feel And First Minute", [
     agentCheck(workspace, "game-feel-director", "Game Feel Director owns first-minute quality."),
     agentCheck(workspace, "physics-gameplay-engineer", "Physics Gameplay Engineer owns dynamics and controls."),
@@ -418,14 +469,32 @@ function readLatestJsonArtifact<T>(workspace: ProjectWorkspace, kind: ArtifactRe
   }
 }
 
-function readWebAdapterManifest(workspace: ProjectWorkspace): { generatedBy?: string; watermark?: { required?: boolean; label?: string } } | null {
+function readWebAdapterManifest(workspace: ProjectWorkspace): { generatedBy?: string; prototype?: string; capabilities?: string[]; watermark?: { required?: boolean; label?: string } } | null {
   const manifestPath = path.join(getProjectArtifactRoot(workspace.project.id), "web", "web-adapter-manifest.json");
   if (!fs.existsSync(manifestPath)) return null;
   try {
-    return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { generatedBy?: string; watermark?: { required?: boolean; label?: string } };
+    return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { generatedBy?: string; prototype?: string; capabilities?: string[]; watermark?: { required?: boolean; label?: string } };
   } catch {
     return null;
   }
+}
+
+function needsAssetLedPhysicsProof(workspace: ProjectWorkspace): boolean {
+  return needsPhysicsProof(workspace) || Boolean(readLatestJsonArtifact<Record<string, unknown>>(workspace, "asset-pack-manifest"));
+}
+
+function needsPhysicsProof(workspace: ProjectWorkspace): boolean {
+  const manifest = readWebAdapterManifest(workspace);
+  if (manifest?.prototype === "asset-physics" || manifest?.capabilities?.includes("physics")) return true;
+
+  const capabilityMap = readLatestMarkdownArtifact(workspace, "capability-map");
+  if (/- Id:\s*physics\b/i.test(capabilityMap) || /Readable Physics System/i.test(capabilityMap)) return true;
+
+  const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
+  if (/PHYSICS_GATE_PASS|TIMING_SKILL_PASS|SMOOTH_MOUSE_BLADE_PASS|SLOW_MOUSE_BLADE_PASS/i.test(webReport)) return true;
+
+  const prompt = `${workspace.project.name} ${workspace.project.genre} ${workspace.project.prompt}`.toLowerCase();
+  return /\b(physics|rope|swing|gravity|pendulum|projectile|trajectory|collision)\b/.test(prompt);
 }
 
 function readMarkdownValue(content: string, label: string): string | null {

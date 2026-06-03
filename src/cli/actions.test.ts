@@ -42,13 +42,13 @@ describe("cockpit action ranking", () => {
 
   it("prioritizes play and improve after a project is worth playing", () => {
     const workspace = createStudioProject({
-      prompt: "Create a polished Ludo game for family players with dice, tokens, captures, safe squares, and save resume.",
+      prompt: "Create a polished turn-based board-race game for family players with dice, tokens, captures, safe squares, and save resume.",
       targetPlatforms: ["Web"],
       enginePreference: "Web first"
     });
     generateWebAdapter(workspace.project.id);
     const played = recordWebPlaytest(workspace.project.id, {
-      kind: "ludo",
+      kind: "turn-rules",
       matches: 8,
       timeouts: 0,
       verdict: "WORTH_PLAYING_FOR_WEB_RULES_PROTOTYPE"

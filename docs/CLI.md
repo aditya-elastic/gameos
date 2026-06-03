@@ -15,15 +15,15 @@ For command mode:
 
 ```bash
 gameos doctor
-gameos make --prompt "A small Ludo game for creator playtesting with dice, tokens, captures, and a fast web prototype." --target web-playable --quality fast --yes
+gameos make --prompt "A one-button arcade game where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score in quick replayable web sessions." --target web-playable --quality fast --yes
 ```
 
-The command creates a local project, writes Game OS artifacts, generates a Web build, runs fast static QA, and prints the next command.
+The command creates a local project, writes OS design and capability artifacts, generates a Web build, runs fast static QA, and prints the next command.
 
 For an asset-led Web prototype:
 
 ```bash
-gameos make --prompt "A rope-cut physics puzzle where the player drops candy into a hungry character and collects stars." --target web-playable --assets ./assets.zip --quality standard --yes
+gameos make --prompt "A physics timing puzzle where the player releases a suspended hero object, collects mastery pickups, and guides it into a goal using clean readable motion." --target web-playable --assets ./assets.zip --quality standard --yes
 gameos journey <project-id>
 ```
 
@@ -54,6 +54,8 @@ gameos list
 gameos status <project-id>
 gameos journey <project-id>
 gameos review <project-id>
+gameos diagnose <project-id>
+gameos diagnose <project-id> --strict
 gameos feedback <project-id> --note "what got stuck or should improve"
 gameos improve <project-id> --note "what should change" --yes
 gameos play <project-id>
@@ -79,16 +81,24 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 - timing skill where early and late actions miss
 - player agency where the best timed action wins
 - mastery proof such as star collection or bumper/obstacle use
-- smooth swipe/touch slicing proof for cut-style games
-- smooth mouse/touch blade proof for moving naturally through the rope
+- smooth primary gesture proof for games that depend on timing or pointer motion
+- smooth mouse/touch path proof for games that require deliberate motion
 - slow human mouse blade proof for deliberate, non-perfect movement
-- cut, reset, no auto-cut, and recut input proof
+- release/action, reset, no automatic replay, and retry input proof
 - Advanced Player approval
 
-## Studio Review
+## Trust Review
 
-`gameos review <project-id>` writes `studio-scorecard.md` and prints a 10-category score. It only exits successfully when every category is 10/10:
+`gameos review <project-id>` writes `studio-scorecard.md` and prints an 11-category score plus an honest readiness tier:
 
+- `LOCAL_PROTOTYPE_READY`
+- `CREATOR_TEST_READY`
+- `NEEDS_IMPROVEMENT`
+- `BLOCKED`
+
+`gameos diagnose <project-id>` explains the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command. Add `--strict` for automation that should exit non-zero on `NEEDS_IMPROVEMENT`.
+
+- Global OS Architecture
 - Agent Swarm And Skills
 - Game Direction And Design
 - Asset Pipeline And Visual Fit
@@ -100,18 +110,18 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 - Security And Privacy
 - Open Source Release Readiness
 
-When review passes, Game OS promotes the project QA gates to pass. When review fails, rerun the owning agent named by the scorecard gap.
+Only `CREATOR_TEST_READY` promotes the final trust gate. `LOCAL_PROTOTYPE_READY` means the Web prototype has useful local evidence but should still be treated as a creator-testing artifact.
 
-For the full asset-led proof on a local machine with Chrome, run:
+For repository trust proof, run:
 
 ```bash
 npm run goal:audit
-npm run acceptance:cutrope
+npm run acceptance:universal-trust
+npm run trust:audit
+npm run acceptance:web-quality
 ```
 
-`goal:audit` verifies the repository-level 10/10 local-readiness evidence across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, and open-source release gates.
-
-That command creates a fresh rope physics project from a prompt and asset zip, runs browser QA, runs `gameos review`, and fails unless the scorecard reaches `10_OUT_OF_10_READY_FOR_LOCAL_USERS`.
+`acceptance:universal-trust` checks five prompt families and verifies that each project receives a capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and honest diagnosis. `acceptance:web-quality` remains the stronger browser-backed Web quality proof when Chrome is available.
 
 ## Engine Requirements
 

@@ -89,7 +89,7 @@ export function rankCockpitActions(workspace: ProjectWorkspace | null, verdict =
 export function oneLineBlocker(workspace: ProjectWorkspace, verdict = latestWebVerdict(workspace)): string {
   const blockedGate = workspace.qaGates.find((gate) => gate.result === "blocked");
   if (blockedGate) return blockedGate.name;
-  if (!workspace.artifacts.some((artifact) => artifact.kind === "asset-pack-manifest") && /cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt)) {
+  if (!workspace.artifacts.some((artifact) => artifact.kind === "asset-pack-manifest") && needsAssetLedPhysicsProof(workspace)) {
     return "Asset-led physics game needs an asset pack.";
   }
   if (!workspace.artifacts.some((artifact) => artifact.kind === "web-adapter")) return "Web build has not been generated yet.";
@@ -107,6 +107,21 @@ function latestWebVerdict(workspace: ProjectWorkspace): string {
   } catch {
     return "not run";
   }
+}
+
+function needsAssetLedPhysicsProof(workspace: ProjectWorkspace): boolean {
+  const capabilityMap = [...workspace.artifacts].reverse().find((artifact) => artifact.kind === "capability-map");
+  if (capabilityMap) {
+    try {
+      const content = readArtifactContent(capabilityMap.path);
+      if (/- Id:\s*physics\b/i.test(content) || /Readable Physics System/i.test(content)) return true;
+    } catch {
+      // Fall through to prompt evidence when the artifact cannot be read.
+    }
+  }
+
+  const prompt = `${workspace.project.name} ${workspace.project.genre} ${workspace.project.prompt}`.toLowerCase();
+  return /\b(physics|rope|swing|gravity|pendulum|projectile|trajectory|collision)\b/.test(prompt);
 }
 
 function action(id: CockpitActionId, label: string, detail: string, hotkey: string): CockpitAction {

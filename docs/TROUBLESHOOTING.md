@@ -39,17 +39,17 @@ Common blockers:
 
 - wrong assets: the pack lacks role-fit hero object, goal character, or collectible files
 - visual gate: the generated screenshot is not coherent enough for creator playtesting
-- physics gate: the cut/drop/collision loop did not complete reliably or used shallow scripted motion
+- physics gate: the release/drop/collision loop did not complete reliably or used shallow scripted motion
 - timing gate: early and late actions did not fail, or the best timed action did not win
 - agency gate: the player cannot improve through timing, trajectory, or obstacle use
-- slice gesture gate: dragging across the rope does not cut smoothly, smooth mouse/touch blade movement does not cut, slow deliberate mouse movement fails, or only the fallback button works
-- input gate: cut, reset, no auto-cut, and recut were not all proven
+- gesture gate: the primary pointer/touch motion is not smooth, slow deliberate movement fails, or only the fallback button works
+- input gate: release/action, reset, no automatic replay, and retry were not all proven
 - browser QA: only static QA ran, so Game OS cannot approve worth-playing quality
 
 Record feedback before regenerating specialist agents:
 
 ```bash
-gameos feedback <project-id> --note "reset auto-cuts, background is weak, and asset roles look wrong"
+gameos feedback <project-id> --note "reset behavior is weak, background needs polish, and asset roles look wrong"
 gameos agents rerun <project-id> visual-quality-director
 gameos agents rerun <project-id> physics-gameplay-engineer
 ```

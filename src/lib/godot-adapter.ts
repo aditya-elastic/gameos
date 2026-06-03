@@ -18,7 +18,7 @@ export function generateGodotProject(workspace: ProjectWorkspace): GodotAdapterR
     ["project.godot", renderProjectConfig(workspace)],
     ["scenes/Main.tscn", renderMainScene()],
     ["scripts/main.gd", renderMainScript(workspace)],
-    ["scripts/ludo_rules.gd", renderLudoRulesScript()],
+    ["scripts/turn_rules.gd", renderTurnRulesEngineScript()],
     ["scripts/adapter_smoke.gd", renderAdapterSmokeScript()],
     ["scripts/player_agent.gd", renderPlayerAgentScript()],
     ["docs/game-os-brief.md", renderGodotBrief(workspace)],
@@ -65,7 +65,7 @@ function renderProjectConfig(workspace: ProjectWorkspace): string {
 
 function renderMainScene(): string {
   return [
-    '[gd_scene load_steps=2 format=3 uid="uid://gameos_ludo_main"]',
+    '[gd_scene load_steps=2 format=3 uid="uid://gameos_turn_rules_main"]',
     "",
     '[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]',
     "",
@@ -84,9 +84,9 @@ function renderMainScript(workspace: ProjectWorkspace): string {
   return [
     "extends Control",
     "",
-    'const LudoRules = preload("res://scripts/ludo_rules.gd")',
+    'const TurnRulesEngine = preload("res://scripts/turn_rules.gd")',
     "",
-    "var rules = LudoRules.new()",
+    "var rules = TurnRulesEngine.new()",
     "var state = {}",
     "var rng = RandomNumberGenerator.new()",
     "var bots_enabled = true",
@@ -125,7 +125,7 @@ function renderMainScript(workspace: ProjectWorkspace): string {
     "    margin.add_child(root)",
     "",
     "    var title = Label.new()",
-    `    title.text = "${escapeGdscriptString(workspace.project.name)} - Playable Godot Ludo Prototype"`,
+    `    title.text = "${escapeGdscriptString(workspace.project.name)} - Playable Godot Turn Rules Prototype"`,
     "    title.add_theme_font_size_override(\"font_size\", 30)",
     "    root.add_child(title)",
     "",
@@ -315,20 +315,20 @@ function renderMainScript(workspace: ProjectWorkspace): string {
     "    _render_state()",
     "",
     "func _save_match():",
-    "    var file = FileAccess.open(\"user://royal_ludo_save.json\", FileAccess.WRITE)",
+    "    var file = FileAccess.open(\"user://turn_rules_save.json\", FileAccess.WRITE)",
     "    if file:",
     "        file.store_string(JSON.stringify(state))",
-    "        last_event = \"Saved match to user://royal_ludo_save.json.\"",
+    "        last_event = \"Saved match to user://turn_rules_save.json.\"",
     "    else:",
     "        last_event = \"Save failed.\"",
     "    _render_state()",
     "",
     "func _load_match():",
-    "    if not FileAccess.file_exists(\"user://royal_ludo_save.json\"):",
+    "    if not FileAccess.file_exists(\"user://turn_rules_save.json\"):",
     "        last_event = \"No save file yet.\"",
     "        _render_state()",
     "        return",
-    "    var file = FileAccess.open(\"user://royal_ludo_save.json\", FileAccess.READ)",
+    "    var file = FileAccess.open(\"user://turn_rules_save.json\", FileAccess.READ)",
     "    var loaded = JSON.parse_string(file.get_as_text())",
     "    if typeof(loaded) == TYPE_DICTIONARY:",
     "        state = loaded",
@@ -525,10 +525,10 @@ function renderMainScript(workspace: ProjectWorkspace): string {
   ].join("\n");
 }
 
-function renderLudoRulesScript(): string {
+function renderTurnRulesEngineScript(): string {
   return [
     "extends RefCounted",
-    "class_name LudoRules",
+    "class_name TurnRulesEngine",
     "",
     "const TOKEN_COUNT = 4",
     "const TRACK_LENGTH = 52",
@@ -676,10 +676,10 @@ function renderAdapterSmokeScript(): string {
   return [
     "extends SceneTree",
     "",
-    'const LudoRules = preload("res://scripts/ludo_rules.gd")',
+    'const TurnRulesEngine = preload("res://scripts/turn_rules.gd")',
     "",
     "func _initialize():",
-    "    var rules = LudoRules.new()",
+    "    var rules = TurnRulesEngine.new()",
     "    var state = rules.create_initial_state(2)",
     "    _expect(state[\"player_count\"] == 2, \"two-player state\")",
     "    _expect(rules.roll(state, 6)[\"ok\"], \"roll six\")",
@@ -728,9 +728,9 @@ function renderPlayerAgentScript(): string {
   return [
     "extends SceneTree",
     "",
-    'const LudoRules = preload("res://scripts/ludo_rules.gd")',
+    'const TurnRulesEngine = preload("res://scripts/turn_rules.gd")',
     "",
-    "var rules = LudoRules.new()",
+    "var rules = TurnRulesEngine.new()",
     "var rng = RandomNumberGenerator.new()",
     "",
     "func _initialize():",
@@ -884,7 +884,7 @@ function renderAdapterManifest(workspace: ProjectWorkspace): string {
       genre: workspace.project.genre,
       targetPlatforms: workspace.project.targetPlatforms,
       scenes: ["res://scenes/Main.tscn"],
-      scripts: ["res://scripts/ludo_rules.gd", "res://scripts/main.gd", "res://scripts/adapter_smoke.gd", "res://scripts/player_agent.gd"],
+      scripts: ["res://scripts/turn_rules.gd", "res://scripts/main.gd", "res://scripts/adapter_smoke.gd", "res://scripts/player_agent.gd"],
       smokeCommand: "godot --headless --path godot -s res://scripts/adapter_smoke.gd",
       playerAgentCommand: "godot --headless --path godot -s res://scripts/player_agent.gd"
     },

@@ -59,6 +59,8 @@ export function renderJourney(workspace: ProjectWorkspace): string {
   const previewManifest = readLatestJsonArtifact<Record<string, unknown>>(workspace, "asset-preview-manifest");
   const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
   const scorecard = readLatestMarkdownArtifact(workspace, "studio-scorecard");
+  const osReview = readLatestMarkdownArtifact(workspace, "os-design-review");
+  const capabilityMap = readLatestMarkdownArtifact(workspace, "capability-map");
   const assetVerdict = typeof assetManifest?.verdict === "string" ? assetManifest.verdict : "not imported";
   const roleAssignments = Array.isArray(previewManifest?.roleAssignments) ? (previewManifest.roleAssignments as Record<string, unknown>[]) : [];
   const webVerdict = readMarkdownValue(webReport, "Verdict") ?? "not run";
@@ -74,16 +76,18 @@ export function renderJourney(workspace: ProjectWorkspace): string {
   const smoothMouseVerdict = readMarkdownValue(webReport, "Smooth mouse verdict") ?? "not run";
   const studioScore = readMarkdownValue(scorecard, "Overall score") ?? "not run";
   const studioVerdict = readMarkdownValue(scorecard, "Verdict") ?? "not run";
+  const osDecision = readMarkdownValue(osReview, "UNIVERSAL_CAPABILITY_GRAPH_APPROVED") ?? (/UNIVERSAL_CAPABILITY_GRAPH_APPROVED/.test(osReview) ? "UNIVERSAL_CAPABILITY_GRAPH_APPROVED" : "not run");
 
   const stages = [
     stageLine("Idea", "pass", `${workspace.project.genre} for ${workspace.project.targetAudience}`),
+    stageLine("OS Architecture", capabilityMap && osDecision === "UNIVERSAL_CAPABILITY_GRAPH_APPROVED" ? "pass" : "blocked", capabilityMap ? osDecision : "capability map missing"),
     stageLine("Swarm", workspace.agents.every((agent) => agent.status === "complete") ? "pass" : "watch", `${workspace.agents.length} agents`),
     stageLine("Assets", assetManifest ? assetVerdictStatus(assetVerdict) : "watch", assetVerdict),
     stageLine("Build", workspace.artifacts.some((artifact) => artifact.kind === "web-adapter") ? "pass" : "watch", "Web lane"),
     stageLine("Visual QA", gateStatus(visualVerdict), visualVerdict),
     stageLine("Physics QA", gateStatus(physicsVerdict), physicsVerdict),
     stageLine("Player QA", webVerdict.startsWith("WORTH_PLAYING") ? "pass" : webVerdict === "not run" ? "watch" : "blocked", webVerdict),
-    stageLine("Studio Review", studioVerdict.startsWith("10_OUT_OF_10") ? "pass" : studioVerdict === "not run" ? "watch" : "blocked", studioScore),
+    stageLine("Trust Review", readinessStatus(studioVerdict), studioVerdict === "not run" ? studioScore : studioVerdict),
     stageLine("Feedback", workspace.artifacts.some((artifact) => artifact.kind === "user-feedback") ? "pass" : "watch", "optional")
   ];
   const blockers = inferJourneyBlockers(workspace, {
@@ -141,7 +145,7 @@ export function renderScorecardSummary(scorecard: StudioScorecard): string {
       ? [...blocked, ...watch].flatMap((category) => category.gaps.map((gap) => `- ${category.name}: ${gap}`))
       : ["- none"]),
     "",
-    `Next: ${scorecard.verdict.startsWith("10_OUT_OF_10") ? `gameos artifact list ${scorecard.projectId}` : `gameos agents run ${scorecard.projectId}`}`
+    `Next: gameos diagnose ${scorecard.projectId}`
   ].join("\n");
 }
 
@@ -169,7 +173,7 @@ export function recommendNextCommand(workspace: ProjectWorkspace): string {
   const hasScorecard = workspace.artifacts.some((artifact) => artifact.kind === "studio-scorecard");
   const hasAssets = workspace.artifacts.some((artifact) => artifact.kind === "asset-pack-manifest");
   const webTargeted = workspace.platformPlans.some((plan) => plan.platform === "Web" && plan.status === "targeted");
-  const wantsAssetLedPhysics = /cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt);
+  const wantsAssetLedPhysics = needsAssetLedPhysicsProof(workspace);
 
   if (webTargeted && wantsAssetLedPhysics && !hasAssets) return `gameos make --prompt "${workspace.project.prompt.slice(0, 44)}..." --target web-playable --assets ./assets.zip`;
   if (webTargeted && !hasWeb) return `gameos build web ${workspace.project.id}`;
@@ -218,7 +222,7 @@ function stageLine(name: string, status: "pass" | "watch" | "blocked", detail: s
 }
 
 function assetVerdictStatus(verdict: string): "pass" | "watch" | "blocked" {
-  if (verdict === "APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE") return "pass";
+  if (verdict === "APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD") return "pass";
   if (verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") return "watch";
   return "blocked";
 }
@@ -226,6 +230,12 @@ function assetVerdictStatus(verdict: string): "pass" | "watch" | "blocked" {
 function gateStatus(verdict: string): "pass" | "watch" | "blocked" {
   if (verdict.endsWith("_PASS") || verdict === "true") return "pass";
   if (verdict === "not run" || verdict.endsWith("_REVIEW") || verdict.endsWith("_UNKNOWN") || verdict.endsWith("_PARTIAL")) return "watch";
+  return "blocked";
+}
+
+function readinessStatus(verdict: string): "pass" | "watch" | "blocked" {
+  if (verdict === "CREATOR_TEST_READY" || verdict === "LOCAL_PROTOTYPE_READY") return "pass";
+  if (verdict === "not run" || verdict === "NEEDS_IMPROVEMENT") return "watch";
   return "blocked";
 }
 
@@ -252,12 +262,12 @@ function inferJourneyBlockers(
   const blockers: string[] = [];
   const roleStatus = (role: string) => state.roleAssignments.find((assignment) => assignment.role === role)?.status;
 
-  if (/cut.*rope|rope.*cut|physics puzzle/i.test(workspace.project.prompt) && state.assetVerdict === "not imported") {
-    blockers.push("No asset pack imported for an asset-led rope physics puzzle. Run make with --assets or use gameos assets import.");
+  if (needsAssetLedPhysicsProof(workspace) && state.assetVerdict === "not imported") {
+    blockers.push("No asset pack imported for an asset-led physics puzzle. Run make with --assets or use gameos assets import.");
   }
 
-  if (state.assetVerdict === "WRONG_ASSET_PACK_FOR_CUT_ROPE") {
-    blockers.push("Wrong assets: the pack does not contain enough role-fit files for a rope-cut puzzle.");
+  if (state.assetVerdict === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS") {
+    blockers.push("Wrong assets: the pack does not contain enough role-fit files for an asset-led physics puzzle.");
   }
 
   for (const role of ["hero-object", "goal-character", "collectible"]) {
@@ -267,6 +277,10 @@ function inferJourneyBlockers(
 
   if (!workspace.artifacts.some((artifact) => artifact.kind === "web-adapter")) {
     blockers.push("Web build has not been generated.");
+  }
+
+  if (!workspace.artifacts.some((artifact) => artifact.kind === "capability-map")) {
+    blockers.push("Capability map is missing; rerun project creation or regenerate OS architecture artifacts.");
   }
 
   if (state.webVerdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") {
@@ -282,13 +296,24 @@ function inferJourneyBlockers(
   if (state.masteryVerdict !== "not run" && state.masteryVerdict !== "MASTERY_GATE_PASS") blockers.push(`Mastery gate is not passing: ${state.masteryVerdict}.`);
   if (state.sliceVerdict !== "not run" && state.sliceVerdict !== "SLICE_GESTURE_PASS") blockers.push(`Smooth slice gesture gate is not passing: ${state.sliceVerdict}.`);
   if (state.smoothMouseVerdict !== "not run" && state.smoothMouseVerdict !== "SMOOTH_MOUSE_BLADE_PASS") blockers.push(`Smooth mouse blade gate is not passing: ${state.smoothMouseVerdict}.`);
-  if (state.studioVerdict === "not run" && state.webVerdict.startsWith("WORTH_PLAYING")) blockers.push("10/10 studio review has not been run yet. Run gameos review.");
-  if (state.studioVerdict !== "not run" && !state.studioVerdict.startsWith("10_OUT_OF_10")) blockers.push(`Studio scorecard is not 10/10 yet: ${state.studioScore}.`);
+  if (state.studioVerdict === "not run" && state.webVerdict.startsWith("WORTH_PLAYING")) blockers.push("Trust review has not been run yet. Run gameos review.");
+  if (state.studioVerdict !== "not run" && state.studioVerdict !== "CREATOR_TEST_READY" && state.studioVerdict !== "LOCAL_PROTOTYPE_READY") blockers.push(`Trust review is not ready yet: ${state.studioVerdict}.`);
   if (state.inputVerdict !== "not run" && state.inputVerdict !== "INPUT_GATE_PASS") blockers.push(`Input/reset gate is not passing: ${state.inputVerdict}.`);
   if (state.assetFitVerdict !== "not run" && state.assetFitVerdict !== "ASSET_FIT_PASS") blockers.push(`Asset-fit gate is not passing: ${state.assetFitVerdict}.`);
   if (state.resetVerdict !== "not run" && state.resetVerdict !== "true") blockers.push("Reset/recut proof did not pass.");
 
   return [...new Set(blockers)];
+}
+
+function needsAssetLedPhysicsProof(workspace: ProjectWorkspace): boolean {
+  const capabilityMap = readLatestMarkdownArtifact(workspace, "capability-map");
+  if (/- Id:\s*physics\b/i.test(capabilityMap) || /Readable Physics System/i.test(capabilityMap)) return true;
+
+  const manifest = readLatestJsonArtifact<{ prototype?: string; capabilities?: string[] }>(workspace, "web-adapter");
+  if (manifest?.prototype === "asset-physics" || manifest?.capabilities?.includes("physics")) return true;
+
+  const prompt = `${workspace.project.name} ${workspace.project.genre} ${workspace.project.prompt}`.toLowerCase();
+  return /\b(physics|rope|swing|gravity|pendulum|projectile|trajectory|collision)\b/.test(prompt);
 }
 
 function formatScore(value: number): string {

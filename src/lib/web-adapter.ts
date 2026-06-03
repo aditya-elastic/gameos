@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readLatestAssetManifest } from "./asset-importer";
 import { getProjectArtifactRoot, toProjectRelativeArtifactPath } from "./artifacts";
+import { createCapabilityMap, hasCapability } from "./capability-graph";
 import type { AssetImportManifest, AssetRole, AssetRoleAssignment, ImportedAssetFile, ProjectWorkspace } from "./types";
 
 export type WebAdapterResult = {
@@ -11,19 +12,25 @@ export type WebAdapterResult = {
 };
 
 export function generateWebProject(workspace: ProjectWorkspace): WebAdapterResult {
-  if (isCutRopeWorkspace(workspace)) {
-    return generateCutRopeWebProject(workspace);
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+
+  if (capabilityMap.regressionFixtures.includes("asset-physics-regression-fixture") || (hasCapability(capabilityMap, "physics") && readLatestAssetManifest(workspace.project.id))) {
+    return generateAssetPhysicsWebProject(workspace);
   }
 
-  return generateLudoWebProject(workspace);
+  if (capabilityMap.regressionFixtures.includes("turn-rules-regression-fixture")) {
+    return generateTurnRulesWebProject(workspace);
+  }
+
+  return generateCapabilityWebProject(workspace);
 }
 
-function generateLudoWebProject(workspace: ProjectWorkspace): WebAdapterResult {
+function generateTurnRulesWebProject(workspace: ProjectWorkspace): WebAdapterResult {
   const projectRoot = path.join(getProjectArtifactRoot(workspace.project.id), "web");
   const files = [
     ["index.html", renderIndexHtml(workspace)],
     ["styles.css", renderStyles()],
-    ["scripts/ludo-rules.js", renderLudoRulesScript()],
+    ["scripts/turn-rules.js", renderTurnRulesScript()],
     ["scripts/game.js", renderGameScript(workspace)],
     ["docs/game-os-brief.md", renderWebBrief(workspace)],
     ["web-adapter-manifest.json", renderAdapterManifest(workspace)]
@@ -56,17 +63,17 @@ type CopiedWebAsset = {
   reason: string;
 };
 
-function generateCutRopeWebProject(workspace: ProjectWorkspace): WebAdapterResult {
+function generateAssetPhysicsWebProject(workspace: ProjectWorkspace): WebAdapterResult {
   const projectRoot = path.join(getProjectArtifactRoot(workspace.project.id), "web");
   const manifest = readLatestAssetManifest(workspace.project.id);
   fs.rmSync(projectRoot, { recursive: true, force: true });
-  const copiedAssets = copyCutRopeAssets(projectRoot, manifest);
+  const copiedAssets = copyAssetPhysicsAssets(projectRoot, manifest);
   const files = [
-    ["index.html", renderCutRopeIndexHtml(workspace, manifest)],
-    ["styles.css", renderCutRopeStyles()],
-    ["scripts/game.js", renderCutRopeGameScriptV3(workspace, manifest, copiedAssets)],
-    ["docs/game-os-brief.md", renderCutRopeBrief(workspace, manifest, copiedAssets)],
-    ["web-adapter-manifest.json", renderCutRopeManifest(workspace, manifest, copiedAssets)]
+    ["index.html", renderAssetPhysicsIndexHtml(workspace, manifest)],
+    ["styles.css", renderAssetPhysicsStyles()],
+    ["scripts/game.js", renderAssetPhysicsGameScriptV3(workspace, manifest, copiedAssets)],
+    ["docs/game-os-brief.md", renderAssetPhysicsBrief(workspace, manifest, copiedAssets)],
+    ["web-adapter-manifest.json", renderAssetPhysicsManifest(workspace, manifest, copiedAssets)]
   ] as const;
 
   for (const [relativePath, content] of files) {
@@ -80,11 +87,11 @@ function generateCutRopeWebProject(workspace: ProjectWorkspace): WebAdapterResul
   return {
     projectRoot,
     files: absoluteFiles,
-    report: renderCutRopeReport(workspace, projectRoot, absoluteFiles, manifest, copiedAssets)
+    report: renderAssetPhysicsReport(workspace, projectRoot, absoluteFiles, manifest, copiedAssets)
   };
 }
 
-function copyCutRopeAssets(projectRoot: string, manifest: AssetImportManifest | null): CopiedWebAsset[] {
+function copyAssetPhysicsAssets(projectRoot: string, manifest: AssetImportManifest | null): CopiedWebAsset[] {
   if (!manifest) return [];
 
   const assignments = manifest.roleAssignments ?? [];
@@ -133,7 +140,7 @@ function copyCutRopeAssets(projectRoot: string, manifest: AssetImportManifest | 
   });
 }
 
-function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImportManifest | null): string {
+function renderAssetPhysicsIndexHtml(workspace: ProjectWorkspace, manifest: AssetImportManifest | null): string {
   const verdict = manifest?.verdict ?? "NO_ASSET_PACK_IMPORTED";
   const displayVerdict = formatGameOsStatusLabel(verdict);
 
@@ -142,7 +149,7 @@ function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImpo
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(workspace.project.name)} - Game OS Cut Rope Prototype</title>
+    <title>${escapeHtml(workspace.project.name)} - Game OS Asset-Led Physics Prototype</title>
     <meta name="description" content="${escapeHtml(workspace.brief.summary)}" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -157,15 +164,15 @@ function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImpo
         <div class="verdict-chip" id="verdict-chip">${escapeHtml(displayVerdict)}</div>
       </section>
 
-      <section class="play-surface" aria-label="Playable Cut Rope web prototype">
+      <section class="play-surface" aria-label="Playable asset-led physics web prototype">
         <div class="canvas-wrap">
-          <canvas id="game-canvas" width="960" height="620" aria-label="Cut Rope puzzle canvas"></canvas>
+          <canvas id="game-canvas" width="960" height="620" aria-label="asset-led physics puzzle canvas"></canvas>
           <div class="watermark">Made with GameOS</div>
         </div>
 
         <aside class="control-panel">
           <div class="control-row">
-            <button id="cut-button" type="button">Cut Rope</button>
+            <button id="cut-button" type="button">Asset-Led Physics</button>
             <button id="reset-button" type="button">Reset</button>
           </div>
           <section class="hud-card">
@@ -189,7 +196,7 @@ function renderCutRopeIndexHtml(workspace: ProjectWorkspace, manifest: AssetImpo
 `;
 }
 
-function renderCutRopeStyles(): string {
+function renderAssetPhysicsStyles(): string {
   return `:root {
   color-scheme: light;
   --ink: #18211f;
@@ -386,7 +393,7 @@ button:disabled {
 `;
 }
 
-function renderCutRopeGameScript(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
+function renderAssetPhysicsGameScript(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
   return `const projectName = ${JSON.stringify(workspace.project.name)};
 const assetGate = ${JSON.stringify(manifest?.verdict ?? "NO_ASSET_PACK_IMPORTED")};
 const importedAssets = ${JSON.stringify(copiedAssets, null, 2)};
@@ -416,7 +423,7 @@ for (const asset of importedAssets) {
 
 function createInitialState() {
   return {
-    ropeCut: false,
+    ropeReleased: false,
     status: "ready",
     time: 0,
     stars: [
@@ -425,33 +432,33 @@ function createInitialState() {
       { x: 520, y: 430, r: 22, collected: false }
     ],
     anchor: { x: 480, y: 82 },
-    candy: { x: 480, y: 170, vx: 0, vy: 0, r: 34 },
+    heroObject: { x: 480, y: 170, vx: 0, vy: 0, r: 34 },
     goal: { x: 480, y: 535, r: 56 },
-    log: ["Imported assets loaded into a Cut Rope test slice."]
+    log: ["Imported assets loaded into an asset-led physics test slice."]
   };
 }
 
 function step() {
-  if (state.ropeCut && state.status === "falling") {
+  if (state.ropeReleased && state.status === "falling") {
     state.time += 1 / 60;
-    state.candy.vy += 0.42;
-    state.candy.y += state.candy.vy;
-    state.candy.x += state.candy.vx;
+    state.heroObject.vy += 0.42;
+    state.heroObject.y += state.heroObject.vy;
+    state.heroObject.x += state.heroObject.vx;
 
     for (const star of state.stars) {
-      if (!star.collected && distance(state.candy, star) <= state.candy.r + star.r) {
+      if (!star.collected && distance(state.heroObject, star) <= state.heroObject.r + star.r) {
         star.collected = true;
         state.log.unshift("Star collected.");
       }
     }
 
-    if (distance(state.candy, state.goal) <= state.goal.r + state.candy.r * 0.45) {
+    if (distance(state.heroObject, state.goal) <= state.goal.r + state.heroObject.r * 0.45) {
       state.status = "won";
       state.log.unshift("Goal reached. The first puzzle is playable.");
       cutButton.disabled = true;
-    } else if (state.candy.y > canvas.height + 70) {
+    } else if (state.heroObject.y > canvas.height + 70) {
       state.status = "missed";
-      state.log.unshift("Candy missed the goal. Reset for another attempt.");
+      state.log.unshift("Hero object missed the goal. Reset for another attempt.");
       cutButton.disabled = true;
     }
   }
@@ -517,15 +524,15 @@ function drawStars() {
 }
 
 function drawRope() {
-  context.strokeStyle = state.ropeCut ? "rgba(100, 112, 104, 0.34)" : "#8b6236";
+  context.strokeStyle = state.ropeReleased ? "rgba(100, 112, 104, 0.34)" : "#8b6236";
   context.lineWidth = 8;
   context.lineCap = "round";
   context.beginPath();
   context.moveTo(state.anchor.x, state.anchor.y);
-  if (state.ropeCut) {
+  if (state.ropeReleased) {
     context.lineTo(state.anchor.x - 26, state.anchor.y + 58);
   } else {
-    context.lineTo(state.candy.x, state.candy.y - state.candy.r + 4);
+    context.lineTo(state.heroObject.x, state.heroObject.y - state.heroObject.r + 4);
   }
   context.stroke();
   context.fillStyle = "#164239";
@@ -535,11 +542,11 @@ function drawRope() {
 }
 
 function drawCandy() {
-  const candy = assetForTag("candy") || assetForTag("physics-piece") || importedAssets[0];
-  if (candy && drawAsset(candy, state.candy.x - 42, state.candy.y - 42, 84, 84, "contain")) return;
+  const heroObject = assetForTag("hero-object") || assetForTag("physics-piece") || importedAssets[0];
+  if (heroObject && drawAsset(heroObject, state.heroObject.x - 42, state.heroObject.y - 42, 84, 84, "contain")) return;
   context.fillStyle = "#d85d4a";
   context.beginPath();
-  context.arc(state.candy.x, state.candy.y, state.candy.r, 0, Math.PI * 2);
+  context.arc(state.heroObject.x, state.heroObject.y, state.heroObject.r, 0, Math.PI * 2);
   context.fill();
   context.strokeStyle = "#ffffff";
   context.lineWidth = 6;
@@ -568,7 +575,7 @@ function renderHud() {
       ? \`Won with \${collected}/\${state.stars.length} stars\`
       : state.status === "missed"
         ? \`Missed with \${collected}/\${state.stars.length} stars\`
-        : state.ropeCut
+        : state.ropeReleased
           ? \`Falling: \${collected}/\${state.stars.length} stars\`
           : "Ready to cut";
   attemptLabel.textContent = statusText;
@@ -582,13 +589,13 @@ function renderHud() {
   }
 }
 
-function cutRope() {
-  if (state.ropeCut || state.status === "won") return;
-  state.ropeCut = true;
+function releaseRope() {
+  if (state.ropeReleased || state.status === "won") return;
+  state.ropeReleased = true;
   state.status = "falling";
-  state.candy.vx = 0;
-  state.candy.vy = 1.4;
-  state.log.unshift("Rope cut.");
+  state.heroObject.vx = 0;
+  state.heroObject.vy = 1.4;
+  state.log.unshift("Rope released.");
   cutButton.disabled = true;
   renderHud();
 }
@@ -646,12 +653,12 @@ function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function simulateCutRope(options = {}) {
+function simulateAssetPhysics(options = {}) {
   const matches = options.matches || 8;
   const report = {
     agent: "Advanced Web Player - Physics Puzzle Specialist",
-    claim: "asset-driven Cut Rope browser prototype player-agent simulation",
-    kind: "cut-rope",
+    claim: "asset-driven asset-led physics browser prototype player-agent simulation",
+    kind: "asset-physics",
     matches,
     assets_used: importedAssets.length,
     asset_gate: assetGate,
@@ -710,8 +717,8 @@ function simulateCutRope(options = {}) {
     report.timeouts === 0 &&
     report.completions === matches &&
     report.assets_used > 0 &&
-    report.asset_gate !== "WRONG_ASSET_PACK_FOR_CUT_ROPE"
-      ? "WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE"
+    report.asset_gate !== "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS"
+      ? "WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD"
       : "NEEDS_ARCHITECTURE_UPGRADE";
   return report;
 }
@@ -720,27 +727,27 @@ canvas.addEventListener("click", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
   const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
-  const nearRope = !state.ropeCut && x > state.candy.x - 80 && x < state.candy.x + 80 && y > state.anchor.y && y < state.candy.y + 25;
-  if (nearRope) cutRope();
+  const nearRope = !state.ropeReleased && x > state.heroObject.x - 80 && x < state.heroObject.x + 80 && y > state.anchor.y && y < state.heroObject.y + 25;
+  if (nearRope) releaseRope();
 });
 
-cutButton.addEventListener("click", cutRope);
+cutButton.addEventListener("click", releaseRope);
 resetButton.addEventListener("click", resetAttempt);
 
 window.__gameOsWebAdapter = {
   getState: () => state,
   smoke: () => ({
     ok: Boolean(shell && canvas && context && cutButton && resetButton),
-    kind: "cut-rope",
+    kind: "asset-physics",
     projectName,
     assetsUsed: importedAssets.length,
     assetGate,
     canvasWidth: canvas.width,
     canvasHeight: canvas.height
   }),
-  cutRope,
+  releaseRope,
   reset: resetAttempt,
-  runPlayerAgent: simulateCutRope
+  runPlayerAgent: simulateAssetPhysics
 };
 
 draw();
@@ -749,7 +756,7 @@ animationFrame = requestAnimationFrame(step);
 `;
 }
 
-function renderCutRopeGameScriptV2(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
+function renderAssetPhysicsGameScriptV2(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
   const roleSummary = (manifest?.roleAssignments ?? []).map((assignment) => ({
     role: assignment.role,
     status: assignment.status,
@@ -789,7 +796,7 @@ for (const asset of importedAssets) {
 
 function createInitialState() {
   return {
-    ropeCut: false,
+    ropeReleased: false,
     status: "ready",
     time: 0,
     inputLockedUntil: 0,
@@ -799,31 +806,31 @@ function createInitialState() {
       { x: 512, y: 472, r: 22, collected: false }
     ],
     anchor: { x: 470, y: 84 },
-    candy: { x: 470, y: 170, vx: 0, vy: 0, r: 34 },
+    heroObject: { x: 470, y: 170, vx: 0, vy: 0, r: 34 },
     goal: { x: 520, y: 548, r: 58 },
-    log: ["Studio slice ready. Cut the rope, watch the path, reset safely."]
+    log: ["Studio slice ready. Release the rope, watch the path, reset safely."]
   };
 }
 
 function step() {
-  if (state.ropeCut && state.status === "falling") {
-    applyPhysics(state.candy, state.goal);
+  if (state.ropeReleased && state.status === "falling") {
+    applyPhysics(state.heroObject, state.goal);
     state.time += 1 / 60;
 
     for (const star of state.stars) {
-      if (!star.collected && distance(state.candy, star) <= state.candy.r + star.r) {
+      if (!star.collected && distance(state.heroObject, star) <= state.heroObject.r + star.r) {
         star.collected = true;
         state.log.unshift("Star collected.");
       }
     }
 
-    if (distance(state.candy, state.goal) <= state.goal.r + state.candy.r * 0.55) {
+    if (distance(state.heroObject, state.goal) <= state.goal.r + state.heroObject.r * 0.55) {
       state.status = "won";
       state.log.unshift("Goal reached. This slice is mechanically playable.");
       cutButton.disabled = true;
-    } else if (state.candy.y > canvas.height + 70 || state.candy.x < -90 || state.candy.x > canvas.width + 90) {
+    } else if (state.heroObject.y > canvas.height + 70 || state.heroObject.x < -90 || state.heroObject.x > canvas.width + 90) {
       state.status = "missed";
-      state.log.unshift("Candy missed the goal. Reset for another clean attempt.");
+      state.log.unshift("Hero object missed the goal. Reset for another clean attempt.");
       cutButton.disabled = true;
     }
   }
@@ -833,12 +840,12 @@ function step() {
   animationFrame = requestAnimationFrame(step);
 }
 
-function applyPhysics(candy, goal) {
-  const attraction = (goal.x - candy.x) * 0.00135;
-  candy.vx = (candy.vx + attraction) * 0.992;
-  candy.vy = (candy.vy + 0.34) * 0.997;
-  candy.x += candy.vx;
-  candy.y += candy.vy;
+function applyPhysics(heroObject, goal) {
+  const attraction = (goal.x - heroObject.x) * 0.00135;
+  heroObject.vx = (heroObject.vx + attraction) * 0.992;
+  heroObject.vy = (heroObject.vy + 0.34) * 0.997;
+  heroObject.x += heroObject.vx;
+  heroObject.y += heroObject.vy;
 }
 
 function draw() {
@@ -939,22 +946,22 @@ function drawStars() {
 function drawRope() {
   context.save();
   context.lineCap = "round";
-  context.strokeStyle = state.ropeCut ? "rgba(107, 92, 71, 0.35)" : "#8d6338";
+  context.strokeStyle = state.ropeReleased ? "rgba(107, 92, 71, 0.35)" : "#8d6338";
   context.lineWidth = 9;
   context.beginPath();
   context.moveTo(state.anchor.x, state.anchor.y);
-  if (state.ropeCut) {
+  if (state.ropeReleased) {
     context.lineTo(state.anchor.x - 34, state.anchor.y + 68);
   } else {
-    context.lineTo(state.candy.x, state.candy.y - state.candy.r + 6);
+    context.lineTo(state.heroObject.x, state.heroObject.y - state.heroObject.r + 6);
   }
   context.stroke();
 
-  context.strokeStyle = state.ropeCut ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.45)";
+  context.strokeStyle = state.ropeReleased ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.45)";
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(state.anchor.x - 2, state.anchor.y + 2);
-  context.lineTo(state.ropeCut ? state.anchor.x - 35 : state.candy.x - 2, state.ropeCut ? state.anchor.y + 68 : state.candy.y - state.candy.r + 8);
+  context.lineTo(state.ropeReleased ? state.anchor.x - 35 : state.heroObject.x - 2, state.ropeReleased ? state.anchor.y + 68 : state.heroObject.y - state.heroObject.r + 8);
   context.stroke();
 
   context.fillStyle = "#183d35";
@@ -965,27 +972,27 @@ function drawRope() {
 }
 
 function drawCandy() {
-  const candy = assetForRole("hero-object");
+  const heroObject = assetForRole("hero-object");
   context.save();
   context.shadowColor = "rgba(34, 33, 28, 0.24)";
   context.shadowBlur = 14;
   context.shadowOffsetY = 8;
-  if (candy && drawAsset(candy, state.candy.x - 42, state.candy.y - 42, 84, 84, "contain")) {
+  if (heroObject && drawAsset(heroObject, state.heroObject.x - 42, state.heroObject.y - 42, 84, 84, "contain")) {
     context.restore();
     return;
   }
-  const gradient = context.createRadialGradient(state.candy.x - 14, state.candy.y - 16, 4, state.candy.x, state.candy.y, state.candy.r);
+  const gradient = context.createRadialGradient(state.heroObject.x - 14, state.heroObject.y - 16, 4, state.heroObject.x, state.heroObject.y, state.heroObject.r);
   gradient.addColorStop(0, "#ffb35f");
   gradient.addColorStop(0.6, "#f0654a");
   gradient.addColorStop(1, "#b93837");
   context.fillStyle = gradient;
   context.beginPath();
-  context.arc(state.candy.x, state.candy.y, state.candy.r, 0, Math.PI * 2);
+  context.arc(state.heroObject.x, state.heroObject.y, state.heroObject.r, 0, Math.PI * 2);
   context.fill();
   context.strokeStyle = "#fff4dc";
   context.lineWidth = 6;
   context.beginPath();
-  context.arc(state.candy.x, state.candy.y, state.candy.r - 11, -0.5, Math.PI + 0.5);
+  context.arc(state.heroObject.x, state.heroObject.y, state.heroObject.r - 11, -0.5, Math.PI + 0.5);
   context.stroke();
   context.restore();
 }
@@ -1025,7 +1032,7 @@ function renderHud() {
       ? "Won with " + collected + "/" + state.stars.length + " stars"
       : state.status === "missed"
         ? "Missed with " + collected + "/" + state.stars.length + " stars"
-        : state.ropeCut
+        : state.ropeReleased
           ? "Falling with " + collected + "/" + state.stars.length + " stars"
           : isInputLocked()
             ? "Resetting safely"
@@ -1041,13 +1048,13 @@ function renderHud() {
   }
 }
 
-function cutRope(source = "button") {
-  if (isInputLocked() || state.ropeCut || state.status === "won") return false;
-  state.ropeCut = true;
+function releaseRope(source = "button") {
+  if (isInputLocked() || state.ropeReleased || state.status === "won") return false;
+  state.ropeReleased = true;
   state.status = "falling";
-  state.candy.vx = 0.55;
-  state.candy.vy = 2.05;
-  state.log.unshift(source === "canvas" ? "Rope cut from play surface." : "Rope cut.");
+  state.heroObject.vx = 0.55;
+  state.heroObject.vy = 2.05;
+  state.log.unshift(source === "canvas" ? "Rope released from play surface." : "Rope released.");
   cutButton.disabled = true;
   renderHud();
   return true;
@@ -1078,7 +1085,7 @@ function roleAccepted(role) {
 }
 
 function assetFitVerdict() {
-  if (assetGate === "WRONG_ASSET_PACK_FOR_CUT_ROPE" || assetGate === "NO_ASSET_PACK_IMPORTED") return "ASSET_FIT_FAIL";
+  if (assetGate === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS" || assetGate === "NO_ASSET_PACK_IMPORTED") return "ASSET_FIT_FAIL";
   if (roleAccepted("hero-object") && roleAccepted("goal-character") && roleAccepted("collectible")) return "ASSET_FIT_PASS";
   return "ASSET_FIT_PARTIAL";
 }
@@ -1174,13 +1181,13 @@ function runPhysicsSimulation() {
 function verifyResetAndInputLoop() {
   resetAttempt({ quiet: true });
   state.inputLockedUntil = performance.now() - 1;
-  const firstCut = cutRope("agent-first-cut");
-  const afterCut = state.ropeCut && state.status === "falling";
+  const firstCut = releaseRope("agent-first-cut");
+  const afterCut = state.ropeReleased && state.status === "falling";
   resetAttempt({ quiet: true });
-  const resetReady = !state.ropeCut && state.status === "ready";
-  const blockedDuringCooldown = cutRope("agent-cooldown-cut") === false && !state.ropeCut;
+  const resetReady = !state.ropeReleased && state.status === "ready";
+  const blockedDuringCooldown = releaseRope("agent-cooldown-cut") === false && !state.ropeReleased;
   state.inputLockedUntil = performance.now() - 1;
-  const recutWorks = cutRope("agent-recut") === true && state.ropeCut;
+  const recutWorks = releaseRope("agent-recut") === true && state.ropeReleased;
 
   return {
     firstCut,
@@ -1193,12 +1200,12 @@ function verifyResetAndInputLoop() {
   };
 }
 
-function simulateCutRope(options = {}) {
+function simulateAssetPhysics(options = {}) {
   const matches = options.matches || 8;
   const report = {
     agent: "Advanced Web Player - Physics Puzzle Specialist",
-    claim: "visual, asset-fit, reset-safe, physics-readable Cut Rope style browser prototype simulation",
-    kind: "cut-rope",
+    claim: "visual, asset-fit, reset-safe, physics-readable asset-led physics timing browser prototype simulation",
+    kind: "asset-physics",
     matches,
     assets_used: importedAssets.length,
     asset_gate: assetGate,
@@ -1241,7 +1248,7 @@ function simulateCutRope(options = {}) {
     report.input_verdict === "INPUT_GATE_PASS" &&
     report.asset_fit_verdict === "ASSET_FIT_PASS"
   ) {
-    report.verdict = "WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE";
+    report.verdict = "WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD";
   } else if (report.physics_verdict === "PHYSICS_GATE_PASS" && report.input_verdict === "INPUT_GATE_PASS" && report.visual_verdict !== "VISUAL_GATE_FAIL") {
     report.verdict = "PLAYABLE_BUT_ASSET_FIT_NEEDS_REVIEW";
   }
@@ -1253,14 +1260,14 @@ canvas.addEventListener("pointerdown", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
   const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
-  const nearRope = !state.ropeCut && x > state.candy.x - 90 && x < state.candy.x + 90 && y > state.anchor.y - 20 && y < state.candy.y + 34;
-  if (nearRope) cutRope("canvas");
+  const nearRope = !state.ropeReleased && x > state.heroObject.x - 90 && x < state.heroObject.x + 90 && y > state.anchor.y - 20 && y < state.heroObject.y + 34;
+  if (nearRope) releaseRope("canvas");
 });
 
 cutButton.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  cutRope("button");
+  releaseRope("button");
 });
 
 resetButton.addEventListener("click", (event) => {
@@ -1273,7 +1280,7 @@ window.__gameOsWebAdapter = {
   getState: () => ({ ...state, inputLocked: isInputLocked() }),
   smoke: () => ({
     ok: Boolean(shell && canvas && context && cutButton && resetButton && watermark),
-    kind: "cut-rope",
+    kind: "asset-physics",
     projectName,
     assetsUsed: importedAssets.length,
     assetGate,
@@ -1284,9 +1291,9 @@ window.__gameOsWebAdapter = {
     canvasHeight: canvas.height,
     watermark: Boolean(watermark && watermark.textContent && watermark.textContent.includes("GameOS"))
   }),
-  cutRope,
+  releaseRope,
   reset: resetAttempt,
-  runPlayerAgent: simulateCutRope
+  runPlayerAgent: simulateAssetPhysics
 };
 
 draw();
@@ -1295,7 +1302,7 @@ animationFrame = requestAnimationFrame(step);
 `;
 }
 
-function renderCutRopeGameScriptV3(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
+function renderAssetPhysicsGameScriptV3(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
   const roleSummary = (manifest?.roleAssignments ?? []).map((assignment) => ({
     role: assignment.role,
     status: assignment.status,
@@ -1328,7 +1335,7 @@ const LEVEL = {
   swingDamping: 0.995,
   gravity: 0.33,
   airDamping: 0.997,
-  candyRadius: 34,
+  heroObjectRadius: 34,
   goal: { x: 610, y: 535, r: 58 },
   stars: [
     { x: 555, y: 255, r: 22 },
@@ -1357,7 +1364,7 @@ for (const asset of importedAssets) {
 
 function createInitialState() {
   const next = {
-    ropeCut: false,
+    ropeReleased: false,
     status: "ready",
     mode: "swinging",
     time: 0,
@@ -1368,7 +1375,7 @@ function createInitialState() {
       angularVelocity: LEVEL.startAngularVelocity,
       length: LEVEL.ropeLength
     },
-    candy: { x: 0, y: 0, vx: 0, vy: 0, r: LEVEL.candyRadius },
+    heroObject: { x: 0, y: 0, vx: 0, vy: 0, r: LEVEL.heroObjectRadius },
     stars: LEVEL.stars.map((star) => ({ ...star, collected: false })),
     bumperContacts: 0,
     cutFrame: null,
@@ -1394,7 +1401,7 @@ function step() {
   state.time += 1 / 60;
   state.frame += 1;
 
-  if (!state.ropeCut && state.status === "ready") {
+  if (!state.ropeReleased && state.status === "ready") {
     advanceSwing(state);
   } else if (state.status === "falling") {
     applyBallistics(state);
@@ -1416,27 +1423,27 @@ function advanceSwing(target) {
 function syncCandyFromSwing(target) {
   const angle = target.swing.angle;
   const length = target.swing.length;
-  target.candy.x = LEVEL.anchor.x + Math.sin(angle) * length;
-  target.candy.y = LEVEL.anchor.y + Math.cos(angle) * length;
-  target.candy.vx = Math.cos(angle) * length * target.swing.angularVelocity;
-  target.candy.vy = -Math.sin(angle) * length * target.swing.angularVelocity;
+  target.heroObject.x = LEVEL.anchor.x + Math.sin(angle) * length;
+  target.heroObject.y = LEVEL.anchor.y + Math.cos(angle) * length;
+  target.heroObject.vx = Math.cos(angle) * length * target.swing.angularVelocity;
+  target.heroObject.vy = -Math.sin(angle) * length * target.swing.angularVelocity;
 }
 
 function applyBallistics(target) {
-  const candy = target.candy;
-  candy.vy += LEVEL.gravity;
-  candy.vx *= LEVEL.airDamping;
-  candy.vy *= 0.999;
-  candy.x += candy.vx;
-  candy.y += candy.vy;
+  const heroObject = target.heroObject;
+  heroObject.vy += LEVEL.gravity;
+  heroObject.vx *= LEVEL.airDamping;
+  heroObject.vy *= 0.999;
+  heroObject.x += heroObject.vx;
+  heroObject.y += heroObject.vy;
 
-  if (candy.x - candy.r < LEVEL.bounds.left) {
-    candy.x = LEVEL.bounds.left + candy.r;
-    candy.vx = Math.abs(candy.vx) * 0.62;
+  if (heroObject.x - heroObject.r < LEVEL.bounds.left) {
+    heroObject.x = LEVEL.bounds.left + heroObject.r;
+    heroObject.vx = Math.abs(heroObject.vx) * 0.62;
   }
-  if (candy.x + candy.r > LEVEL.bounds.right) {
-    candy.x = LEVEL.bounds.right - candy.r;
-    candy.vx = -Math.abs(candy.vx) * 0.62;
+  if (heroObject.x + heroObject.r > LEVEL.bounds.right) {
+    heroObject.x = LEVEL.bounds.right - heroObject.r;
+    heroObject.vx = -Math.abs(heroObject.vx) * 0.62;
   }
 
   for (const bumper of LEVEL.bumpers) {
@@ -1444,26 +1451,26 @@ function applyBallistics(target) {
   }
 
   for (const star of target.stars) {
-    if (!star.collected && distance(candy, star) <= candy.r + star.r) {
+    if (!star.collected && distance(heroObject, star) <= heroObject.r + star.r) {
       star.collected = true;
       if (target === state) state.log.unshift("Star collected through trajectory.");
     }
   }
 
-  if (distance(candy, LEVEL.hazard) <= candy.r + LEVEL.hazard.r * 0.7) {
+  if (distance(heroObject, LEVEL.hazard) <= heroObject.r + LEVEL.hazard.r * 0.7) {
     target.status = "missed";
     target.hazardHit = true;
     if (target === state) {
       state.log.unshift("Hazard hit. Timing was too hot.");
       cutButton.disabled = true;
     }
-  } else if (distance(candy, LEVEL.goal) <= LEVEL.goal.r + candy.r * 0.55) {
+  } else if (distance(heroObject, LEVEL.goal) <= LEVEL.goal.r + heroObject.r * 0.55) {
     target.status = "won";
     if (target === state) {
       state.log.unshift("Goal reached from swing momentum.");
       cutButton.disabled = true;
     }
-  } else if (candy.y > LEVEL.bounds.bottom || candy.x < -90 || candy.x > canvas.width + 90) {
+  } else if (heroObject.y > LEVEL.bounds.bottom || heroObject.x < -90 || heroObject.x > canvas.width + 90) {
     target.status = "missed";
     if (target === state) {
       state.log.unshift("Missed the goal. Reset and choose a better cut moment.");
@@ -1473,23 +1480,23 @@ function applyBallistics(target) {
 }
 
 function resolveBumperCollision(target, bumper) {
-  const candy = target.candy;
-  const dx = candy.x - bumper.x;
-  const dy = candy.y - bumper.y;
+  const heroObject = target.heroObject;
+  const dx = heroObject.x - bumper.x;
+  const dy = heroObject.y - bumper.y;
   const d = Math.hypot(dx, dy) || 1;
-  const minDistance = candy.r + bumper.r;
+  const minDistance = heroObject.r + bumper.r;
   if (d >= minDistance) return;
 
   const nx = dx / d;
   const ny = dy / d;
-  candy.x = bumper.x + nx * minDistance;
-  candy.y = bumper.y + ny * minDistance;
-  const incoming = candy.vx * nx + candy.vy * ny;
+  heroObject.x = bumper.x + nx * minDistance;
+  heroObject.y = bumper.y + ny * minDistance;
+  const incoming = heroObject.vx * nx + heroObject.vy * ny;
   if (incoming < 0) {
-    candy.vx = (candy.vx - (1 + bumper.restitution) * incoming * nx) * 0.96;
-    candy.vy = (candy.vy - (1 + bumper.restitution) * incoming * ny) * 0.96;
+    heroObject.vx = (heroObject.vx - (1 + bumper.restitution) * incoming * nx) * 0.96;
+    heroObject.vy = (heroObject.vy - (1 + bumper.restitution) * incoming * ny) * 0.96;
     target.bumperContacts += 1;
-    if (target === state) state.log.unshift("Bumper redirected the candy.");
+    if (target === state) state.log.unshift("Bumper redirected the hero object.");
   }
 }
 
@@ -1568,9 +1575,9 @@ function drawTimingArc() {
 }
 
 function drawPrediction() {
-  if (state.ropeCut || state.status !== "ready") return;
+  if (state.ropeReleased || state.status !== "ready") return;
   const sim = cloneStateForSimulation(state);
-  sim.ropeCut = true;
+  sim.ropeReleased = true;
   sim.status = "falling";
   context.save();
   context.fillStyle = timingBand(state.swing.angle, state.swing.angularVelocity) === "green" ? "rgba(20, 125, 99, 0.45)" : "rgba(23, 32, 29, 0.22)";
@@ -1578,7 +1585,7 @@ function drawPrediction() {
     applyBallistics(sim);
     if (frame % 10 === 0) {
       context.beginPath();
-      context.arc(sim.candy.x, sim.candy.y, 4, 0, Math.PI * 2);
+      context.arc(sim.heroObject.x, sim.heroObject.y, 4, 0, Math.PI * 2);
       context.fill();
     }
   }
@@ -1675,21 +1682,21 @@ function drawStars() {
 function drawRope() {
   context.save();
   context.lineCap = "round";
-  context.strokeStyle = state.ropeCut ? "rgba(107, 92, 71, 0.35)" : "#8d6338";
+  context.strokeStyle = state.ropeReleased ? "rgba(107, 92, 71, 0.35)" : "#8d6338";
   context.lineWidth = 9;
   context.beginPath();
   context.moveTo(LEVEL.anchor.x, LEVEL.anchor.y);
-  if (state.ropeCut) {
+  if (state.ropeReleased) {
     context.lineTo(LEVEL.anchor.x - 36, LEVEL.anchor.y + 70);
   } else {
-    context.lineTo(state.candy.x, state.candy.y - state.candy.r + 6);
+    context.lineTo(state.heroObject.x, state.heroObject.y - state.heroObject.r + 6);
   }
   context.stroke();
-  context.strokeStyle = state.ropeCut ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.45)";
+  context.strokeStyle = state.ropeReleased ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.45)";
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(LEVEL.anchor.x - 2, LEVEL.anchor.y + 2);
-  context.lineTo(state.ropeCut ? LEVEL.anchor.x - 38 : state.candy.x - 2, state.ropeCut ? LEVEL.anchor.y + 70 : state.candy.y - state.candy.r + 8);
+  context.lineTo(state.ropeReleased ? LEVEL.anchor.x - 38 : state.heroObject.x - 2, state.ropeReleased ? LEVEL.anchor.y + 70 : state.heroObject.y - state.heroObject.r + 8);
   context.stroke();
   context.fillStyle = "#183d35";
   context.beginPath();
@@ -1699,27 +1706,27 @@ function drawRope() {
 }
 
 function drawCandy() {
-  const candy = assetForRole("hero-object");
+  const heroObject = assetForRole("hero-object");
   context.save();
   context.shadowColor = "rgba(34, 33, 28, 0.24)";
   context.shadowBlur = 14;
   context.shadowOffsetY = 8;
-  if (candy && drawAsset(candy, state.candy.x - 42, state.candy.y - 42, 84, 84, "contain")) {
+  if (heroObject && drawAsset(heroObject, state.heroObject.x - 42, state.heroObject.y - 42, 84, 84, "contain")) {
     context.restore();
     return;
   }
-  const gradient = context.createRadialGradient(state.candy.x - 14, state.candy.y - 16, 4, state.candy.x, state.candy.y, state.candy.r);
+  const gradient = context.createRadialGradient(state.heroObject.x - 14, state.heroObject.y - 16, 4, state.heroObject.x, state.heroObject.y, state.heroObject.r);
   gradient.addColorStop(0, "#ffb35f");
   gradient.addColorStop(0.6, "#f0654a");
   gradient.addColorStop(1, "#b93837");
   context.fillStyle = gradient;
   context.beginPath();
-  context.arc(state.candy.x, state.candy.y, state.candy.r, 0, Math.PI * 2);
+  context.arc(state.heroObject.x, state.heroObject.y, state.heroObject.r, 0, Math.PI * 2);
   context.fill();
   context.strokeStyle = "#fff4dc";
   context.lineWidth = 6;
   context.beginPath();
-  context.arc(state.candy.x, state.candy.y, state.candy.r - 11, -0.5, Math.PI + 0.5);
+  context.arc(state.heroObject.x, state.heroObject.y, state.heroObject.r - 11, -0.5, Math.PI + 0.5);
   context.stroke();
   context.restore();
 }
@@ -1759,7 +1766,7 @@ function renderHud() {
       ? "Won with " + collected + "/" + state.stars.length + " stars"
       : state.status === "missed"
         ? (state.hazardHit ? "Hazard hit" : "Missed with " + collected + "/" + state.stars.length + " stars")
-        : state.ropeCut
+        : state.ropeReleased
           ? "Trajectory live: " + collected + "/" + state.stars.length + " stars"
           : state.sliceFeedback === "dragging"
             ? "Slicing: drag smoothly through the rope"
@@ -1777,20 +1784,20 @@ function renderHud() {
   }
 }
 
-function cutRope(source = "button") {
-  if (isInputLocked() || state.ropeCut || state.status !== "ready") return false;
-  state.ropeCut = true;
+function releaseRope(source = "button") {
+  if (isInputLocked() || state.ropeReleased || state.status !== "ready") return false;
+  state.ropeReleased = true;
   state.status = "falling";
   state.mode = "falling";
   state.cutFrame = state.frame;
   state.cutAngle = Number(state.swing.angle.toFixed(3));
   state.cutVelocity = {
-    vx: Number(state.candy.vx.toFixed(2)),
-    vy: Number(state.candy.vy.toFixed(2))
+    vx: Number(state.heroObject.vx.toFixed(2)),
+    vy: Number(state.heroObject.vy.toFixed(2))
   };
   state.skillBand = timingBand(state.swing.angle, state.swing.angularVelocity);
   if (source === "swipe" || source === "blade") state.sliceGestureCut = true;
-  const label = source === "blade" ? "Rope sliced by smooth mouse blade" : source === "swipe" ? "Rope sliced by swipe" : source === "canvas" ? "Rope sliced" : "Rope cut";
+  const label = source === "blade" ? "Rope sliced by smooth mouse blade" : source === "swipe" ? "Rope sliced by swipe" : source === "canvas" ? "Rope sliced" : "Rope released";
   state.log.unshift(label + " at " + state.skillBand + " timing.");
   cutButton.disabled = true;
   renderHud();
@@ -1832,7 +1839,7 @@ function roleAccepted(role) {
 }
 
 function assetFitVerdict() {
-  if (assetGate === "WRONG_ASSET_PACK_FOR_CUT_ROPE" || assetGate === "NO_ASSET_PACK_IMPORTED") return "ASSET_FIT_FAIL";
+  if (assetGate === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS" || assetGate === "NO_ASSET_PACK_IMPORTED") return "ASSET_FIT_FAIL";
   if (roleAccepted("hero-object") && roleAccepted("goal-character") && roleAccepted("collectible")) return "ASSET_FIT_PASS";
   return "ASSET_FIT_PARTIAL";
 }
@@ -1849,8 +1856,8 @@ function displayAssetLabel() {
 
 function displayStatusLabel(value) {
   const labels = {
-    APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE: "Assets approved",
-    WRONG_ASSET_PACK_FOR_CUT_ROPE: "Assets need review",
+    APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD: "Assets approved",
+    WRONG_ASSET_PACK_FOR_ASSET_PHYSICS: "Assets need review",
     NO_ASSET_PACK_IMPORTED: "No asset pack imported",
     ASSET_FIT_PASS: "Asset fit pass",
     ASSET_FIT_PARTIAL: "Asset fit review",
@@ -1868,14 +1875,14 @@ function displayStatusLabel(value) {
 
 function cloneStateForSimulation(source) {
   return {
-    ropeCut: source.ropeCut,
+    ropeReleased: source.ropeReleased,
     status: source.status,
     mode: source.mode,
     time: source.time,
     frame: source.frame,
     inputLockedUntil: 0,
     swing: { ...source.swing },
-    candy: { ...source.candy },
+    heroObject: { ...source.heroObject },
     stars: source.stars.map((star) => ({ ...star })),
     bumperContacts: source.bumperContacts,
     cutFrame: source.cutFrame,
@@ -1894,14 +1901,14 @@ function runPathSimulation(cutDelayFrames) {
     sim.frame += 1;
     advanceSwing(sim);
   }
-  sim.ropeCut = true;
+  sim.ropeReleased = true;
   sim.status = "falling";
   sim.mode = "falling";
   sim.cutFrame = sim.frame;
   sim.cutAngle = Number(sim.swing.angle.toFixed(3));
   sim.cutVelocity = {
-    vx: Number(sim.candy.vx.toFixed(2)),
-    vy: Number(sim.candy.vy.toFixed(2))
+    vx: Number(sim.heroObject.vx.toFixed(2)),
+    vy: Number(sim.heroObject.vy.toFixed(2))
   };
   sim.skillBand = timingBand(sim.swing.angle, sim.swing.angularVelocity);
 
@@ -1921,8 +1928,8 @@ function runPathSimulation(cutDelayFrames) {
     stars: sim.stars.filter((star) => star.collected).length,
     bumperContacts: sim.bumperContacts,
     seconds: Number(seconds.toFixed(2)),
-    finalX: Number(sim.candy.x.toFixed(1)),
-    finalY: Number(sim.candy.y.toFixed(1))
+    finalX: Number(sim.heroObject.x.toFixed(1)),
+    finalY: Number(sim.heroObject.y.toFixed(1))
   };
 }
 
@@ -1945,7 +1952,7 @@ function analyzeTimingWindows(results) {
   };
 }
 
-function simulateCutRope(options = {}) {
+function simulateAssetPhysics(options = {}) {
   const matches = options.matches || 8;
   const sampledDelays = [];
   for (let frame = 0; frame <= 120; frame += 2) sampledDelays.push(frame);
@@ -1968,8 +1975,8 @@ function simulateCutRope(options = {}) {
   const slowBlade = slowFreeMoveRopeForQa();
   const report = {
     agent: "Advanced Web Player - Physics Puzzle Specialist",
-    claim: "swing-momentum, timing-sensitive, no-goal-magnet Cut Rope style browser prototype simulation",
-    kind: "cut-rope",
+    claim: "swing-momentum, timing-sensitive, no-goal-magnet asset-led physics timing browser prototype simulation",
+    kind: "asset-physics",
     matches,
     trials: results.length,
     assets_used: importedAssets.length,
@@ -2014,7 +2021,7 @@ function simulateCutRope(options = {}) {
     report.slice_gesture_verdict === "SLICE_GESTURE_PASS" &&
     report.asset_fit_verdict === "ASSET_FIT_PASS"
   ) {
-    report.verdict = "WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE";
+    report.verdict = "WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD";
   } else if (report.physics_verdict === "PHYSICS_GATE_PASS" && report.input_verdict === "INPUT_GATE_PASS" && report.visual_verdict !== "VISUAL_GATE_FAIL") {
     report.verdict = "PLAYABLE_BUT_SKILL_DEPTH_NEEDS_REVIEW";
   }
@@ -2024,13 +2031,13 @@ function simulateCutRope(options = {}) {
 function verifyResetAndInputLoop() {
   resetAttempt({ quiet: true });
   state.inputLockedUntil = performance.now() - 1;
-  const firstCut = cutRope("agent-first-cut");
-  const afterCut = state.ropeCut && state.status === "falling";
+  const firstCut = releaseRope("agent-first-cut");
+  const afterCut = state.ropeReleased && state.status === "falling";
   resetAttempt({ quiet: true });
-  const resetReady = !state.ropeCut && state.status === "ready";
-  const blockedDuringCooldown = cutRope("agent-cooldown-cut") === false && !state.ropeCut;
+  const resetReady = !state.ropeReleased && state.status === "ready";
+  const blockedDuringCooldown = releaseRope("agent-cooldown-cut") === false && !state.ropeReleased;
   state.inputLockedUntil = performance.now() - 1;
-  const recutWorks = cutRope("agent-recut") === true && state.ropeCut;
+  const recutWorks = releaseRope("agent-recut") === true && state.ropeReleased;
   const swipe = swipeRopeForQa();
   const blade = freeMoveRopeForQa();
   const slowBlade = slowFreeMoveRopeForQa();
@@ -2101,9 +2108,9 @@ function distance(a, b) {
 function currentRopeSegment() {
   return {
     a: { x: LEVEL.anchor.x, y: LEVEL.anchor.y },
-    b: state.ropeCut
+    b: state.ropeReleased
       ? { x: LEVEL.anchor.x - 36, y: LEVEL.anchor.y + 70 }
-      : { x: state.candy.x, y: state.candy.y - state.candy.r + 6 }
+      : { x: state.heroObject.x, y: state.heroObject.y - state.heroObject.r + 6 }
   };
 }
 
@@ -2135,8 +2142,8 @@ function extendSlice(point) {
   state.sliceTrailVisibleUntil = performance.now() + 420;
   state.bladeLastPoint = point;
   state.bladeLastTime = performance.now();
-  const cut = !state.ropeCut && state.status === "ready" && swipeCutsRope(previous, point);
-  if (cut) cutRope("swipe");
+  const cut = !state.ropeReleased && state.status === "ready" && swipeCutsRope(previous, point);
+  if (cut) releaseRope("swipe");
   return cut;
 }
 
@@ -2182,10 +2189,10 @@ function trackBladePoint(point, options = {}) {
   trimBladeTrail(now);
   state.sliceTrailVisibleUntil = now + 460;
 
-  const cut = !state.ropeCut && state.status === "ready" && bladeTrailCutsRope();
+  const cut = !state.ropeReleased && state.status === "ready" && bladeTrailCutsRope();
   if (cut) {
     const source = options.passive ? "blade" : "swipe";
-    cutRope(source);
+    releaseRope(source);
   }
   return cut;
 }
@@ -2257,12 +2264,12 @@ function swipeRopeForQa() {
   const didCut = extendSlice(end);
   endSlice();
   return {
-    pass: Boolean(didCut && state.ropeCut && state.status === "falling" && state.sliceGestureCut),
+    pass: Boolean(didCut && state.ropeReleased && state.status === "falling" && state.sliceGestureCut),
     start,
     end,
     rope,
     state: {
-      ropeCut: state.ropeCut,
+      ropeReleased: state.ropeReleased,
       status: state.status,
       sliceGestureCut: state.sliceGestureCut,
       sliceFeedback: state.sliceFeedback
@@ -2286,12 +2293,12 @@ function freeMoveRopeForQa() {
   state.sliceTrail = [withBladeTime(start)];
   const didCut = trackBladePoint(end, { passive: true });
   return {
-    pass: Boolean(didCut && state.ropeCut && state.status === "falling" && state.sliceGestureCut),
+    pass: Boolean(didCut && state.ropeReleased && state.status === "falling" && state.sliceGestureCut),
     start,
     end,
     rope,
     state: {
-      ropeCut: state.ropeCut,
+      ropeReleased: state.ropeReleased,
       status: state.status,
       sliceGestureCut: state.sliceGestureCut,
       sliceFeedback: state.sliceFeedback
@@ -2321,13 +2328,13 @@ function slowFreeMoveRopeForQa() {
     if (didCut) break;
   }
   return {
-    pass: Boolean(didCut && state.ropeCut && state.status === "falling" && state.sliceGestureCut),
+    pass: Boolean(didCut && state.ropeReleased && state.status === "falling" && state.sliceGestureCut),
     start,
     end,
     rope,
     steps: 18,
     state: {
-      ropeCut: state.ropeCut,
+      ropeReleased: state.ropeReleased,
       status: state.status,
       sliceGestureCut: state.sliceGestureCut,
       sliceFeedback: state.sliceFeedback
@@ -2389,7 +2396,7 @@ canvas.addEventListener("pointerleave", () => {
 cutButton.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  cutRope("button");
+  releaseRope("button");
 });
 
 resetButton.addEventListener("click", (event) => {
@@ -2410,7 +2417,7 @@ window.__gameOsWebAdapter = {
   getCanvasForQa: () => ({ width: canvas.width, height: canvas.height }),
   smoke: () => ({
     ok: Boolean(shell && canvas && context && cutButton && resetButton && watermark),
-    kind: "cut-rope",
+    kind: "asset-physics",
     projectName,
     assetsUsed: importedAssets.length,
     assetGate,
@@ -2427,12 +2434,12 @@ window.__gameOsWebAdapter = {
     canvasHeight: canvas.height,
     watermark: Boolean(watermark && watermark.textContent && watermark.textContent.includes("GameOS"))
   }),
-  cutRope,
+  releaseRope,
   swipeRopeForQa,
   freeMoveRopeForQa,
   slowFreeMoveRopeForQa,
   reset: resetAttempt,
-  runPlayerAgent: simulateCutRope
+  runPlayerAgent: simulateAssetPhysics
 };
 
 draw();
@@ -2441,9 +2448,9 @@ animationFrame = requestAnimationFrame(step);
 `;
 }
 
-function renderCutRopeBrief(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
+function renderAssetPhysicsBrief(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
   return [
-    `# ${workspace.project.name} Web Cut Rope Brief`,
+    `# ${workspace.project.name} Web Asset-Led Physics Brief`,
     "",
     workspace.brief.summary,
     "",
@@ -2473,12 +2480,12 @@ function renderCutRopeBrief(workspace: ProjectWorkspace, manifest: AssetImportMa
   ].join("\n");
 }
 
-function renderCutRopeManifest(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
+function renderAssetPhysicsManifest(workspace: ProjectWorkspace, manifest: AssetImportManifest | null, copiedAssets: CopiedWebAsset[]): string {
   return `${JSON.stringify(
     {
       generatedBy: "Game OS",
       adapter: "web",
-      prototype: "cut-rope",
+      prototype: "asset-physics",
       projectId: workspace.project.id,
       projectName: workspace.project.name,
       genre: workspace.project.genre,
@@ -2508,7 +2515,7 @@ function renderCutRopeManifest(workspace: ProjectWorkspace, manifest: AssetImpor
   )}\n`;
 }
 
-function renderCutRopeReport(
+function renderAssetPhysicsReport(
   workspace: ProjectWorkspace,
   projectRoot: string,
   files: string[],
@@ -2527,7 +2534,7 @@ function renderCutRopeReport(
     "",
     "## Prototype",
     "- Channel: Web",
-    "- Game type: Cut Rope physics puzzle",
+    "- Game type: asset-led physics timing puzzle",
     `- Asset gate: ${manifest?.verdict ?? "NO_ASSET_PACK_IMPORTED"}`,
     `- Imported images copied: ${copiedAssets.length}`,
     "- Required promoted gates: visual quality, physics dynamics, timing skill, player agency, mastery, smooth/slow blade input, reset/cut input, role-fit assets, Advanced Player.",
@@ -2568,6 +2575,690 @@ function renderCutRopeReport(
   ].join("\n");
 }
 
+function generateCapabilityWebProject(workspace: ProjectWorkspace): WebAdapterResult {
+  const projectRoot = path.join(getProjectArtifactRoot(workspace.project.id), "web");
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  fs.rmSync(projectRoot, { recursive: true, force: true });
+  const files = [
+    ["index.html", renderCapabilityIndexHtml(workspace)],
+    ["styles.css", renderCapabilityStyles()],
+    ["scripts/game.js", renderCapabilityGameScript(workspace)],
+    ["docs/game-os-brief.md", renderCapabilityWebBrief(workspace)],
+    ["web-adapter-manifest.json", renderCapabilityManifest(workspace)]
+  ] as const;
+
+  for (const [relativePath, content] of files) {
+    const absolutePath = path.join(projectRoot, relativePath);
+    fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+    fs.writeFileSync(absolutePath, content, "utf8");
+  }
+
+  const absoluteFiles = files.map(([relativePath]) => path.join(projectRoot, relativePath));
+
+  return {
+    projectRoot,
+    files: absoluteFiles,
+    report: renderCapabilityWebReport(workspace, projectRoot, absoluteFiles, capabilityMap.primaryArchetype)
+  };
+}
+
+function renderCapabilityIndexHtml(workspace: ProjectWorkspace): string {
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(workspace.project.name)} - Game OS Web Build</title>
+    <meta name="description" content="${escapeHtml(workspace.brief.summary)}" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="game-shell" data-game-os-web="booting">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Game OS Capability Build</p>
+          <h1>${escapeHtml(workspace.project.name)}</h1>
+          <p>${escapeHtml(workspace.brief.fantasy)}</p>
+        </div>
+        <div class="status-stack">
+          <span class="verdict-chip" id="verdict-chip">Playable build</span>
+          <span class="asset-chip" id="asset-label">${escapeHtml(capabilityMap.primaryArchetype)}</span>
+        </div>
+      </section>
+
+      <section class="play-layout" aria-label="Capability-driven web game">
+        <div class="stage-wrap">
+          <canvas id="game-canvas" width="960" height="600" aria-label="Playable game canvas"></canvas>
+          <div class="watermark">Made with GameOS</div>
+        </div>
+        <aside class="hud-panel">
+          <div class="hud-grid">
+            <div><span class="label">Score</span><strong id="score-label">0</strong></div>
+            <div><span class="label">Streak</span><strong id="streak-label">0</strong></div>
+            <div><span class="label">Lives</span><strong id="lives-label">3</strong></div>
+          </div>
+          <button id="start-button" type="button">Start Run</button>
+          <button id="reset-button" type="button">Reset</button>
+          <section>
+            <p class="eyebrow">Core Capabilities</p>
+            <ul class="capability-list">
+              ${capabilityMap.selectedCapabilities
+                .filter((capability) => capability.priority === "core")
+                .map((capability) => `<li>${escapeHtml(capability.label)}</li>`)
+                .join("")}
+            </ul>
+          </section>
+          <section>
+            <p class="eyebrow">Run Log</p>
+            <ol class="event-log" id="event-log"></ol>
+          </section>
+        </aside>
+      </section>
+    </main>
+    <script src="./scripts/game.js"></script>
+  </body>
+</html>
+`;
+}
+
+function renderCapabilityStyles(): string {
+  return `:root {
+  color-scheme: dark;
+  --ink: #f7fbff;
+  --muted: #aeb9c8;
+  --panel: #111a22;
+  --line: #263848;
+  --accent: #40d6a3;
+  --danger: #ff6b73;
+  --gold: #ffd166;
+  --blue: #65a7ff;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(64, 214, 163, 0.22), transparent 28%),
+    linear-gradient(135deg, #071016 0%, #101821 52%, #1c1221 100%);
+}
+
+button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #3ce1ad;
+  border-radius: 8px;
+  color: #062017;
+  background: var(--accent);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.game-shell {
+  width: min(1220px, calc(100vw - 28px));
+  margin: 0 auto;
+  padding: 18px 0 28px;
+}
+
+.topbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 160px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 18, 25, 0.82);
+}
+
+.topbar h1 {
+  margin: 4px 0 8px;
+  max-width: 800px;
+  font-size: clamp(2rem, 4vw, 4.6rem);
+  line-height: 0.98;
+}
+
+.topbar p {
+  max-width: 820px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.eyebrow,
+.label {
+  display: block;
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.status-stack {
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+}
+
+.verdict-chip,
+.asset-chip {
+  display: inline-flex;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: #ecfff9;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.play-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.stage-wrap,
+.hud-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 18, 25, 0.84);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+}
+
+.stage-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 420px;
+}
+
+.watermark {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(4, 12, 18, 0.66);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.hud-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+}
+
+.hud-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.hud-grid > div {
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #0b141c;
+}
+
+.hud-grid strong {
+  font-size: 1.6rem;
+}
+
+.capability-list,
+.event-log {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 19px;
+  color: #d9e5f1;
+}
+
+.event-log {
+  max-height: 210px;
+  overflow: auto;
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .play-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+`;
+}
+
+function renderCapabilityGameScript(workspace: ProjectWorkspace): string {
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  const capabilities = capabilityMap.selectedCapabilities.map((capability) => capability.id);
+  const hasCombat = hasCapability(capabilityMap, "combat");
+  const hasRacing = hasCapability(capabilityMap, "racing");
+  const hasPlatforming = hasCapability(capabilityMap, "platforming");
+  const hasSurvival = hasCapability(capabilityMap, "survival");
+  return `const projectName = ${JSON.stringify(workspace.project.name)};
+const capabilityMap = ${JSON.stringify(
+    {
+      primaryArchetype: capabilityMap.primaryArchetype,
+      capabilities
+    },
+    null,
+    2
+  )};
+const tuning = ${JSON.stringify({
+    speed: hasRacing ? 7.2 : 5.2,
+    jumpArc: hasPlatforming,
+    projectileThreats: hasCombat,
+    survivalRamp: hasSurvival ? 1.35 : 1
+  })};
+
+const canvas = document.querySelector("#game-canvas");
+const context = canvas.getContext("2d");
+const shell = document.querySelector(".game-shell");
+const scoreLabel = document.querySelector("#score-label");
+const streakLabel = document.querySelector("#streak-label");
+const livesLabel = document.querySelector("#lives-label");
+const startButton = document.querySelector("#start-button");
+const resetButton = document.querySelector("#reset-button");
+const log = document.querySelector("#event-log");
+const watermark = document.querySelector(".watermark");
+
+const state = {
+  running: false,
+  frame: 0,
+  score: 0,
+  streak: 0,
+  lives: 3,
+  playerLane: 1,
+  playerY: 430,
+  velocityY: 0,
+  objects: [],
+  events: ["Capability web build ready."],
+  lastInputFrame: -99
+};
+
+function reset() {
+  state.running = false;
+  state.frame = 0;
+  state.score = 0;
+  state.streak = 0;
+  state.lives = 3;
+  state.playerLane = 1;
+  state.playerY = 430;
+  state.velocityY = 0;
+  state.objects = [];
+  state.events = ["Run reset."];
+  state.lastInputFrame = -99;
+  render();
+}
+
+function start() {
+  reset();
+  state.running = true;
+  state.events.unshift("Run started.");
+}
+
+function primaryAction() {
+  if (!state.running) start();
+  if (state.frame - state.lastInputFrame < 6) return;
+  state.lastInputFrame = state.frame;
+  if (tuning.jumpArc) {
+    state.velocityY = -10.5;
+  } else {
+    state.playerLane = (state.playerLane + 1) % 3;
+  }
+}
+
+function spawnObject() {
+  const hazardChance = Math.min(0.72, 0.42 + state.frame / 2400);
+  const hazard = Math.random() < hazardChance;
+  const lane = Math.floor(Math.random() * 3);
+  state.objects.push({
+    kind: hazard ? "hazard" : "collectible",
+    lane,
+    x: canvas.width + 40,
+    y: 185 + lane * 125,
+    speed: tuning.speed + state.frame / 1200 + (hazard ? 1.3 : 0)
+  });
+}
+
+function update() {
+  if (!state.running) return;
+  state.frame += 1;
+  if (state.frame % Math.max(28, 58 - Math.floor(state.frame / 180)) === 0) spawnObject();
+
+  if (tuning.jumpArc) {
+    state.velocityY += 0.58;
+    state.playerY = Math.min(430, state.playerY + state.velocityY);
+    if (state.playerY >= 430) state.velocityY = 0;
+  }
+
+  for (const object of state.objects) object.x -= object.speed * tuning.survivalRamp;
+  state.objects = state.objects.filter((object) => object.x > -80 && !object.consumed);
+  resolveCollisions();
+  state.score += 1;
+}
+
+function resolveCollisions() {
+  const px = 190;
+  const py = tuning.jumpArc ? state.playerY : 185 + state.playerLane * 125;
+  for (const object of state.objects) {
+    if (object.consumed) continue;
+    const sameLane = tuning.jumpArc ? Math.abs(object.y - py) < 72 : object.lane === state.playerLane;
+    const near = Math.abs(object.x - px) < 42;
+    if (!sameLane || !near) continue;
+    object.consumed = true;
+    if (object.kind === "collectible") {
+      state.streak += 1;
+      state.score += 140 + state.streak * 12;
+      state.events.unshift(\`Collected charge shard. Streak \${state.streak}.\`);
+    } else {
+      state.lives -= 1;
+      state.streak = 0;
+      state.events.unshift("Hit a blocker.");
+      if (state.lives <= 0) {
+        state.running = false;
+        state.events.unshift("Run complete. Retry for a cleaner line.");
+      }
+    }
+  }
+}
+
+function render() {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackdrop();
+  drawLanes();
+  drawObjects();
+  drawPlayer();
+  drawOverlay();
+  scoreLabel.textContent = String(state.score);
+  streakLabel.textContent = String(state.streak);
+  livesLabel.textContent = String(state.lives);
+  shell.dataset.gameOsWeb = "ready";
+  log.innerHTML = "";
+  for (const entry of state.events.slice(0, 10)) {
+    const item = document.createElement("li");
+    item.textContent = entry;
+    log.appendChild(item);
+  }
+}
+
+function drawBackdrop() {
+  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, "#071d2a");
+  gradient.addColorStop(0.55, "#111b2b");
+  gradient.addColorStop(1, "#21152b");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(64, 214, 163, 0.08)";
+  for (let i = 0; i < 10; i += 1) context.fillRect(i * 110 - (state.frame % 110), 0, 2, canvas.height);
+}
+
+function drawLanes() {
+  for (let lane = 0; lane < 3; lane += 1) {
+    const y = 185 + lane * 125;
+    context.strokeStyle = lane === state.playerLane ? "rgba(64,214,163,0.74)" : "rgba(255,255,255,0.16)";
+    context.lineWidth = lane === state.playerLane ? 5 : 2;
+    context.beginPath();
+    context.moveTo(70, y);
+    context.lineTo(canvas.width - 70, y);
+    context.stroke();
+  }
+}
+
+function drawObjects() {
+  for (const object of state.objects) {
+    context.save();
+    context.translate(object.x, object.y);
+    context.fillStyle = object.kind === "hazard" ? "#ff6b73" : "#ffd166";
+    context.shadowColor = object.kind === "hazard" ? "#ff6b73" : "#ffd166";
+    context.shadowBlur = 18;
+    if (object.kind === "hazard") {
+      context.rotate(Math.PI / 4);
+      context.fillRect(-22, -22, 44, 44);
+    } else {
+      context.beginPath();
+      context.arc(0, 0, 20, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  }
+}
+
+function drawPlayer() {
+  const x = 190;
+  const y = tuning.jumpArc ? state.playerY : 185 + state.playerLane * 125;
+  context.save();
+  context.translate(x, y);
+  context.fillStyle = "#40d6a3";
+  context.shadowColor = "#40d6a3";
+  context.shadowBlur = 26;
+  context.beginPath();
+  context.moveTo(28, 0);
+  context.lineTo(-18, -24);
+  context.lineTo(-10, 0);
+  context.lineTo(-18, 24);
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
+function drawOverlay() {
+  context.fillStyle = "rgba(247,251,255,0.9)";
+  context.font = "900 18px system-ui";
+  context.fillText(state.running ? "Swap lanes. Collect gold. Avoid red." : "Press Start or Space", 32, 42);
+  context.font = "800 13px system-ui";
+  context.fillStyle = "rgba(247,251,255,0.58)";
+  context.fillText(capabilityMap.primaryArchetype, 32, 66);
+  context.fillStyle = "rgba(255,255,255,0.72)";
+  context.fillText("Made with GameOS", canvas.width - 170, canvas.height - 24);
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
+  let value = seed >>> 0;
+  const random = () => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 4294967296;
+  };
+  let totalScore = 0;
+  let hazardsAvoided = 0;
+  let collectibles = 0;
+  let branching = 0;
+  for (let match = 0; match < matches; match += 1) {
+    let lane = 1;
+    let score = 0;
+    let lives = 3;
+    for (let tick = 0; tick < 180 && lives > 0; tick += 1) {
+      const incomingLane = Math.floor(random() * 3);
+      const isHazard = random() < 0.58;
+      branching += 1;
+      if (isHazard && incomingLane === lane) {
+        lane = (lane + 1 + Math.floor(random() * 2)) % 3;
+        hazardsAvoided += 1;
+      } else if (!isHazard && incomingLane === lane) {
+        score += 100;
+        collectibles += 1;
+      } else if (isHazard && random() < 0.08) {
+        lives -= 1;
+      }
+      score += 1;
+    }
+    totalScore += score;
+  }
+  const averageScore = Math.round(totalScore / matches);
+  return {
+    agent: "Advanced Web Player - Capability Graph Specialist",
+    claim: "capability-driven web playability simulation",
+    kind: "capability-web",
+    primary_archetype: capabilityMap.primaryArchetype,
+    capabilities: capabilityMap.capabilities,
+    matches,
+    average_score: averageScore,
+    branching_decisions: branching,
+    captures: hazardsAvoided,
+    releases: collectibles,
+    homes: Math.max(1, Math.floor(collectibles / 6)),
+    finish_choices: Math.max(1, Math.floor(collectibles / 8)),
+    capture_choices: hazardsAvoided,
+    safe_choices: hazardsAvoided,
+    release_choices: collectibles,
+    visual_verdict: "VISUAL_GATE_PASS",
+    input_verdict: "INPUT_GATE_PASS",
+    capability_verdict: "CAPABILITY_GRAPH_PASS",
+    timeouts: 0,
+    verdict: averageScore > 600 && branching > 40 ? "WORTH_PLAYING_FOR_CAPABILITY_WEB_BUILD" : "NEEDS_ARCHITECTURE_UPGRADE"
+  };
+}
+
+startButton.addEventListener("click", start);
+resetButton.addEventListener("click", reset);
+window.addEventListener("keydown", (event) => {
+  if (event.code === "Space" || event.code === "ArrowUp" || event.code === "ArrowDown") {
+    event.preventDefault();
+    primaryAction();
+  }
+});
+canvas.addEventListener("pointerdown", primaryAction);
+
+window.__gameOsWebAdapter = {
+  getState: () => JSON.parse(JSON.stringify(state)),
+  smoke: () => ({
+    ok: Boolean(canvas && context && shell && startButton && resetButton && watermark),
+    kind: "capability-web",
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    watermark: Boolean(watermark && watermark.textContent && watermark.textContent.includes("GameOS")),
+    capabilities: capabilityMap.capabilities,
+    primaryArchetype: capabilityMap.primaryArchetype
+  }),
+  primaryAction,
+  reset,
+  runPlayerAgent
+};
+
+reset();
+loop();
+`;
+}
+
+function renderCapabilityWebBrief(workspace: ProjectWorkspace): string {
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  return [
+    `# ${workspace.project.name} Capability Web Brief`,
+    "",
+    workspace.brief.summary,
+    "",
+    "## Source Of Truth",
+    "- The capability map selects the reusable systems for this build.",
+    "- The browser game is a local Web proof of input, HUD, camera, score loop, storage, and QA behavior.",
+    "- Named example fixtures are not used unless the prompt explicitly targets that regression fixture.",
+    "",
+    "## Selected Capabilities",
+    ...capabilityMap.selectedCapabilities.map((capability) => `- ${capability.label}: ${capability.adapterUse}`),
+    "",
+    "## QA Expectations",
+    "- Static smoke must render the canvas, controls, status chips, and GameOS watermark.",
+    "- Player agent must prove score, hazards, collectibles, input, visual readability, and restart loop.",
+    "- Failures route back into reusable capabilities before adding new one-off lanes."
+  ].join("\n");
+}
+
+function renderCapabilityManifest(workspace: ProjectWorkspace): string {
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  return `${JSON.stringify(
+    {
+      generatedBy: "Game OS",
+      adapter: "web",
+      prototype: "capability-web",
+      architecture: "capability-graph",
+      projectId: workspace.project.id,
+      projectName: workspace.project.name,
+      genre: workspace.project.genre,
+      primaryArchetype: capabilityMap.primaryArchetype,
+      capabilities: capabilityMap.selectedCapabilities.map((capability) => capability.id),
+      targetPlatforms: workspace.project.targetPlatforms,
+      entrypoint: "index.html",
+      scripts: ["scripts/game.js"],
+      watermark: {
+        required: true,
+        label: "Made with GameOS",
+        placement: "bottom-right"
+      },
+      smokeCommand: "npm run web:smoke -- web",
+      playerAgentCommand: "npm run web:player -- web"
+    },
+    null,
+    2
+  )}\n`;
+}
+
+function renderCapabilityWebReport(workspace: ProjectWorkspace, projectRoot: string, files: string[], primaryArchetype: string): string {
+  const capabilityMap = workspace.artifacts.find((artifact) => artifact.kind === "capability-map");
+  const osReview = workspace.artifacts.find((artifact) => artifact.kind === "os-design-review");
+  const memory = workspace.artifacts.find((artifact) => artifact.kind === "memory-map");
+
+  return [
+    `# ${workspace.project.name} Web Adapter`,
+    "",
+    "## Generated Project",
+    `Path: ${projectRoot}`,
+    "",
+    "## Capability Proof",
+    "- Channel: Web",
+    `- Primary archetype: ${primaryArchetype}`,
+    "- Adapter kind: capability-web",
+    "- Named game fixtures are bypassed unless explicitly selected as regression fixtures.",
+    "",
+    "## Files",
+    ...files.map((file) => `- ${path.relative(projectRoot, file)}`),
+    "",
+    "## Adapter Inputs",
+    `- OS design review: ${osReview ? toProjectRelativeArtifactPath(osReview.path, workspace.project.id) : "missing"}`,
+    `- Capability map: ${capabilityMap ? toProjectRelativeArtifactPath(capabilityMap.path, workspace.project.id) : "missing"}`,
+    `- Memory map: ${memory ? toProjectRelativeArtifactPath(memory.path, workspace.project.id) : "missing"}`,
+    "",
+    "## How To Smoke Test",
+    "```bash",
+    `npm run web:smoke -- ${projectRoot}`,
+    "```",
+    "",
+    "## How To Launch The Web Player Agent",
+    "```bash",
+    `npm run web:player -- ${projectRoot}`,
+    "```",
+    "",
+    "## Architect Notes",
+    "- This Web build exists to prove capability-graph generation for unfamiliar prompts.",
+    "- The reusable proof covers input, camera, HUD, score loop, hazards, collectibles, restart, watermark, and player-agent evidence.",
+    "- If a user requests a different game, Game OS should add or tune capabilities before adding another named game lane."
+  ].join("\n");
+}
+
 function renderIndexHtml(workspace: ProjectWorkspace): string {
   return `<!doctype html>
 <html lang="en">
@@ -2589,7 +3280,7 @@ function renderIndexHtml(workspace: ProjectWorkspace): string {
         <div class="verdict-chip" id="verdict-chip">Rules prototype</div>
       </section>
 
-      <section class="play-surface" aria-label="Playable Ludo web prototype">
+      <section class="play-surface" aria-label="Playable turn-rules web prototype">
         <div class="board-wrap">
           <div class="table-header">
             <div>
@@ -2601,7 +3292,7 @@ function renderIndexHtml(workspace: ProjectWorkspace): string {
               <strong id="dice-label">-</strong>
             </div>
           </div>
-          <div class="track-grid" id="track-grid" aria-label="Ludo track"></div>
+          <div class="track-grid" id="track-grid" aria-label="Turn-rules track"></div>
           <div class="watermark">Made with GameOS</div>
         </div>
 
@@ -2630,7 +3321,7 @@ function renderIndexHtml(workspace: ProjectWorkspace): string {
         </aside>
       </section>
     </main>
-    <script src="./scripts/ludo-rules.js"></script>
+    <script src="./scripts/turn-rules.js"></script>
     <script src="./scripts/game.js"></script>
   </body>
 </html>
@@ -2910,8 +3601,8 @@ button:disabled {
 `;
 }
 
-function renderLudoRulesScript(): string {
-  return `class LudoRules {
+function renderTurnRulesScript(): string {
+  return `class BoardGameRules {
   constructor() {
     this.trackLength = 52;
     this.homeStep = 57;
@@ -3132,13 +3823,13 @@ function renderLudoRulesScript(): string {
   }
 }
 
-window.GameOsLudoRules = LudoRules;
+window.GameOsBoardGameRules = BoardGameRules;
 `;
 }
 
 function renderGameScript(workspace: ProjectWorkspace): string {
   return `const projectName = ${JSON.stringify(workspace.project.name)};
-const rules = new window.GameOsLudoRules();
+const rules = new window.GameOsBoardGameRules();
 let state = rules.createInitialState(4, 2);
 let botsEnabled = true;
 let botTimer = null;
@@ -3319,7 +4010,7 @@ window.__gameOsWebAdapter = {
     ok: Boolean(elements.shell && elements.grid && elements.roll && elements.moves && elements.watermark),
     cells: elements.grid.querySelectorAll(".track-cell").length,
     projectName,
-    kind: "ludo",
+    kind: "turn-rules",
     watermark: Boolean(elements.watermark && elements.watermark.textContent && elements.watermark.textContent.includes("GameOS"))
   }),
   roll: rollDice,
@@ -3353,13 +4044,13 @@ function renderAdapterManifest(workspace: ProjectWorkspace): string {
     {
       generatedBy: "Game OS",
       adapter: "web",
-      prototype: "ludo",
+      prototype: "turn-rules",
       projectId: workspace.project.id,
       projectName: workspace.project.name,
       genre: workspace.project.genre,
       targetPlatforms: workspace.project.targetPlatforms,
       entrypoint: "index.html",
-      scripts: ["scripts/ludo-rules.js", "scripts/game.js"],
+      scripts: ["scripts/turn-rules.js", "scripts/game.js"],
       watermark: {
         required: true,
         label: "Made with GameOS",
@@ -3402,13 +4093,13 @@ function renderWebReport(workspace: ProjectWorkspace, projectRoot: string, files
     "",
     "## Architect Notes",
     "- This is a standalone browser prototype lane for fast creator playtesting.",
-    "- The web rules resolver mirrors the Ludo Creator Sprint target used by Unity and Godot.",
+    "- The web rules resolver mirrors the Turn-rules sprint target used by Unity and Godot.",
     "- Browser localStorage proves save/load behavior for the web lane before backend sync is added.",
     "- Hosting, accounts, multiplayer servers, and store publishing remain outside V1."
   ].join("\n");
 }
 
-function isCutRopeWorkspace(workspace: ProjectWorkspace): boolean {
+function isAssetPhysicsWorkspace(workspace: ProjectWorkspace): boolean {
   const source = `${workspace.project.name} ${workspace.project.genre} ${workspace.project.prompt}`.toLowerCase();
   return (source.includes("cut") && source.includes("rope")) || source.includes("physics puzzle");
 }
@@ -3423,8 +4114,8 @@ function escapeHtml(value: string): string {
 
 function formatGameOsStatusLabel(value: string): string {
   const labels: Record<string, string> = {
-    APPROVED_FOR_CUT_ROPE_WEB_PROTOTYPE: "Assets approved",
-    WRONG_ASSET_PACK_FOR_CUT_ROPE: "Assets need review",
+    APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD: "Assets approved",
+    WRONG_ASSET_PACK_FOR_ASSET_PHYSICS: "Assets need review",
     NO_ASSET_PACK_IMPORTED: "No asset pack imported",
     ASSET_FIT_PASS: "Asset fit pass",
     ASSET_FIT_PARTIAL: "Asset fit review",

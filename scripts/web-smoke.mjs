@@ -27,63 +27,78 @@ try {
 
   await page.goto(url, { waitUntil: "networkidle" });
   await page.locator('[data-game-os-web="ready"]').waitFor({ state: "visible", timeout: 5000 });
-  const visibleHudText = [await page.locator("#verdict-chip").innerText(), await page.locator("#asset-label").innerText()].join(" ");
+  const visibleHudText = await page.evaluate(() =>
+    [document.querySelector("#verdict-chip")?.textContent || "", document.querySelector("#asset-label")?.textContent || ""].join(" ")
+  );
   assert(!/[A-Z]{2,}_[A-Z0-9_]+/.test(visibleHudText), "Visible HUD leaked machine verdict constants instead of player-facing labels.");
   const smoke = await page.evaluate(() => globalThis.__gameOsWebAdapter.smoke());
   assert(smoke.ok, "Web adapter runtime did not report ready.");
-  if (smoke.kind === "ludo") {
+  if (smoke.kind === "turn-rules") {
     assert(smoke.cells === 52, `Expected 52 track cells, got ${smoke.cells}.`);
-    assert(smoke.watermark === true, "Ludo Web build is missing the visible GameOS watermark.");
-  } else if (smoke.kind === "cut-rope") {
-    assert(smoke.canvasWidth >= 900 && smoke.canvasHeight >= 580, "Cut Rope canvas did not initialize at playable size.");
-    assert(smoke.assetsUsed > 0, "Cut Rope build did not copy any imported image assets.");
-    assert(smoke.watermark === true, "Cut Rope build is missing the visible GameOS watermark.");
-    assert(["VISUAL_GATE_PASS", "VISUAL_GATE_REVIEW"].includes(smoke.visualGate), `Cut Rope visual gate is not acceptable for smoke: ${smoke.visualGate}.`);
-    assert(smoke.physicsModel === "pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet", `Cut Rope physics model is too shallow: ${smoke.physicsModel}.`);
-    assert(smoke.hasTimingArc === true && smoke.hasPrediction === true, "Cut Rope build lacks timing/prediction playability helpers.");
-    assert(smoke.hasSwipeSlice === true, "Cut Rope build lacks smooth swipe slicing support.");
-    assert(smoke.hasSmoothMouseBlade === true, "Cut Rope build lacks smooth mouse blade support.");
-    assert(smoke.hasSlowMouseBlade === true, "Cut Rope build lacks slow human mouse blade support.");
+    assert(smoke.watermark === true, "Turn-rules Web build is missing the visible GameOS watermark.");
+  } else if (smoke.kind === "asset-physics") {
+    assert(smoke.canvasWidth >= 900 && smoke.canvasHeight >= 580, "asset-led physics canvas did not initialize at playable size.");
+    assert(smoke.assetsUsed > 0, "asset-led physics build did not copy any imported image assets.");
+    assert(smoke.watermark === true, "asset-led physics build is missing the visible GameOS watermark.");
+    assert(["VISUAL_GATE_PASS", "VISUAL_GATE_REVIEW"].includes(smoke.visualGate), `asset-led physics visual gate is not acceptable for smoke: ${smoke.visualGate}.`);
+    assert(smoke.physicsModel === "pendulum-swing-momentum-gravity-bumper-collision-no-goal-magnet", `asset-led physics model is too shallow: ${smoke.physicsModel}.`);
+    assert(smoke.hasTimingArc === true && smoke.hasPrediction === true, "asset-led physics build lacks timing/prediction playability helpers.");
+    assert(smoke.hasSwipeSlice === true, "asset-led physics build lacks smooth swipe slicing support.");
+    assert(smoke.hasSmoothMouseBlade === true, "asset-led physics build lacks smooth mouse blade support.");
+    assert(smoke.hasSlowMouseBlade === true, "asset-led physics build lacks slow human mouse blade support.");
+  } else if (smoke.kind === "capability-web") {
+    assert(smoke.canvasWidth >= 900 && smoke.canvasHeight >= 560, "Capability Web canvas did not initialize at playable size.");
+    assert(smoke.watermark === true, "Capability Web build is missing the visible GameOS watermark.");
+    assert(Array.isArray(smoke.capabilities) && smoke.capabilities.includes("input") && smoke.capabilities.includes("qa"), "Capability Web build did not expose the universal capability graph.");
   } else {
-    throw new Error(`Unknown Web prototype kind: ${smoke.kind || "missing"}.`);
+    throw new Error(`Unknown Web build kind: ${smoke.kind || "missing"}.`);
   }
 
-  if (smoke.kind === "ludo") {
+  if (smoke.kind === "turn-rules") {
     await page.locator("#roll-button").click();
     await page.locator("#save-button").click();
     await page.locator("#load-button").click();
-  } else {
+  } else if (smoke.kind === "asset-physics") {
     const swipeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.swipeRopeForQa());
-    assert(swipeProof.pass === true, "Cut Rope swipe gesture did not cut the rope.");
+    assert(swipeProof.pass === true, "Asset-Led Physics swipe gesture did not release the rope.");
     const afterCut = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterCut.ropeCut === true && afterCut.status === "falling" && afterCut.sliceGestureCut === true, "Cut Rope swipe did not cut into falling state.");
+    assert(afterCut.ropeReleased === true && afterCut.status === "falling" && afterCut.sliceGestureCut === true, "Asset-Led Physics swipe did not cut into falling state.");
     await page.locator("#reset-button").click();
     await page.waitForTimeout(120);
     const afterReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterReset.ropeCut === false && afterReset.status === "ready", "Cut Rope reset did not restore ready state.");
+    assert(afterReset.ropeReleased === false && afterReset.status === "ready", "Asset-Led Physics reset did not restore ready state.");
     await page.waitForTimeout(340);
     const afterResetSettled = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterResetSettled.ropeCut === false && afterResetSettled.status === "ready", "Cut Rope reset caused an automatic recut.");
+    assert(afterResetSettled.ropeReleased === false && afterResetSettled.status === "ready", "Asset-Led Physics reset caused an automatic recut.");
     const bladeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.freeMoveRopeForQa());
-    assert(bladeProof.pass === true, "Cut Rope smooth mouse blade did not cut the rope.");
+    assert(bladeProof.pass === true, "Asset-Led Physics smooth mouse blade did not release the rope.");
     const afterBlade = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterBlade.ropeCut === true && afterBlade.status === "falling" && afterBlade.sliceGestureCut === true, "Cut Rope smooth mouse blade did not cut into falling state.");
+    assert(afterBlade.ropeReleased === true && afterBlade.status === "falling" && afterBlade.sliceGestureCut === true, "Asset-Led Physics smooth mouse blade did not cut into falling state.");
     await page.locator("#reset-button").click();
     await page.waitForTimeout(340);
     const afterBladeReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterBladeReset.ropeCut === false && afterBladeReset.status === "ready", "Cut Rope reset after smooth mouse blade did not restore ready state.");
+    assert(afterBladeReset.ropeReleased === false && afterBladeReset.status === "ready", "Asset-Led Physics reset after smooth mouse blade did not restore ready state.");
     const slowBladeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.slowFreeMoveRopeForQa());
-    assert(slowBladeProof.pass === true, "Cut Rope slow human mouse blade did not cut the rope.");
+    assert(slowBladeProof.pass === true, "Asset-Led Physics slow human mouse blade did not release the rope.");
     const afterSlowBlade = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterSlowBlade.ropeCut === true && afterSlowBlade.status === "falling" && afterSlowBlade.sliceGestureCut === true, "Cut Rope slow human mouse blade did not cut into falling state.");
+    assert(afterSlowBlade.ropeReleased === true && afterSlowBlade.status === "falling" && afterSlowBlade.sliceGestureCut === true, "Asset-Led Physics slow human mouse blade did not cut into falling state.");
     await page.locator("#reset-button").click();
     await page.waitForTimeout(340);
     const afterSlowBladeReset = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterSlowBladeReset.ropeCut === false && afterSlowBladeReset.status === "ready", "Cut Rope reset after slow human mouse blade did not restore ready state.");
+    assert(afterSlowBladeReset.ropeReleased === false && afterSlowBladeReset.status === "ready", "Asset-Led Physics reset after slow human mouse blade did not restore ready state.");
     const recutSwipeProof = await page.evaluate(() => globalThis.__gameOsWebAdapter.swipeRopeForQa());
-    assert(recutSwipeProof.pass === true, "Cut Rope swipe gesture could not recut after reset.");
+    assert(recutSwipeProof.pass === true, "Asset-Led Physics swipe gesture could not recut after reset.");
     const afterRecut = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
-    assert(afterRecut.ropeCut === true && afterRecut.status === "falling" && afterRecut.sliceGestureCut === true, "Cut Rope could not be swipe-cut again after reset debounce.");
+    assert(afterRecut.ropeReleased === true && afterRecut.status === "falling" && afterRecut.sliceGestureCut === true, "Asset-Led Physics could not be swipe-cut again after reset debounce.");
+  } else if (smoke.kind === "capability-web") {
+    await page.locator("#start-button").click();
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(180);
+    const runningState = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(runningState.running === true, "Capability Web build did not start from primary input.");
+    await page.locator("#reset-button").click();
+    const resetState = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState());
+    assert(resetState.running === false && resetState.score === 0 && resetState.lives === 3, "Capability Web reset did not restore initial state.");
   }
   await page.screenshot({ path: path.join(outputDir, "web-adapter-desktop.png"), fullPage: true });
 

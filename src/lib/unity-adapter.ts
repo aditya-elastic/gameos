@@ -21,10 +21,10 @@ export function generateUnityProject(workspace: ProjectWorkspace): UnityAdapterR
     ["Packages/manifest.json", renderPackageManifest()],
     ["Assets/Scenes/Main.unity", renderMainScene()],
     ["Assets/Scenes/Main.unity.meta", renderDefaultMeta(sceneGuid)],
-    ["Assets/Scripts/LudoRules.cs", renderLudoRulesScript()],
-    ["Assets/Scripts/LudoRules.cs.meta", renderMeta("e54cf9f37a7041c7a2e4fb82a6bd4001")],
-    ["Assets/Scripts/RoyalLudoUnityController.cs", renderUnityControllerScript(workspace)],
-    ["Assets/Scripts/RoyalLudoUnityController.cs.meta", renderMeta(controllerGuid)],
+    ["Assets/Scripts/TurnRulesEngine.cs", renderTurnRulesEngineScript()],
+    ["Assets/Scripts/TurnRulesEngine.cs.meta", renderMeta("e54cf9f37a7041c7a2e4fb82a6bd4001")],
+    ["Assets/Scripts/TurnRulesUnityController.cs", renderUnityControllerScript(workspace)],
+    ["Assets/Scripts/TurnRulesUnityController.cs.meta", renderMeta(controllerGuid)],
     ["Assets/Editor/GameOsUnitySmoke.cs", renderSmokeScript()],
     ["Assets/Editor/GameOsUnitySmoke.cs.meta", renderMeta("1f9080d35c6c4cfb8c1e016afae05001")],
     ["Assets/Editor/GameOsUnityPlayerAgent.cs", renderPlayerAgentScript()],
@@ -228,13 +228,13 @@ function renderDefaultMeta(guid: string): string {
   ].join("\n") + "\n";
 }
 
-function renderLudoRulesScript(): string {
+function renderTurnRulesEngineScript(): string {
   return String.raw`using System;
 using System.Collections.Generic;
 
 namespace GameOS.UnityAdapter
 {
-    public enum LudoPhase
+    public enum TurnRulesPhase
     {
         AwaitRoll,
         SelectToken,
@@ -242,18 +242,18 @@ namespace GameOS.UnityAdapter
     }
 
     [Serializable]
-    public sealed class LudoToken
+    public sealed class TurnRulesToken
     {
         public int Steps = -1;
         public bool Home;
     }
 
     [Serializable]
-    public sealed class LudoPlayer
+    public sealed class TurnRulesPlayer
     {
         public int Id;
         public string Color = "";
-        public List<LudoToken> Tokens = new List<LudoToken>();
+        public List<TurnRulesToken> Tokens = new List<TurnRulesToken>();
     }
 
     [Serializable]
@@ -266,15 +266,15 @@ namespace GameOS.UnityAdapter
     }
 
     [Serializable]
-    public sealed class LudoState
+    public sealed class TurnRulesState
     {
         public int PlayerCount;
         public int Turn;
         public int Dice;
-        public LudoPhase Phase = LudoPhase.AwaitRoll;
+        public TurnRulesPhase Phase = TurnRulesPhase.AwaitRoll;
         public int Winner = -1;
-        public int WinTokenTarget = LudoRules.TokenCount;
-        public List<LudoPlayer> Players = new List<LudoPlayer>();
+        public int WinTokenTarget = TurnRulesEngine.TokenCount;
+        public List<TurnRulesPlayer> Players = new List<TurnRulesPlayer>();
         public List<MoveRecord> MoveHistory = new List<MoveRecord>();
     }
 
@@ -313,7 +313,7 @@ namespace GameOS.UnityAdapter
         public int Home;
     }
 
-    public sealed class LudoRules
+    public sealed class TurnRulesEngine
     {
         public const int TokenCount = 4;
         public const int TrackLength = 52;
@@ -324,12 +324,12 @@ namespace GameOS.UnityAdapter
         private static readonly int[] StartOffsets = { 0, 13, 26, 39 };
         private static readonly HashSet<int> SafeSquares = new HashSet<int> { 0, 8, 13, 21, 26, 34, 39, 47 };
 
-        public LudoState CreateInitialState(int playerCount = 4, int winTokenTarget = 2)
+        public TurnRulesState CreateInitialState(int playerCount = 4, int winTokenTarget = 2)
         {
             playerCount = Clamp(playerCount, 2, 4);
             winTokenTarget = Clamp(winTokenTarget, 1, TokenCount);
 
-            var state = new LudoState
+            var state = new TurnRulesState
             {
                 PlayerCount = playerCount,
                 WinTokenTarget = winTokenTarget
@@ -337,7 +337,7 @@ namespace GameOS.UnityAdapter
 
             for (var playerIndex = 0; playerIndex < playerCount; playerIndex++)
             {
-                var player = new LudoPlayer
+                var player = new TurnRulesPlayer
                 {
                     Id = playerIndex,
                     Color = PlayerColors[playerIndex]
@@ -345,7 +345,7 @@ namespace GameOS.UnityAdapter
 
                 for (var tokenIndex = 0; tokenIndex < TokenCount; tokenIndex++)
                 {
-                    player.Tokens.Add(new LudoToken());
+                    player.Tokens.Add(new TurnRulesToken());
                 }
 
                 state.Players.Add(player);
@@ -354,9 +354,9 @@ namespace GameOS.UnityAdapter
             return state;
         }
 
-        public MoveResult Roll(LudoState state, int diceValue)
+        public MoveResult Roll(TurnRulesState state, int diceValue)
         {
-            if (state.Phase == LudoPhase.EndMatch)
+            if (state.Phase == TurnRulesPhase.EndMatch)
             {
                 return MoveResult.Fail("match_complete");
             }
@@ -367,14 +367,14 @@ namespace GameOS.UnityAdapter
             }
 
             state.Dice = diceValue;
-            state.Phase = LudoPhase.SelectToken;
+            state.Phase = TurnRulesPhase.SelectToken;
             return MoveResult.Pass(GetLegalMoves(state));
         }
 
-        public List<int> GetLegalMoves(LudoState state)
+        public List<int> GetLegalMoves(TurnRulesState state)
         {
             var legal = new List<int>();
-            if (state.Phase == LudoPhase.AwaitRoll)
+            if (state.Phase == TurnRulesPhase.AwaitRoll)
             {
                 return legal;
             }
@@ -404,7 +404,7 @@ namespace GameOS.UnityAdapter
             return legal;
         }
 
-        public MoveResult ApplyMove(LudoState state, int tokenIndex)
+        public MoveResult ApplyMove(TurnRulesState state, int tokenIndex)
         {
             var legal = GetLegalMoves(state);
             if (!legal.Contains(tokenIndex))
@@ -447,24 +447,24 @@ namespace GameOS.UnityAdapter
 
             if (PlayerComplete(state, player))
             {
-                state.Phase = LudoPhase.EndMatch;
+                state.Phase = TurnRulesPhase.EndMatch;
                 state.Winner = playerIndex;
             }
             else if (state.Dice == 6)
             {
-                state.Phase = LudoPhase.AwaitRoll;
+                state.Phase = TurnRulesPhase.AwaitRoll;
             }
             else
             {
                 state.Turn = (state.Turn + 1) % state.PlayerCount;
-                state.Phase = LudoPhase.AwaitRoll;
+                state.Phase = TurnRulesPhase.AwaitRoll;
             }
 
             state.Dice = 0;
             return MoveResult.Pass(null, events);
         }
 
-        public MoveResult PassTurn(LudoState state)
+        public MoveResult PassTurn(TurnRulesState state)
         {
             if (GetLegalMoves(state).Count > 0)
             {
@@ -480,7 +480,7 @@ namespace GameOS.UnityAdapter
             });
             state.Turn = (state.Turn + 1) % state.PlayerCount;
             state.Dice = 0;
-            state.Phase = LudoPhase.AwaitRoll;
+            state.Phase = TurnRulesPhase.AwaitRoll;
             return MoveResult.Pass();
         }
 
@@ -499,7 +499,7 @@ namespace GameOS.UnityAdapter
             return SafeSquares.Contains(position);
         }
 
-        public TokenCounts CountTokens(LudoPlayer player)
+        public TokenCounts CountTokens(TurnRulesPlayer player)
         {
             var counts = new TokenCounts();
             foreach (var token in player.Tokens)
@@ -521,7 +521,7 @@ namespace GameOS.UnityAdapter
             return counts;
         }
 
-        private List<string> ResolveCapture(LudoState state, int playerIndex, int steps)
+        private List<string> ResolveCapture(TurnRulesState state, int playerIndex, int steps)
         {
             var events = new List<string>();
             var position = BoardPosition(playerIndex, steps);
@@ -557,7 +557,7 @@ namespace GameOS.UnityAdapter
             return events;
         }
 
-        private bool PlayerComplete(LudoState state, LudoPlayer player)
+        private bool PlayerComplete(TurnRulesState state, TurnRulesPlayer player)
         {
             return CountTokens(player).Home >= state.WinTokenTarget;
         }
@@ -583,11 +583,11 @@ using UnityEngine;
 
 namespace GameOS.UnityAdapter
 {
-    public sealed class RoyalLudoUnityController : MonoBehaviour
+    public sealed class TurnRulesUnityController : MonoBehaviour
     {
-        private readonly LudoRules rules = new LudoRules();
+        private readonly TurnRulesEngine rules = new TurnRulesEngine();
         private readonly System.Random rng = new System.Random();
-        private LudoState state;
+        private TurnRulesState state;
         private string lastEvent = "New Unity match ready.";
         private bool botsEnabled = true;
         private float nextBotStep;
@@ -599,7 +599,7 @@ namespace GameOS.UnityAdapter
 
         private void Update()
         {
-            if (!botsEnabled || state == null || state.Phase == LudoPhase.EndMatch || state.Turn == 0 || Time.time < nextBotStep)
+            if (!botsEnabled || state == null || state.Phase == TurnRulesPhase.EndMatch || state.Turn == 0 || Time.time < nextBotStep)
             {
                 return;
             }
@@ -621,13 +621,13 @@ namespace GameOS.UnityAdapter
             GUILayout.Label("Last event: " + lastEvent);
 
             GUILayout.BeginHorizontal();
-            GUI.enabled = state.Phase == LudoPhase.AwaitRoll && state.Turn == 0;
+            GUI.enabled = state.Phase == TurnRulesPhase.AwaitRoll && state.Turn == 0;
             if (GUILayout.Button("Roll Dice", GUILayout.Width(130), GUILayout.Height(40)))
             {
                 RollHuman();
             }
 
-            GUI.enabled = state.Phase == LudoPhase.SelectToken && state.Turn == 0 && rules.GetLegalMoves(state).Count == 0;
+            GUI.enabled = state.Phase == TurnRulesPhase.SelectToken && state.Turn == 0 && rules.GetLegalMoves(state).Count == 0;
             if (GUILayout.Button("Pass Turn", GUILayout.Width(130), GUILayout.Height(40)))
             {
                 PassCurrent();
@@ -642,7 +642,7 @@ namespace GameOS.UnityAdapter
             botsEnabled = GUILayout.Toggle(botsEnabled, " Bots", GUILayout.Width(90));
             GUILayout.EndHorizontal();
 
-            if (state.Phase == LudoPhase.SelectToken && state.Turn == 0)
+            if (state.Phase == TurnRulesPhase.SelectToken && state.Turn == 0)
             {
                 var legal = rules.GetLegalMoves(state);
                 GUILayout.Label("Legal moves: " + string.Join(", ", legal));
@@ -664,7 +664,7 @@ namespace GameOS.UnityAdapter
                 GUILayout.Label(player.Color.ToUpperInvariant() + " | base " + counts.Base + " | active " + counts.Active + " | home " + counts.Home);
             }
 
-            if (state.Phase == LudoPhase.EndMatch)
+            if (state.Phase == TurnRulesPhase.EndMatch)
             {
                 GUILayout.Label("Winner: " + state.Players[state.Winner].Color.ToUpperInvariant());
             }
@@ -702,7 +702,7 @@ namespace GameOS.UnityAdapter
 
         private void RunBotStep()
         {
-            if (state.Phase == LudoPhase.AwaitRoll)
+            if (state.Phase == TurnRulesPhase.AwaitRoll)
             {
                 var dice = rng.Next(1, 7);
                 rules.Roll(state, dice);
@@ -725,7 +725,7 @@ namespace GameOS.UnityAdapter
             var player = CurrentPlayer();
             foreach (var tokenIndex in legal)
             {
-                if (player.Tokens[tokenIndex].Steps + state.Dice == LudoRules.FinishSteps)
+                if (player.Tokens[tokenIndex].Steps + state.Dice == TurnRulesEngine.FinishSteps)
                 {
                     return tokenIndex;
                 }
@@ -742,7 +742,7 @@ namespace GameOS.UnityAdapter
             return legal[0];
         }
 
-        private LudoPlayer CurrentPlayer()
+        private TurnRulesPlayer CurrentPlayer()
         {
             return state.Players[state.Turn];
         }
@@ -765,7 +765,7 @@ namespace GameOS.Editor
         {
             try
             {
-                var rules = new LudoRules();
+                var rules = new TurnRulesEngine();
                 var state = rules.CreateInitialState(2);
                 Expect(state.PlayerCount == 2, "two-player state");
                 Expect(rules.Roll(state, 6).Ok, "roll six");
@@ -798,7 +798,7 @@ namespace GameOS.Editor
                 Expect(rules.PassTurn(state).Ok, "pass no legal move");
 
                 var packed = JsonUtility.ToJson(state);
-                var restored = JsonUtility.FromJson<LudoState>(packed);
+                var restored = JsonUtility.FromJson<TurnRulesState>(packed);
                 Expect(restored.Turn == state.Turn, "json save resume turn");
 
                 Debug.Log("UNITY_ADAPTER_SMOKE: PASS");
@@ -834,7 +834,7 @@ namespace GameOS.Editor
 {
     public static class GameOsUnityPlayerAgent
     {
-        private static readonly LudoRules Rules = new LudoRules();
+        private static readonly TurnRulesEngine Rules = new TurnRulesEngine();
         private static readonly System.Random Rng = new System.Random(20260531);
 
         public static void Run()
@@ -873,7 +873,7 @@ namespace GameOS.Editor
             var state = Rules.CreateInitialState(4, 2);
             var report = new MatchReport();
 
-            while (state.Phase != LudoPhase.EndMatch && report.Turns < 360)
+            while (state.Phase != TurnRulesPhase.EndMatch && report.Turns < 360)
             {
                 report.Turns++;
                 Rules.Roll(state, Rng.Next(1, 7));
@@ -903,11 +903,11 @@ namespace GameOS.Editor
                 }
             }
 
-            report.Timeout = state.Phase != LudoPhase.EndMatch;
+            report.Timeout = state.Phase != TurnRulesPhase.EndMatch;
             return report;
         }
 
-        private static int ChooseEliteMove(LudoState state, List<int> legal)
+        private static int ChooseEliteMove(TurnRulesState state, List<int> legal)
         {
             var bestToken = legal[0];
             var bestScore = int.MinValue;
@@ -924,7 +924,7 @@ namespace GameOS.Editor
             return bestToken;
         }
 
-        private static int ScoreMove(LudoState state, int tokenIndex)
+        private static int ScoreMove(TurnRulesState state, int tokenIndex)
         {
             var playerIndex = state.Turn;
             var token = state.Players[playerIndex].Tokens[tokenIndex];
@@ -941,11 +941,11 @@ namespace GameOS.Editor
                 targetSteps = token.Steps + state.Dice;
             }
 
-            if (targetSteps == LudoRules.FinishSteps)
+            if (targetSteps == TurnRulesEngine.FinishSteps)
             {
                 score += 1200;
             }
-            else if (targetSteps < LudoRules.TrackLength)
+            else if (targetSteps < TurnRulesEngine.TrackLength)
             {
                 var position = Rules.BoardPosition(playerIndex, targetSteps);
                 if (Rules.IsSafeSquare(position))
@@ -963,7 +963,7 @@ namespace GameOS.Editor
 
                         foreach (var otherToken in state.Players[otherIndex].Tokens)
                         {
-                            if (otherToken.Home || otherToken.Steps < 0 || otherToken.Steps >= LudoRules.TrackLength)
+                            if (otherToken.Home || otherToken.Steps < 0 || otherToken.Steps >= TurnRulesEngine.TrackLength)
                             {
                                 continue;
                             }
@@ -1007,7 +1007,7 @@ namespace GameOS.Editor
 {
     public static class GameOsUnityAdvancedPlaytest
     {
-        private static readonly LudoRules Rules = new LudoRules();
+        private static readonly TurnRulesEngine Rules = new TurnRulesEngine();
         private static readonly System.Random Rng = new System.Random(20260531);
 
         public static void Run()
@@ -1015,10 +1015,10 @@ namespace GameOS.Editor
             try
             {
                 var scene = EditorSceneManager.OpenScene("Assets/Scenes/Main.unity");
-                var controller = UnityEngine.Object.FindAnyObjectByType<RoyalLudoUnityController>();
+                var controller = UnityEngine.Object.FindAnyObjectByType<TurnRulesUnityController>();
                 if (controller == null)
                 {
-                    throw new InvalidOperationException("RoyalLudoUnityController missing from Main scene.");
+                    throw new InvalidOperationException("TurnRulesUnityController missing from Main scene.");
                 }
 
                 var report = RunAdvancedPlayerSet();
@@ -1083,7 +1083,7 @@ namespace GameOS.Editor
             var state = Rules.CreateInitialState(4, 2);
             var report = new MatchReport();
 
-            while (state.Phase != LudoPhase.EndMatch && report.Turns < 360)
+            while (state.Phase != TurnRulesPhase.EndMatch && report.Turns < 360)
             {
                 report.Turns++;
                 Rules.Roll(state, Rng.Next(1, 7));
@@ -1119,11 +1119,11 @@ namespace GameOS.Editor
                 }
             }
 
-            report.Timeout = state.Phase != LudoPhase.EndMatch;
+            report.Timeout = state.Phase != TurnRulesPhase.EndMatch;
             return report;
         }
 
-        private static int ChooseAdvancedMove(LudoState state, List<int> legal, MatchReport report)
+        private static int ChooseAdvancedMove(TurnRulesState state, List<int> legal, MatchReport report)
         {
             var bestToken = legal[0];
             var bestScore = int.MinValue;
@@ -1160,7 +1160,7 @@ namespace GameOS.Editor
             return bestToken;
         }
 
-        private static ScoredMove ScoreMove(LudoState state, int tokenIndex)
+        private static ScoredMove ScoreMove(TurnRulesState state, int tokenIndex)
         {
             var playerIndex = state.Turn;
             var token = state.Players[playerIndex].Tokens[tokenIndex];
@@ -1179,12 +1179,12 @@ namespace GameOS.Editor
                 targetSteps = token.Steps + state.Dice;
             }
 
-            if (targetSteps == LudoRules.FinishSteps)
+            if (targetSteps == TurnRulesEngine.FinishSteps)
             {
                 score += 1200;
                 tag = "finish";
             }
-            else if (targetSteps < LudoRules.TrackLength)
+            else if (targetSteps < TurnRulesEngine.TrackLength)
             {
                 var position = Rules.BoardPosition(playerIndex, targetSteps);
                 if (Rules.IsSafeSquare(position))
@@ -1206,7 +1206,7 @@ namespace GameOS.Editor
 
                         foreach (var otherToken in state.Players[otherIndex].Tokens)
                         {
-                            if (otherToken.Home || otherToken.Steps < 0 || otherToken.Steps >= LudoRules.TrackLength)
+                            if (otherToken.Home || otherToken.Steps < 0 || otherToken.Steps >= TurnRulesEngine.TrackLength)
                             {
                                 continue;
                             }
@@ -1327,8 +1327,8 @@ function renderAdapterManifest(workspace: ProjectWorkspace): string {
       targetPlatforms: workspace.project.targetPlatforms,
       scenes: ["Assets/Scenes/Main.unity"],
       scripts: [
-        "Assets/Scripts/LudoRules.cs",
-        "Assets/Scripts/RoyalLudoUnityController.cs",
+        "Assets/Scripts/TurnRulesEngine.cs",
+        "Assets/Scripts/TurnRulesUnityController.cs",
         "Assets/Editor/GameOsUnitySmoke.cs",
         "Assets/Editor/GameOsUnityPlayerAgent.cs",
         "Assets/Editor/GameOsUnityAdvancedPlaytest.cs"

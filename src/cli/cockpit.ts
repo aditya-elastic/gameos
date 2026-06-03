@@ -185,8 +185,9 @@ async function createGameFromCockpit(options: CockpitOptions): Promise<string> {
   workspace = generateWebAdapter(workspace.project.id);
   const qa = await runWebQa(workspace.project.id, { browser: options.browser });
   const review = createStudioReview(workspace.project.id);
-  const ready = qa.report.verdict.startsWith("WORTH_PLAYING") && review.scorecard.verdict.startsWith("10_OUT_OF_10");
-  return `${ready ? "Ready" : "Still blocked"}: ${workspace.project.name} · ${qa.report.verdict} · ${review.scorecard.verdict}`;
+  const status =
+    review.scorecard.verdict === "CREATOR_TEST_READY" ? "Creator-test ready" : review.scorecard.verdict === "LOCAL_PROTOTYPE_READY" ? "Local prototype ready" : "Still blocked";
+  return `${status}: ${workspace.project.name} · ${qa.report.verdict} · ${review.scorecard.verdict}`;
 }
 
 async function improveFromCockpit(workspace: ProjectWorkspace | null, options: CockpitOptions): Promise<string> {

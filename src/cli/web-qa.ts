@@ -10,7 +10,7 @@ declare global {
     getState?: () => Record<string, unknown>;
     getRopeForQa?: () => { a: { x: number; y: number }; b: { x: number; y: number } };
     getCanvasForQa?: () => { width: number; height: number };
-    cutRope?: (source?: string) => boolean;
+    releaseRope?: (source?: string) => boolean;
     swipeRopeForQa?: () => Record<string, unknown>;
     freeMoveRopeForQa?: () => Record<string, unknown>;
     slowFreeMoveRopeForQa?: () => Record<string, unknown>;
@@ -41,7 +41,7 @@ export async function runWebQa(projectId: string, options: WebQaOptions): Promis
   const html = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
   const scriptPath = findGameScript(projectRoot);
   const script = fs.readFileSync(scriptPath, "utf8");
-  const kind = script.includes("cut-rope") || html.includes("Cut Rope") ? "cut-rope" : "ludo";
+  const kind = detectWebBuildKind(projectRoot, html, script);
   const report = {
     kind,
     verdict: "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING",
@@ -84,15 +84,15 @@ async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<
     await page.locator('[data-game-os-web="ready"]').waitFor({ state: "visible", timeout: 5000 });
     const smoke = await page.evaluate(() => globalThis.__gameOsWebAdapter.smoke());
     if (!smoke.ok) throw new Error("Web adapter runtime did not report ready.");
-    if (smoke.kind === "cut-rope" && !smoke.watermark) throw new Error("GameOS watermark was missing from the Web build.");
-    const screenshotPath = smoke.kind === "cut-rope" ? path.join(projectRoot, "qa", "cut-rope-visual-qa.png") : "";
+    if (!smoke.watermark) throw new Error("GameOS watermark was missing from the Web build.");
+    const screenshotPath = smoke.kind === "asset-physics" ? path.join(projectRoot, "qa", "asset-physics-visual-qa.png") : "";
     if (screenshotPath) {
       fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
       await page.screenshot({ path: screenshotPath, fullPage: true });
     }
-    const interaction = smoke.kind === "cut-rope" ? await verifyCutRopeBrowserInteraction(page) : {};
+    const interaction = smoke.kind === "asset-physics" ? await verifyAssetPhysicsBrowserInteraction(page) : {};
     const playerReport = await page.evaluate(() => globalThis.__gameOsWebAdapter.runPlayerAgent({ matches: 8, seed: 20260601 }));
-    const interactionScreenshotPath = smoke.kind === "cut-rope" ? path.join(projectRoot, "qa", "cut-rope-interaction-qa.png") : "";
+    const interactionScreenshotPath = smoke.kind === "asset-physics" ? path.join(projectRoot, "qa", "asset-physics-interaction-qa.png") : "";
     if (interactionScreenshotPath) await page.screenshot({ path: interactionScreenshotPath, fullPage: true });
     const { recordWebPlaytest } = await import("../lib/studio");
     const workspace = recordWebPlaytest(projectId, {
@@ -120,7 +120,7 @@ async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<
   }
 }
 
-async function verifyCutRopeBrowserInteraction(page: import("playwright-core").Page): Promise<Record<string, unknown>> {
+async function verifyAssetPhysicsBrowserInteraction(page: import("playwright-core").Page): Promise<Record<string, unknown>> {
   const firstSwipe = await performMouseSwipeCut(page);
   const afterCut = firstSwipe.after;
 
@@ -148,18 +148,18 @@ async function verifyCutRopeBrowserInteraction(page: import("playwright-core").P
   const secondSwipe = await performMouseSwipeCut(page);
   const afterRecut = secondSwipe.after;
 
-  const firstCutPass = firstSwipe.pass && afterCut.ropeCut === true && afterCut.status === "falling";
-  const resetSafePass = afterReset.ropeCut === false && afterReset.status === "ready";
-  const noAutoCutPass = afterResetSettled.ropeCut === false && afterResetSettled.status === "ready";
-  const smoothMousePass = smoothMouseBlade.pass && afterSmoothMouseBlade.ropeCut === true && afterSmoothMouseBlade.status === "falling";
-  const bladeResetSafePass = afterBladeResetSettled.ropeCut === false && afterBladeResetSettled.status === "ready";
-  const slowMousePass = slowMouseBlade.pass && afterSlowMouseBlade.ropeCut === true && afterSlowMouseBlade.status === "falling";
-  const slowBladeResetSafePass = afterSlowBladeResetSettled.ropeCut === false && afterSlowBladeResetSettled.status === "ready";
-  const recutPass = secondSwipe.pass && afterRecut.ropeCut === true && afterRecut.status === "falling";
+  const firstCutPass = firstSwipe.pass && afterCut.ropeReleased === true && afterCut.status === "falling";
+  const resetSafePass = afterReset.ropeReleased === false && afterReset.status === "ready";
+  const noAutoCutPass = afterResetSettled.ropeReleased === false && afterResetSettled.status === "ready";
+  const smoothMousePass = smoothMouseBlade.pass && afterSmoothMouseBlade.ropeReleased === true && afterSmoothMouseBlade.status === "falling";
+  const bladeResetSafePass = afterBladeResetSettled.ropeReleased === false && afterBladeResetSettled.status === "ready";
+  const slowMousePass = slowMouseBlade.pass && afterSlowMouseBlade.ropeReleased === true && afterSlowMouseBlade.status === "falling";
+  const slowBladeResetSafePass = afterSlowBladeResetSettled.ropeReleased === false && afterSlowBladeResetSettled.status === "ready";
+  const recutPass = secondSwipe.pass && afterRecut.ropeReleased === true && afterRecut.status === "falling";
 
   if (!firstCutPass || !resetSafePass || !noAutoCutPass || !smoothMousePass || !bladeResetSafePass || !slowMousePass || !slowBladeResetSafePass || !recutPass) {
     throw new Error(
-      `Cut Rope browser interaction failed: firstCut=${firstCutPass}, resetSafe=${resetSafePass}, noAutoCut=${noAutoCutPass}, smoothMouse=${smoothMousePass}, bladeResetSafe=${bladeResetSafePass}, slowMouse=${slowMousePass}, slowBladeResetSafe=${slowBladeResetSafePass}, recut=${recutPass}.`
+      `asset-led physics browser interaction failed: firstCut=${firstCutPass}, resetSafe=${resetSafePass}, noAutoCut=${noAutoCutPass}, smoothMouse=${smoothMousePass}, bladeResetSafe=${bladeResetSafePass}, slowMouse=${slowMousePass}, slowBladeResetSafe=${slowBladeResetSafePass}, recut=${recutPass}.`
     );
   }
 
@@ -194,7 +194,7 @@ async function performMouseSwipeCut(page: import("playwright-core").Page): Promi
   }));
   const box = await page.locator("#game-canvas").boundingBox();
   if (!box || !target.rope || !target.canvas) {
-    throw new Error("Cut Rope mouse swipe QA could not read canvas or rope geometry.");
+    throw new Error("Asset-Led Physics mouse swipe QA could not read canvas or rope geometry.");
   }
   const rope = target.rope;
   const canvasSize = target.canvas;
@@ -227,7 +227,7 @@ async function performMouseSwipeCut(page: import("playwright-core").Page): Promi
 
   const after = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
   return {
-    pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
+    pass: after.ropeReleased === true && after.status === "falling" && after.sliceGestureCut === true,
     rope,
     start,
     end,
@@ -242,7 +242,7 @@ async function performSlowMouseBladeCut(page: import("playwright-core").Page): P
   }));
   const box = await page.locator("#game-canvas").boundingBox();
   if (!box || !target.rope || !target.canvas) {
-    throw new Error("Cut Rope slow mouse blade QA could not read canvas or rope geometry.");
+    throw new Error("Asset-Led Physics slow mouse blade QA could not read canvas or rope geometry.");
   }
   const canvasSize = target.canvas;
   let latestRope = target.rope;
@@ -272,8 +272,8 @@ async function performSlowMouseBladeCut(page: import("playwright-core").Page): P
       rope: globalThis.__gameOsWebAdapter.getRopeForQa?.(),
       state: globalThis.__gameOsWebAdapter.getState?.() ?? {}
     }));
-    if (liveTarget.state.ropeCut === true) break;
-    if (!liveTarget.rope) throw new Error("Cut Rope slow mouse blade QA lost live rope geometry.");
+    if (liveTarget.state.ropeReleased === true) break;
+    if (!liveTarget.rope) throw new Error("Asset-Led Physics slow mouse blade QA lost live rope geometry.");
     latestRope = liveTarget.rope;
     end = bladePointFor(latestRope, step % 2 === 1 ? -1 : 1, step === 1 ? 62 : 48);
     const screenPoint = toScreen(end);
@@ -283,7 +283,7 @@ async function performSlowMouseBladeCut(page: import("playwright-core").Page): P
 
   const after = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
   return {
-    pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
+    pass: after.ropeReleased === true && after.status === "falling" && after.sliceGestureCut === true,
     rope: latestRope,
     start,
     end,
@@ -298,7 +298,7 @@ async function performMouseBladeCut(page: import("playwright-core").Page): Promi
   }));
   const box = await page.locator("#game-canvas").boundingBox();
   if (!box || !target.rope || !target.canvas) {
-    throw new Error("Cut Rope smooth mouse blade QA could not read canvas or rope geometry.");
+    throw new Error("Asset-Led Physics smooth mouse blade QA could not read canvas or rope geometry.");
   }
   const rope = target.rope;
   const canvasSize = target.canvas;
@@ -328,7 +328,7 @@ async function performMouseBladeCut(page: import("playwright-core").Page): Promi
 
   const after = await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {});
   return {
-    pass: after.ropeCut === true && after.status === "falling" && after.sliceGestureCut === true,
+    pass: after.ropeReleased === true && after.status === "falling" && after.sliceGestureCut === true,
     rope,
     start,
     end,
@@ -344,10 +344,26 @@ function assertWebBuild(projectRoot: string): void {
 }
 
 function findGameScript(projectRoot: string): string {
-  const candidates = [path.join(projectRoot, "scripts", "game.js"), path.join(projectRoot, "scripts", "ludo-rules.js")];
+  const candidates = [path.join(projectRoot, "scripts", "game.js"), path.join(projectRoot, "scripts", "turn-rules.js")];
   const script = candidates.find((candidate) => fs.existsSync(candidate));
   if (!script) throw new Error(`Missing Web runtime script under ${projectRoot}.`);
   return script;
+}
+
+function detectWebBuildKind(projectRoot: string, html: string, script: string): string {
+  const manifestPath = path.join(projectRoot, "web-adapter-manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { prototype?: string };
+      if (manifest.prototype) return manifest.prototype;
+    } catch {
+      // Fall back to source inspection below.
+    }
+  }
+
+  if (script.includes("asset-physics") || html.includes("Asset-Led Physics")) return "asset-physics";
+  if (script.includes("capability-web") || html.includes("Capability Build")) return "capability-web";
+  return "turn-rules";
 }
 
 async function startStaticServer(root: string): Promise<{ server: http.Server; url: string }> {

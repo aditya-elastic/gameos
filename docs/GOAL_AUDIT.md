@@ -1,8 +1,8 @@
-# 10/10 Goal Audit
+# Goal Trust Audit
 
 `npm run goal:audit` is the repository-level proof that Game OS is aligned with the full studio objective before release claims.
 
-It is local and deterministic. It does not publish to npm, contact stores, or run engine-heavy lanes. It verifies that the open-source system contains the agents, skills, QA gates, docs, release scripts, and game-proof machinery needed to support a 10/10 local game creation claim.
+It is local and deterministic. It does not publish to npm, contact stores, or run engine-heavy lanes. It verifies that the open-source system contains the agents, skills, QA gates, docs, release scripts, and game-proof machinery needed to support honest local prototype and creator-test readiness claims.
 
 ## Command
 
@@ -15,6 +15,7 @@ npm run goal:audit
 ## Categories
 
 - Agent Swarm And Skills
+- Global OS Architecture
 - Game Direction Design And Developer
 - Creator UX Flow
 - Asset Pipeline And Visual Quality
@@ -27,19 +28,21 @@ npm run goal:audit
 
 ## What It Proves
 
-- The 21-agent swarm is present and each agent has usable skills.
-- Studio Director, Game Designer, Gameplay Developer, UX Flow Director, Game Feel Director, Physics Gameplay Engineer, Advanced Player, QA Director, Memory Manager, Storage Manager, Security Privacy Reviewer, Build Sentinel, and Open Source Release Engineer are wired into the system.
+- The full agent swarm is present and each agent has usable skills.
+- Global OS Designer, Product Truth Officer, Acceptance Architect, Evidence Auditor, Universal Capability Steward, Studio Director, Game Designer, Gameplay Developer, UX Flow Director, Game Feel Director, Physics Gameplay Engineer, Advanced Player Council, QA Director, Memory Manager, Storage Manager, Security Privacy Reviewer, Build Sentinel, and Open Source Release Engineer are wired into the system.
+- Game OS generates OS design review, capability map, acceptance profile, architecture risk report, and upgrade doctrine artifacts so examples cannot become accidental product architecture.
 - The ultra-friendly creator path is present through `gameos`/`gameos cockpit`, max-five action ranking, `gameos play`, and `gameos improve`.
-- The Cut Rope Web lane includes asset role mapping, no-goal-magnet physics, timing skill, agency, mastery, smooth and slow mouse blade input, reset/recut proof, watermarking, and Advanced Player gates.
+- The Web quality proof includes asset role mapping, no-goal-magnet physics, timing skill, agency, mastery, smooth and slow pointer input, reset/retry proof, watermarking, and Advanced Player gates.
 - Playable Web HUDs stay player-facing instead of leaking raw machine verdict constants; manifests and QA reports keep the exact machine-readable fields.
 - The open-source package includes release, security, privacy, Homebrew, CI, publishing, and contributor trust evidence.
-- The acceptance path can prove a fresh asset-led Web game reaches `WORTH_PLAYING_FOR_CUT_ROPE_WEB_PROTOTYPE` and `10_OUT_OF_10_READY_FOR_LOCAL_USERS`.
+- The acceptance paths can prove capability maps, acceptance profiles, Web builds, watermark/provenance, QA reports, and honest trust diagnosis across multiple prompt families.
 
 ## What It Does Not Prove
 
 - It does not publish `gameos` to npm.
 - It does not update Homebrew to an unpublished npm tarball.
-- It does not replace `npm run acceptance:cutrope`; the acceptance test is still the browser-backed end-to-end game proof.
+- It does not replace `npm run acceptance:web-quality`; the acceptance test is still the browser-backed end-to-end game proof.
+- It does not claim commercial launch readiness from local Web proof.
 - It does not run Unity or Godot heavy lanes unless those are explicitly invoked with their own commands.
 
 ## Release Use
@@ -48,13 +51,15 @@ Run this before public release claims:
 
 ```bash
 npm run goal:audit
+npm run acceptance:universal-trust
+npm run trust:audit
 npm run check
-npm run acceptance:cutrope
+npm run acceptance:web-quality
 ```
 
 The npm/Homebrew go-live step still requires npm authentication. If npm returns `EOTP`, complete one-time password or trusted-publishing setup before running:
 
 ```bash
 npm publish --otp <code>
-npm run homebrew:update -- 0.2.0
+npm run homebrew:update -- 0.3.0
 ```

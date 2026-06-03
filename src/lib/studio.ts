@@ -10,7 +10,8 @@ import { createGameBrief, makeProjectFromInput, normalizeCreateProjectInput } fr
 import { createPlatformPlans } from "./platforms";
 import { createQAGates, workspaceAcceptanceResult } from "./qa";
 import { generateStudioScorecard, renderStudioScorecardMarkdown, type StudioScorecard } from "./scorecard";
-import type { ArtifactKind, CreateProjectInput, ProjectWorkspace } from "./types";
+import { diagnoseTrust, renderTrustDiagnosisMarkdown } from "./trust";
+import type { ArtifactKind, CreateProjectInput, ProjectWorkspace, TrustDiagnosis } from "./types";
 import { generateUnityProject } from "./unity-adapter";
 import { generateWebProject } from "./web-adapter";
 
@@ -69,6 +70,10 @@ type WebPlaytestReport = {
   completions?: number;
   stars_collected?: number;
   average_seconds?: number;
+  average_score?: number;
+  primary_archetype?: string;
+  capabilities?: unknown;
+  capability_verdict?: string;
   matches?: number;
   average_turns?: number;
   captures?: number;
@@ -323,6 +328,7 @@ export function recordUserFeedback(projectId: string, note: string): ProjectWork
       trimmed,
       "",
       "## Routing",
+      "- Global OS Designer: inspect whether this issue reveals a reusable OS capability gap.",
       "- Studio Director: decide whether this changes the go/no-go.",
       "- Visual Quality Director: inspect screenshot/readability complaints.",
       "- Physics Gameplay Engineer: inspect reset, input, collision, and dynamics complaints.",
@@ -350,7 +356,7 @@ export function createStudioReview(projectId: string): { workspace: ProjectWorks
   const artifact = writeArtifact(
     projectId,
     "studio-scorecard",
-    "10/10 Studio Scorecard",
+    "Studio Trust Scorecard",
     "studio-scorecard.md",
     renderStudioScorecardMarkdown(scorecard)
   );
@@ -365,7 +371,7 @@ export function createStudioReview(projectId: string): { workspace: ProjectWorks
     ...reviewedWorkspace,
     qaGates: reviewedWorkspace.qaGates.map((gate) => ({
       ...gate,
-      result: scorecard.verdict.startsWith("10_OUT_OF_10") ? "pass" : gate.name === "10/10 Studio Quality Gate" ? "blocked" : gate.result
+      result: scorecard.verdict === "CREATOR_TEST_READY" ? "pass" : gate.name === "Studio Trust Quality Gate" ? "blocked" : gate.result
     }))
   });
 
@@ -375,6 +381,21 @@ export function createStudioReview(projectId: string): { workspace: ProjectWorks
   }
 
   return { workspace: updatedWorkspace, scorecard };
+}
+
+export function createTrustDiagnosis(projectId: string): { workspace: ProjectWorkspace; diagnosis: TrustDiagnosis } {
+  const workspace = getStudioProject(projectId);
+  if (!workspace) {
+    throw new Error(`Project not found: ${projectId}`);
+  }
+  const diagnosis = diagnoseTrust(workspace);
+  const artifact = writeArtifact(projectId, "trust-diagnosis", "Trust Diagnosis", "trust-diagnosis.md", renderTrustDiagnosisMarkdown(diagnosis));
+  addArtifact(artifact);
+  const updatedWorkspace = getWorkspace(projectId);
+  if (!updatedWorkspace) {
+    throw new Error(`Project disappeared after trust diagnosis: ${projectId}`);
+  }
+  return { workspace: updatedWorkspace, diagnosis };
 }
 
 export function createAcceptanceSnapshot(workspace: ProjectWorkspace): {
@@ -398,6 +419,11 @@ export function createAcceptanceSnapshot(workspace: ProjectWorkspace): {
 
 function ensureWorkspaceComplete(workspace: ProjectWorkspace): ProjectWorkspace {
   const requiredKinds = new Set<ArtifactKind>([
+    "os-design-review",
+    "capability-map",
+    "acceptance-profile",
+    "architecture-risk-report",
+    "upgrade-doctrine",
     "brief",
     "asset-plan",
     "platform-plan",
@@ -529,13 +555,13 @@ function renderUnityAdvancedPlaytestMarkdown(workspace: ProjectWorkspace, report
 }
 
 function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlaytestReport): string {
-  if (report.kind === "cut-rope") {
+  if (report.kind === "asset-physics") {
     return [
       `# ${workspace.project.name} Web Player Agent Report`,
       "",
       "## Verdict",
       `- Agent: ${report.agent ?? "Advanced Web Player - Physics Puzzle Specialist"}`,
-      `- Claim: ${report.claim ?? "asset-driven Cut Rope browser prototype player-agent simulation"}`,
+      `- Claim: ${report.claim ?? "asset-driven asset-led physics browser prototype player-agent simulation"}`,
       `- Verdict: ${report.verdict ?? "unknown"}`,
       "",
       "## Asset And Puzzle Metrics",
@@ -584,9 +610,15 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
     `- Verdict: ${report.verdict ?? "unknown"}`,
     "",
     "## Player Metrics",
+    `- Kind: ${report.kind ?? "rules"}`,
+    `- Primary archetype: ${report.primary_archetype ?? "rules-led game"}`,
     `- Matches: ${report.matches ?? 0}`,
+    `- Average score: ${report.average_score ?? 0}`,
     `- Average turns: ${report.average_turns ?? 0}`,
     `- Timeouts: ${report.timeouts ?? 0}`,
+    `- Visual verdict: ${report.visual_verdict ?? "not reported"}`,
+    `- Input verdict: ${report.input_verdict ?? "not reported"}`,
+    `- Capability verdict: ${report.capability_verdict ?? "not reported"}`,
     `- Captures: ${report.captures ?? 0}`,
     `- Releases: ${report.releases ?? 0}`,
     `- Home events: ${report.homes ?? 0}`,
