@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- Adds first-run polish with `gameos init`, `gameos examples`, starter idea presets, and a friendlier cockpit action set.
+- Adds `gameos next <project-id>` so users and AI coding tools can ask for one concise next action, confidence reason, blocker, and exact command.
+- Adds `gameos assets preview <project-id>` for friendly asset-role and asset-fit diagnosis.
+- Lets `gameos improve <project-id> --yes` prompt for natural feedback when `--note` is omitted in an interactive terminal.
+- Expands universal acceptance with `npm run acceptance:universal-deep`, covering ten capability families across arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play.
+- Updates the capability Web builder and player-agent report to record capability-specific evidence instead of relying on named example lanes.
+- Tightens release, goal, and trust audits around first-run UX, friendly blocker labels, starter prompts, asset preview, and deep universal proof.
+
 ## 0.3.0
 
 - Replaces public readiness theater with honest trust tiers: `LOCAL_PROTOTYPE_READY`, `CREATOR_TEST_READY`, `NEEDS_IMPROVEMENT`, and `BLOCKED`.

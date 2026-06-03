@@ -24,9 +24,10 @@ console.log("GAMEOS_TRUST_AUDIT: PASS");
 console.log(JSON.stringify({ ok: true, package: `${packageJson.name}@${packageJson.version}`, verdicts: ["LOCAL_PROTOTYPE_READY", "CREATOR_TEST_READY", "NEEDS_IMPROVEMENT", "BLOCKED"], agents: agents.length }, null, 2));
 
 function checkPackage() {
-  assert(packageJson.version === "0.3.0", "package version must be 0.3.0 for the ownership-grade trust release.");
+  assert(packageJson.version === "0.4.0", "package version must be 0.4.0 for the polish and universal acceptance release.");
   assert(packageJson.scripts?.["trust:audit"] === "node scripts/trust-audit.mjs", "package must expose trust:audit.");
   assert(packageJson.scripts?.["acceptance:universal-trust"] === "node scripts/universal-trust-acceptance.mjs", "package must expose acceptance:universal-trust.");
+  assert(packageJson.scripts?.["acceptance:universal-deep"] === "node scripts/universal-deep-acceptance.mjs", "package must expose acceptance:universal-deep.");
 }
 
 function checkAgents() {
@@ -40,11 +41,16 @@ function checkSource() {
   const trust = read("src/lib/trust.ts");
   const scorecard = read("src/lib/scorecard.ts");
   const main = read("src/cli/main.ts");
+  const output = read("src/cli/output.ts");
+  const starterIdeas = read("src/cli/starter-ideas.ts").toLowerCase();
   assert(types.includes("AcceptanceProfile"), "types must define AcceptanceProfile.");
   assert(types.includes("TrustDiagnosis"), "types must define TrustDiagnosis.");
   assert(trust.includes("trustVerdictFromScore"), "trust module must own verdict tiers.");
   assert(scorecard.includes("trustVerdictFromScore"), "scorecard must use trust verdict tiers.");
   assert(main.includes('case "diagnose"'), "CLI must expose gameos diagnose.");
+  assert(main.includes('case "next"') && main.includes('case "examples"') && main.includes('case "init"'), "CLI must expose init, examples, and next.");
+  assert(output.includes("Needs browser QA") && output.includes("Needs asset fit"), "CLI output must use friendly blocker labels.");
+  assert(starterIdeas.includes("one-button arcade survival") && starterIdeas.includes("narrative puzzle"), "starter ideas must cover universal prompt families.");
 }
 
 function checkPublicLanguage() {

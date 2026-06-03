@@ -86,7 +86,7 @@ Every project receives a capability map before adapter generation. Historical sh
 
 `gameos diagnose` is the plain-language trust debugger. It reports the exact blocker, failed capability, failed evidence, owning agent, and next best command without dumping large artifacts.
 
-`npm run acceptance:universal-trust` proves the doctrine across arcade, deterministic rules, asset-led physics timing, platform movement, and combat/survival prompt families. `npm run acceptance:web-quality` remains the browser-backed Web quality proof for a role-fit asset-led game.
+`npm run acceptance:universal-trust` proves the fast doctrine across arcade, deterministic rules, asset-led physics timing, platform movement, and combat/survival prompt families. `npm run acceptance:universal-deep` expands the pre-release proof to arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play. `npm run acceptance:web-quality` remains the browser-backed Web quality proof for a role-fit asset-led game.
 
 ## V1 Boundary
 

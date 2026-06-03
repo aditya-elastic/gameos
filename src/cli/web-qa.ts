@@ -363,7 +363,7 @@ function detectWebBuildKind(projectRoot: string, html: string, script: string): 
 
   if (script.includes("asset-physics") || html.includes("Asset-Led Physics")) return "asset-physics";
   if (script.includes("capability-web") || html.includes("Capability Build")) return "capability-web";
-  return "turn-rules";
+  return "capability-web";
 }
 
 async function startStaticServer(root: string): Promise<{ server: http.Server; url: string }> {

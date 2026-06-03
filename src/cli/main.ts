@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createInterface } from "node:readline/promises";
 import { readArtifactContent, toProjectRelativeArtifactPath } from "../lib/artifacts";
 import type { ArtifactRecord, CreateProjectInput, ProjectWorkspace } from "../lib/types";
 import {
@@ -12,12 +13,14 @@ import {
   recommendNextCommand,
   renderArtifactList,
   renderJourney,
+  renderNextAction,
   renderProjectStatus,
   renderScorecardSummary,
   renderWorkspaceSummary,
   summarizeArtifactContent
 } from "./output";
 import { parseMakeTarget, parseQuality, type QualityLevel } from "./quality";
+import { examplesPayload, renderExamplesText } from "./starter-ideas";
 import { runWebQa } from "./web-qa";
 
 type ParsedArgv = {
@@ -34,7 +37,7 @@ type CliOptions = {
   dataDir?: string;
 };
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 const DEFAULT_DATA_DIR = path.join(os.homedir(), ".gameos");
 
 process.on("warning", (warning) => {
@@ -67,8 +70,12 @@ export async function runCli(argv: string[]): Promise<void> {
   switch (command) {
     case "doctor":
       return doctor(parsed, options);
+    case "init":
+      return cockpit(parsed, options);
     case "cockpit":
       return cockpit(parsed, options);
+    case "examples":
+      return examples(parsed, options);
     case "create":
       return createProject(parsed, options);
     case "make":
@@ -79,6 +86,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return projectStatus(parsed, options);
     case "journey":
       return journey(parsed, options);
+    case "next":
+      return next(parsed, options);
     case "diagnose":
       return diagnose(parsed, options);
     case "review":
@@ -191,6 +200,10 @@ async function cockpit(parsed: ParsedArgv, _options: CliOptions): Promise<void> 
   return startCockpit({ browser: !hasFlag(parsed, "static") });
 }
 
+async function examples(_parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  printResult(options, examplesPayload(), renderExamplesText());
+}
+
 async function createProject(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const { createStudioProject } = await import("../lib/studio");
   const workspace = createStudioProject(projectInputFromFlags(parsed, false));
@@ -251,6 +264,12 @@ async function journey(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   printResult(options, { project: projectPayload(workspace, options.full), journey: renderJourney(workspace) }, renderJourney(workspace));
 }
 
+async function next(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const workspace = await requireProject(parsed.positionals[0]);
+  const { getNextAction } = await import("./output");
+  printResult(options, { project: projectPayload(workspace, options.full), next: getNextAction(workspace) }, renderNextAction(workspace));
+}
+
 async function diagnose(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const { createTrustDiagnosis } = await import("../lib/studio");
   const projectId = parsed.positionals[0];
@@ -302,8 +321,10 @@ async function feedback(parsed: ParsedArgv, options: CliOptions): Promise<void> 
 async function improve(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const { improveProjectWithAutopilot } = await import("./autopilot");
   const projectId = parsed.positionals[0];
-  const note = firstFlag(parsed, "note") || parsed.positionals.slice(1).join(" ");
-  if (!projectId || !note) throw new Error('Usage: gameos improve <project-id> --note "what should change" --yes');
+  let note = firstFlag(parsed, "note") || parsed.positionals.slice(1).join(" ");
+  if (!projectId) throw new Error('Usage: gameos improve <project-id> --note "what should change" --yes');
+  if (!note && process.stdin.isTTY && process.stdout.isTTY) note = await askForLine("What should Game OS improve? Try: controls feel slow, assets look wrong, or first minute is boring.\nFeedback: ");
+  if (!note) throw new Error('Usage: gameos improve <project-id> --note "what should change" --yes');
   if (!options.yes) throw new Error("Autopilot improve writes feedback, agent, build, QA, and review artifacts. Re-run with --yes.");
 
   const result = await improveProjectWithAutopilot(projectId, note, { browser: !hasFlag(parsed, "static") });
@@ -322,11 +343,11 @@ async function improve(parsed: ParsedArgv, options: CliOptions): Promise<void> {
     `QA verdict: ${result.qaVerdict}`,
     `Review verdict: ${result.reviewVerdict}`,
     `Blocker: ${result.blocker}`,
-    `Next: ${result.status !== "Still blocked" ? `gameos play ${result.workspace.project.id}` : `gameos journey ${result.workspace.project.id}`}`
+    `Next: ${result.status.startsWith("Improved") ? `gameos play ${result.workspace.project.id}` : `gameos journey ${result.workspace.project.id}`}`
   ].join("\n");
 
   printResult(options, payload, text);
-  if (result.status === "Still blocked") process.exitCode = 1;
+  if (!result.status.startsWith("Improved")) process.exitCode = 1;
 }
 
 async function play(parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -365,9 +386,18 @@ async function agents(parsed: ParsedArgv, options: CliOptions, subcommand?: stri
 }
 
 async function assets(parsed: ParsedArgv, options: CliOptions, subcommand?: string): Promise<void> {
-  if (subcommand !== "import") throw new Error("Usage: gameos assets import <project-id> ./assets.zip");
-  const { importProjectAssetsFromStoredFile } = await import("../lib/studio");
+  const { importProjectAssetsFromStoredFile, getStudioProject } = await import("../lib/studio");
+  const { renderAssetPreview } = await import("../lib/asset-importer");
   const [projectId, rawFile] = parsed.positionals;
+  if (subcommand === "preview") {
+    if (!projectId) throw new Error("Usage: gameos assets preview <project-id>");
+    const workspace = getStudioProject(projectId);
+    if (!workspace) throw new Error(`Project not found: ${projectId}`);
+    const preview = renderAssetPreview(workspace);
+    printResult(options, preview, preview.text);
+    return;
+  }
+  if (subcommand !== "import") throw new Error("Usage: gameos assets import <project-id> ./assets.zip OR gameos assets preview <project-id>");
   if (!projectId || !rawFile) throw new Error("Usage: gameos assets import <project-id> ./assets.zip");
   const filePath = path.resolve(rawFile);
   if (!fs.existsSync(filePath)) throw new Error(`Asset file not found: ${filePath}`);
@@ -515,6 +545,15 @@ function findArtifact(workspace: ProjectWorkspace, selector: string): ArtifactRe
   );
 }
 
+async function askForLine(prompt: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return await rl.question(prompt);
+  } finally {
+    rl.close();
+  }
+}
+
 function requireHeavy(options: CliOptions, action: string): void {
   if (!options.allowHeavy) throw new Error(`${action} can be long-running. Re-run with --allow-heavy.`);
 }
@@ -569,21 +608,25 @@ Game OS CLI
 
 Usage:
   gameos
+  gameos init
   gameos cockpit
+  gameos examples
   gameos doctor [--json]
   gameos create --prompt "..." --platform Web
   gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
   gameos list
   gameos status <project-id>
   gameos journey <project-id>
+  gameos next <project-id>
   gameos diagnose <project-id> [--strict]
   gameos review <project-id>
   gameos feedback <project-id> --note "what got stuck or should improve"
-  gameos improve <project-id> --note "what should change" --yes
+  gameos improve <project-id> [--note "what should change"] --yes
   gameos play <project-id>
   gameos agents run <project-id>
   gameos agents rerun <project-id> <role>
   gameos assets import <project-id> ./assets.zip
+  gameos assets preview <project-id>
   gameos build web <project-id>
   gameos build godot <project-id> --allow-heavy
   gameos build unity <project-id> --allow-heavy

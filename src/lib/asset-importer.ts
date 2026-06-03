@@ -44,9 +44,11 @@ export function importUploadedAssetPack(workspace: ProjectWorkspace, input: Impo
 }
 
 export function importStoredAssetPack(workspace: ProjectWorkspace, input: StoredImportInput): AssetImportResult {
-  if (!fs.existsSync(input.storedPath) || fs.statSync(input.storedPath).size === 0) {
+  if (!fs.existsSync(input.storedPath)) {
     throw new Error("The stored asset pack is missing or empty.");
   }
+  const stat = fs.statSync(input.storedPath);
+  if (stat.isFile() && stat.size === 0) throw new Error("The stored asset pack is missing or empty.");
 
   return importAssetPackFromSource(workspace, input);
 }
@@ -64,6 +66,8 @@ function importAssetPackFromSource(workspace: ProjectWorkspace, input: ImportInp
   fs.mkdirSync(extractRoot, { recursive: true });
   if ("bytes" in input) {
     fs.writeFileSync(archivePath, input.bytes);
+  } else if (fs.statSync(input.storedPath).isDirectory()) {
+    fs.cpSync(input.storedPath, archivePath, { recursive: true });
   } else {
     moveOrCopyFile(input.storedPath, archivePath);
   }
@@ -124,6 +128,55 @@ export function readLatestAssetManifest(projectId: string): AssetImportManifest 
   } catch {
     return null;
   }
+}
+
+export function renderAssetPreview(workspace: ProjectWorkspace): { ok: boolean; projectId: string; verdict: string; confidence: number; text: string; roles: Array<Record<string, unknown>> } {
+  const manifest = readLatestAssetManifest(workspace.project.id);
+  if (!manifest) {
+    return {
+      ok: false,
+      projectId: workspace.project.id,
+      verdict: "NO_ASSETS_IMPORTED",
+      confidence: 0,
+      roles: [],
+      text: [
+        `Asset preview: ${workspace.project.name}`,
+        "Verdict: No assets imported yet.",
+        `Next: gameos assets import ${workspace.project.id} ./assets.zip`
+      ].join("\n")
+    };
+  }
+
+  const roles = manifest.roleAssignments.map((assignment) => ({
+    role: humanRole(assignment.role),
+    status: humanAssetStatus(assignment),
+    confidence: `${Math.round(assignment.confidence * 100)}%`,
+    file: assignment.file?.relativePath ?? "procedural",
+    reason: assetFitReason(assignment)
+  }));
+  const text = [
+    `Asset Preview: ${workspace.project.name}`,
+    `Verdict: ${humanAssetVerdict(manifest.verdict)}`,
+    `Confidence: ${Math.round(manifest.confidence * 100)}%`,
+    `Source: ${manifest.sourceFileName}`,
+    "",
+    "Role Fit:",
+    ...roles.map((role) => `- ${role.role}: ${role.status} (${role.confidence}) -> ${role.file} | ${role.reason}`),
+    "",
+    "Asset-fit diagnosis:",
+    ...assetFitDiagnosis(manifest).map((item) => `- ${item}`),
+    "",
+    `Next: ${manifest.verdict === "APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD" ? `gameos build web ${workspace.project.id}` : `gameos improve ${workspace.project.id} --note "fix asset role fit" --yes`}`
+  ].join("\n");
+
+  return {
+    ok: manifest.verdict !== "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS",
+    projectId: workspace.project.id,
+    verdict: manifest.verdict,
+    confidence: manifest.confidence,
+    roles,
+    text
+  };
 }
 
 export function selectAssetForTag(manifest: AssetImportManifest | null, tag: AssetRelevanceTag, fallbackIndex = 0): ImportedAssetFile | null {
@@ -283,6 +336,11 @@ function roleAcceptanceReason(file: ImportedAssetFile, role: AssetRole): string 
 }
 
 function extractUpload(archivePath: string, extractRoot: string): void {
+  if (fs.statSync(archivePath).isDirectory()) {
+    fs.cpSync(archivePath, extractRoot, { recursive: true });
+    return;
+  }
+
   const extension = path.extname(archivePath).toLowerCase();
 
   if (extension === ".zip") {
@@ -546,6 +604,46 @@ function safeExtractName(entry: string, index: number, extension: string): strin
 function moveOrCopyFile(source: string, destination: string): void {
   if (path.resolve(source) === path.resolve(destination)) return;
   fs.copyFileSync(source, destination);
+}
+
+function humanRole(role: AssetRole): string {
+  return role
+    .split("-")
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function humanAssetVerdict(verdict: AssetImportVerdict): string {
+  if (verdict === "APPROVED_FOR_ASSET_PHYSICS_WEB_BUILD") return "Asset fit approved";
+  if (verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") return "Needs stronger asset fit";
+  return "Wrong or insufficient asset pack";
+}
+
+function humanAssetStatus(assignment: AssetRoleAssignment): string {
+  if (assignment.status === "accepted") return "Selected";
+  if (assignment.status === "missing") return "Missing critical role";
+  if (assignment.status === "procedural-required") return "Procedural fallback";
+  return assignment.status;
+}
+
+function assetFitReason(assignment: AssetRoleAssignment): string {
+  if (assignment.status === "missing") return assignment.reason;
+  if (assignment.file?.tags.includes("ui") && assignment.role !== "ui") return "UI asset rejected for gameplay role.";
+  if (assignment.confidence > 0 && assignment.confidence < 0.65) return "Low-confidence assignment; creator review recommended.";
+  return assignment.reason;
+}
+
+function assetFitDiagnosis(manifest: AssetImportManifest): string[] {
+  const items: string[] = [];
+  for (const assignment of manifest.roleAssignments) {
+    if (assignment.status === "missing") items.push(`${humanRole(assignment.role)} is missing.`);
+    if (assignment.status === "accepted" && assignment.confidence < 0.65) items.push(`${humanRole(assignment.role)} is low-confidence.`);
+    if (assignment.file?.tags.includes("ui") && assignment.role !== "ui") items.push(`${humanRole(assignment.role)} candidate looks like UI, not gameplay.`);
+    if (assignment.file?.tags.includes("background") && !["background", "ui"].includes(assignment.role)) items.push(`${humanRole(assignment.role)} candidate looks decorative.`);
+  }
+  if (manifest.otherCount > 0) items.push(`${manifest.otherCount} unsupported file(s) ignored.`);
+  if (items.length === 0) items.push("No critical asset-fit blockers found.");
+  return items;
 }
 
 function hasHiddenTerm(haystack: string, encoded: string): boolean {

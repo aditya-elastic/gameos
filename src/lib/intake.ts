@@ -126,7 +126,7 @@ export function createGameBrief(project: GameProject): GameBrief {
         ]
       : boardFocused
       ? [
-          "Rules must be deterministic, explainable, and faithful to the selected turn-rules variant.",
+          "Rules must be deterministic, explainable, and faithful to the selected turn-based system.",
           "Every turn must clearly show whose move it is, what the dice did, and which tokens are legal.",
           "Multiplayer, local-pass, and bot turns must never corrupt state.",
           "The prototype should expose rules, storage, and QA risks before visual polish."

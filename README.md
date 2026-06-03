@@ -15,7 +15,7 @@ Homebrew release target:
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.3.0
+brew install aditya-elastic/gameos/gameos@0.4.0
 ```
 
 ## 60-Second Quickstart
@@ -30,6 +30,7 @@ Command mode is still available for AI coding agents, scripts, and advanced user
 
 ```bash
 gameos doctor
+gameos examples
 gameos make --prompt "A one-button arcade game where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score in quick replayable web sessions." --target web-playable --quality fast --yes
 ```
 
@@ -43,7 +44,8 @@ Then play, improve, or inspect:
 
 ```bash
 gameos play <project-id>
-gameos improve <project-id> --note "make the primary gesture smoother and polish the background" --yes
+gameos next <project-id>
+gameos improve <project-id> --yes
 gameos list
 gameos status <project-id>
 gameos journey <project-id>
@@ -51,6 +53,7 @@ gameos review <project-id>
 gameos diagnose <project-id>
 gameos diagnose <project-id> --strict
 gameos feedback <project-id> --note "reset behavior is weak, background needs polish, asset roles look wrong"
+gameos assets preview <project-id>
 gameos artifact list <project-id>
 gameos artifact read <project-id> game-bible
 ```
@@ -59,21 +62,25 @@ gameos artifact read <project-id> game-bible
 
 ```bash
 gameos
+gameos init
 gameos cockpit
+gameos examples
 gameos doctor
 gameos create --prompt "..." --platform Web
 gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
 gameos list
 gameos status <project-id>
 gameos journey <project-id>
+gameos next <project-id>
 gameos review <project-id>
 gameos diagnose <project-id>
 gameos feedback <project-id> --note "what got stuck or should improve"
-gameos improve <project-id> --note "what should change" --yes
+gameos improve <project-id> [--note "what should change"] --yes
 gameos play <project-id>
 gameos agents run <project-id>
 gameos agents rerun <project-id> <role>
 gameos assets import <project-id> ./assets.zip
+gameos assets preview <project-id>
 gameos build web <project-id>
 gameos build godot <project-id> --allow-heavy
 gameos build unity <project-id> --allow-heavy
@@ -85,6 +92,12 @@ gameos artifact read <project-id> <artifact-name> --full
 ```
 
 Use `--json` for automation and AI coding agents. Artifact reads are summary-first unless `--full` is passed.
+
+## Universal Coverage Proof
+
+Game OS is designed around reusable capabilities, not a handful of named demo games. The release gates prove that prompts are mapped into systems such as arcade loops, deterministic rules, physics timing, platform movement, combat/survival, racing, economy management, puzzle logic, narrative choice, local multiplayer/pass-and-play, input, HUD, camera, assets, storage, and QA.
+
+`npm run acceptance:universal-trust` is the fast CI proof across five prompt families. `npm run acceptance:universal-deep` is the pre-publish breadth proof across ten prompt families. Each generated project must produce a capability map, acceptance profile, Web build, GameOS watermark/provenance, QA artifact, and capability-specific diagnosis. Passing these gates means Game OS can build and honestly judge many kinds of local Web prototypes; it does not claim every first attempt is commercially finished.
 
 ## Web Worth-Playing Gates
 
@@ -118,7 +131,7 @@ The scorecard covers:
 
 Run `gameos diagnose <project-id>` for the exact blocker, failed capability, failed evidence, owning agent, and next best command. Use `--strict` in automation when `NEEDS_IMPROVEMENT` should fail the command.
 
-Run `npm run goal:audit`, `npm run acceptance:universal-trust`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, and open-source release evidence.
+Run `npm run goal:audit`, `npm run acceptance:universal-trust`, `npm run acceptance:universal-deep`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, and open-source release evidence.
 
 ## Data And Privacy
 
@@ -154,11 +167,12 @@ npm run build:cli
 npm run test:cli
 npm run goal:audit
 npm run acceptance:universal-trust
+npm run acceptance:universal-deep
 npm run trust:audit
 npm run acceptance:web-quality
 npm run release:audit
 npm run homebrew:audit
-npm run homebrew:update -- 0.1.0 --check
+npm run homebrew:update -- 0.4.0 --check
 ```
 
 Publish checks:

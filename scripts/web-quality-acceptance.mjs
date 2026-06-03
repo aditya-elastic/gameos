@@ -55,7 +55,7 @@ try {
 
   const statusText = runCli(["status", projectId]);
   assert(/QA: \d+ pass, 0 watch, 0 blocked/.test(statusText), "status did not promote all QA gates after creator-test review.");
-  assert(statusText.includes("PASS Trust Review: CREATOR_TEST_READY"), "journey did not show creator-test trust review pass.");
+  assert(statusText.includes("PASS Trust Review: Creator-test ready") || statusText.includes("PASS Trust Review: CREATOR_TEST_READY"), "journey did not show creator-test trust review pass.");
 
   runNpm("web:smoke", { GAME_OS_WEB_PROJECT: projectRoot });
   runNpm("web:player", { GAME_OS_WEB_PROJECT: projectRoot });

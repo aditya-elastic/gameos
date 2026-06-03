@@ -61,7 +61,7 @@ const categories = [
     fileCheck("Trust module owns acceptance and diagnosis", "src/lib/trust.ts", [/createAcceptanceProfile/, /diagnoseTrust/, /trustVerdictFromScore/, /LOCAL_PROTOTYPE_READY/, /CREATOR_TEST_READY/, /BLOCKED/]),
     fileCheck("Scorecard gates OS architecture", "src/lib/scorecard.ts", [/Global OS Architecture/, /global-os-designer/, /Capability graph approved/, /trustVerdictFromScore/]),
     fileCheck("OS design artifacts include expansion language", "src/lib/capability-graph.ts", [/Global Market Vision/, /Universal Product Direction/, /Public Language Approval/, /globally expandable developer platform/]),
-    fileCheck("Web adapter uses capability routing", "src/lib/web-adapter.ts", [/createCapabilityMap/, /capability-web/, /regressionFixtures/]),
+    fileCheck("Web adapter uses capability routing", "src/lib/web-adapter.ts", [/createCapabilityMap/, /capability-web/, /Named game fixtures are bypassed/]),
     fileCheck("CLI smoke asserts capability artifacts", "scripts/cli-smoke.mjs", [/capability-map/, /os-design-review/]),
     fileCheck("Architecture docs forbid example lanes", "docs/ARCHITECTURE.md", [/Global OS Design Doctrine/, /regression fixtures only/, /reusable systems/])
   ]),
@@ -72,16 +72,18 @@ const categories = [
     fileCheck("Playable builds must be testable", "src/lib/agents.ts", [/No playable build is accepted unless the implementation can be tested by the QA Director and challenged by the Advanced Player/])
   ]),
   category("Creator UX Flow", [
-    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "cockpit"/, /case "make"/, /case "journey"/, /case "review"/, /case "diagnose"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "artifact"/]),
-    fileCheck("Cockpit keeps actions simple", "src/cli/actions.ts", [/slice\(0, 5\)/, /Create Game/, /Fix With Autopilot/]),
+    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "init"/, /case "cockpit"/, /case "examples"/, /case "make"/, /case "journey"/, /case "next"/, /case "review"/, /case "diagnose"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "artifact"/]),
+    fileCheck("Starter examples stay universal", "src/cli/starter-ideas.ts", [/one-button arcade survival/, /physics timing puzzle/, /turn-based strategy/, /combat survival arena/, /Narrative puzzle/]),
+    fileCheck("Cockpit keeps actions simple", "src/cli/actions.ts", [/slice\(0, 5\)/, /Create New Game/, /Use Starter Idea/, /Fix With Autopilot/]),
     fileCheck("Cockpit uses keyboard-first controls", "src/cli/cockpit.ts", [/Game OS Cockpit/, /↑\/↓ select/, /n new/, /i improve/]),
-    fileCheck("CLI output explains blockers", "src/cli/output.ts", [/Current blockers/, /Next best command/, /Advanced Player did not approve/]),
-    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos cockpit/, /gameos improve/, /gameos play/, /Trust Review/, /gameos diagnose/]),
+    fileCheck("CLI output explains blockers", "src/cli/output.ts", [/Current blockers/, /Next best command/, /Advanced Player did not approve/, /Needs browser QA/, /Needs asset fit/]),
+    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos init/, /gameos examples/, /gameos next/, /gameos cockpit/, /gameos improve/, /gameos play/, /Trust Review/, /gameos diagnose/]),
     fileCheck("Artifact output is summary-first", "src/cli/main.ts", [/--full/, /summarizeArtifactContent/]),
     fileCheck("Playable HUD labels are player-facing", "src/lib/web-adapter.ts", [/formatGameOsStatusLabel/, /displayStatusLabel/])
   ]),
   category("Asset Pipeline And Visual Quality", [
     fileCheck("Role-based asset classifier exists", "src/lib/asset-importer.ts", [/hero-object/, /goal-character/, /collectible/, /WRONG_ASSET_PACK_FOR_ASSET_PHYSICS/]),
+    fileCheck("Friendly asset preview exists", "src/lib/asset-importer.ts", [/renderAssetPreview/, /Asset Preview/, /asset-fit diagnosis/i]),
     fileCheck("Wrong-role asset tests exist", "src/lib/asset-importer.test.ts", [/rejects UI buttons as the hero physics object/, /goal-character/]),
     fileCheck("Visual quality director owns screenshot maturity", "src/lib/agents.ts", [/Visual Quality Doctrine/, /Do not promote a Web prototype as worth playing/]),
     fileCheck("Asset-led docs require role fit", "docs/V1_ACCEPTANCE.md", [/Asset packs produce role assignments/, /wrong-role assets block promotion/i])
@@ -96,9 +98,11 @@ const categories = [
   category("QA Player Agent Evidence", [
     scriptCheck("acceptance:web-quality", "node scripts/web-quality-acceptance.mjs"),
     scriptCheck("acceptance:universal-trust", "node scripts/universal-trust-acceptance.mjs"),
+    scriptCheck("acceptance:universal-deep", "node scripts/universal-deep-acceptance.mjs"),
     scriptCheck("trust:audit", "node scripts/trust-audit.mjs"),
     fileCheck("Acceptance tests prove trust evidence", "scripts/web-quality-acceptance.mjs", [/CREATOR_TEST_READY/, /WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD/, /acceptance-profile/]),
     fileCheck("Universal trust acceptance covers prompt families", "scripts/universal-trust-acceptance.mjs", [/arcade score loop/, /deterministic rules strategy/, /asset-led physics timing/, /platform movement/, /combat\/survival loop/, /diagnose/]),
+    fileCheck("Universal deep acceptance covers ten families", "scripts/universal-deep-acceptance.mjs", [/arcade score loop/, /deterministic rules strategy/, /asset-led physics timing/, /platform movement/, /combat\/survival loop/, /racing motion/, /resource\/economy management/, /puzzle logic/, /narrative choice loop/, /local multiplayer\/pass-and-play/, /capability-web/]),
     fileCheck("Trust audit blocks overclaiming", "scripts/trust-audit.mjs", [/10\/10/, /publish-ready/, /diagnose/]),
     fileCheck("Advanced Player blocks shallow games", "scripts/web-player-agent.mjs", [/WEB_PLAYER_AGENT_REPORT/, /MASTERY_GATE_PASS/, /SLOW_MOUSE_BLADE_PASS/]),
     fileCheck("CLI browser QA proves release reset retry", "src/cli/web-qa.ts", [/firstCutPass/, /noAutoCutPass/, /slowMousePass/, /recutPass/])
@@ -128,6 +132,8 @@ const categories = [
     scriptCheck("goal:audit", "node scripts/goal-audit.mjs"),
     check("npm run check includes trust:audit", packageJson.scripts?.check?.includes("npm run trust:audit"), "check runs trust:audit before release/build gates.", "npm run check does not include trust:audit."),
     check("npm run check includes universal trust acceptance", packageJson.scripts?.check?.includes("npm run acceptance:universal-trust"), "check runs universal trust acceptance before release/build gates.", "npm run check does not include acceptance:universal-trust."),
+    check("npm run check includes universal deep acceptance", packageJson.scripts?.check?.includes("npm run acceptance:universal-deep"), "check runs universal deep acceptance before release/build gates.", "npm run check does not include acceptance:universal-deep."),
+    check("package exposes universal deep acceptance", Boolean(packageJson.scripts?.["acceptance:universal-deep"]), "package exposes acceptance:universal-deep for pre-publish breadth proof.", "package.json does not expose acceptance:universal-deep."),
     check("npm run check includes goal:audit", packageJson.scripts?.check?.includes("npm run goal:audit"), "check runs goal:audit before release/build gates.", "npm run check does not include goal:audit."),
     fileCheck("Release audit requires goal audit", "scripts/release-audit.mjs", [/goal:audit/, /docs\/GOAL_AUDIT\.md/]),
     fileCheck("Architecture documents trust doctrine", "docs/ARCHITECTURE.md", [/Trust Review Doctrine/, /npm run acceptance:universal-trust/, /npm run acceptance:web-quality/]),

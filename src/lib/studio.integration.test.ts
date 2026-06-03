@@ -200,7 +200,7 @@ describe("studio workflow", () => {
     expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("Branching decisions: 1849");
   });
 
-  it("generates and records the Web adapter lane for turn-based board-race", () => {
+  it("generates and records a capability Web adapter for private rules regression prompts", () => {
     const workspace = createStudioProject({
       prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Web", "PC Test"],
@@ -212,8 +212,9 @@ describe("studio workflow", () => {
     const webRoot = path.join(dataDir, "projects", workspace.project.id, "web");
 
     expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Web Adapter");
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("capability-web");
     expect(fs.existsSync(path.join(webRoot, "index.html"))).toBe(true);
-    expect(fs.readFileSync(path.join(webRoot, "scripts", "turn-rules.js"), "utf8")).toContain("simulateMatches");
+    expect(fs.existsSync(path.join(webRoot, "scripts", "turn-rules.js"))).toBe(false);
     expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("__gameOsWebAdapter");
 
     const played = recordWebPlaytest(workspace.project.id, {

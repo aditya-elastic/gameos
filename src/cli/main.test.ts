@@ -25,6 +25,10 @@ describe("gameos cli parser", () => {
     const improve = parseArgv(["improve", "game_123", "--note", "make the rope easier to cut", "--yes"]);
     const play = parseArgv(["play", "game_123", "--port", "4183", "--no-open"]);
     const review = parseArgv(["review", "game_123", "--json"]);
+    const init = parseArgv(["init"]);
+    const examples = parseArgv(["examples", "--json"]);
+    const next = parseArgv(["next", "game_123", "--json"]);
+    const assetPreview = parseArgv(["assets", "preview", "game_123"]);
 
     expect(make.command).toEqual(["make"]);
     expect(make.flags.get("assets")).toEqual(["./assets.zip"]);
@@ -39,6 +43,12 @@ describe("gameos cli parser", () => {
     expect(play.flags.get("no-open")).toEqual(["true"]);
     expect(review.command).toEqual(["review"]);
     expect(review.positionals).toEqual(["game_123"]);
+    expect(init.command).toEqual(["init"]);
+    expect(examples.command).toEqual(["examples"]);
+    expect(next.command).toEqual(["next"]);
+    expect(next.positionals).toEqual(["game_123"]);
+    expect(assetPreview.command).toEqual(["assets", "preview"]);
+    expect(assetPreview.positionals).toEqual(["game_123"]);
     expect(review.flags.get("json")).toEqual(["true"]);
   });
 

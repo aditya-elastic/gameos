@@ -3,6 +3,9 @@ import type { ProjectWorkspace } from "../lib/types";
 
 export type CockpitActionId =
   | "create"
+  | "starter"
+  | "import-assets"
+  | "open-recent"
   | "doctor"
   | "play"
   | "improve"
@@ -44,9 +47,11 @@ export function getCockpitState(projects: ProjectWorkspace[]): CockpitState {
 export function rankCockpitActions(workspace: ProjectWorkspace | null, verdict = ""): CockpitAction[] {
   if (!workspace) {
     return [
-      action("create", "Create Game", "Start from one idea. Web is selected by default.", "n"),
-      action("doctor", "Doctor", "Check local readiness without changing anything.", "d"),
-      action("quit", "Quit", "Leave Game OS Cockpit.", "q")
+      action("create", "Create New Game", "Start from one idea. Web is selected by default.", "n"),
+      action("starter", "Use Starter Idea", "Pick a universal genre preset.", "s"),
+      action("import-assets", "Import Assets", "Create a game and attach files in one guided flow.", "a"),
+      action("open-recent", "Open Recent Project", "Show the latest local projects.", "o"),
+      action("doctor", "Doctor", "Check local readiness without changing anything.", "d")
     ];
   }
 

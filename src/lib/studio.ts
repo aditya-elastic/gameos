@@ -74,6 +74,8 @@ type WebPlaytestReport = {
   primary_archetype?: string;
   capabilities?: unknown;
   capability_verdict?: string;
+  selected_core_capabilities?: string[];
+  capability_evidence?: unknown;
   matches?: number;
   average_turns?: number;
   captures?: number;
@@ -619,6 +621,8 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
     `- Visual verdict: ${report.visual_verdict ?? "not reported"}`,
     `- Input verdict: ${report.input_verdict ?? "not reported"}`,
     `- Capability verdict: ${report.capability_verdict ?? "not reported"}`,
+    `- Selected core capabilities: ${Array.isArray(report.selected_core_capabilities) ? report.selected_core_capabilities.join(", ") : "not reported"}`,
+    `- Capability evidence: ${report.capability_evidence ? JSON.stringify(report.capability_evidence) : "not reported"}`,
     `- Captures: ${report.captures ?? 0}`,
     `- Releases: ${report.releases ?? 0}`,
     `- Home events: ${report.homes ?? 0}`,

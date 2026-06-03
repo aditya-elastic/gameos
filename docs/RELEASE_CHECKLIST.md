@@ -6,11 +6,12 @@
 - Run `npm run check`.
 - Run `npm run goal:audit` when debugging the trust architecture gate directly.
 - Run `npm run acceptance:universal-trust` to verify honest diagnosis across multiple prompt families.
+- Run `npm run acceptance:universal-deep` before a version bump to verify ten capability families and next-step diagnosis.
 - Run `npm run trust:audit` to block exaggerated public verdict language.
 - Run `npm run acceptance:web-quality` on a machine with Chrome for the full asset-led Web quality proof.
 - Run `npm run release:audit` when debugging publish-boundary failures directly.
 - Run `npm run homebrew:audit` to verify published formulae and detect pending formula updates.
-- Run `npm run homebrew:update -- 0.1.0 --check` to verify the updater against the currently published stable formula.
+- Run `npm run homebrew:update -- 0.4.0 --check` after npm publication to verify the updater against the currently published stable formula.
 - Run `npm pack --dry-run` and confirm the package contains only publish-safe files.
 - Run `npm pack`.
 - Install the tarball globally:
@@ -60,7 +61,7 @@ npm run homebrew:audit
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.3.0
+brew install aditya-elastic/gameos/gameos@0.4.0
 brew test gameos
 brew audit --strict gameos
 ```
@@ -70,6 +71,7 @@ brew audit --strict gameos
 - `gameos doctor` explains local readiness.
 - `gameos make` creates a project, Web build, and QA report.
 - `gameos make --assets` imports assets, writes a role preview manifest, and runs worth-playing Web gates.
+- `gameos examples`, `gameos next`, and `gameos assets preview` make the user journey friendly without requiring command memorization.
 - `gameos review <project-id>` writes `studio-scorecard.md` and reaches an evidence-backed trust tier.
 - `gameos diagnose <project-id>` explains blocker, failed capability, failed evidence, owning agent, and next command.
 - `gameos status` and `gameos journey` show blockers and next command.
@@ -77,6 +79,7 @@ brew audit --strict gameos
 - `gameos artifact read` does not dump large artifacts unless `--full` is passed.
 - `npm run goal:audit` verifies the full trust objective across agents, skills, UX, security/privacy, game direction, gameplay development, QA, and open-source release evidence.
 - `npm run acceptance:universal-trust` verifies capability maps, acceptance profiles, Web builds, watermark/provenance, QA artifacts, and honest verdicts across five prompt families.
+- `npm run acceptance:universal-deep` verifies capability maps, acceptance profiles, Web builds, watermark/provenance, QA artifacts, and honest diagnosis across ten capability families.
 - `npm run trust:audit` blocks overclaiming and verifies diagnosis output.
 - `npm run release:audit` verifies package metadata, CLI binary, agent registry, required docs, trust language, and npm tarball contents.
 - `npm run homebrew:audit` verifies formula URL/SHA values against published npm tarballs.

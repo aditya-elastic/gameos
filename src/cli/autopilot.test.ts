@@ -49,6 +49,6 @@ describe("autopilot improve", () => {
     expect(result.workspace.artifacts.map((artifact) => artifact.kind)).toContain("studio-scorecard");
     expect(result.workspace.agents.find((agent) => agent.role === "visual-quality-director")?.runNumber).toBe(2);
     expect(result.qaVerdict).toBe("STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING");
-    expect(result.status).toBe("Still blocked");
+    expect(result.status).toBe("Still blocked by browser QA");
   });
 });

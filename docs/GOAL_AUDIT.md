@@ -31,7 +31,7 @@ npm run goal:audit
 - The full agent swarm is present and each agent has usable skills.
 - Global OS Designer, Product Truth Officer, Acceptance Architect, Evidence Auditor, Universal Capability Steward, Studio Director, Game Designer, Gameplay Developer, UX Flow Director, Game Feel Director, Physics Gameplay Engineer, Advanced Player Council, QA Director, Memory Manager, Storage Manager, Security Privacy Reviewer, Build Sentinel, and Open Source Release Engineer are wired into the system.
 - Game OS generates OS design review, capability map, acceptance profile, architecture risk report, and upgrade doctrine artifacts so examples cannot become accidental product architecture.
-- The ultra-friendly creator path is present through `gameos`/`gameos cockpit`, max-five action ranking, `gameos play`, and `gameos improve`.
+- The ultra-friendly creator path is present through `gameos`/`gameos init`/`gameos cockpit`, starter ideas, max-five action ranking, `gameos next`, `gameos play`, `gameos assets preview`, and `gameos improve`.
 - The Web quality proof includes asset role mapping, no-goal-magnet physics, timing skill, agency, mastery, smooth and slow pointer input, reset/retry proof, watermarking, and Advanced Player gates.
 - Playable Web HUDs stay player-facing instead of leaking raw machine verdict constants; manifests and QA reports keep the exact machine-readable fields.
 - The open-source package includes release, security, privacy, Homebrew, CI, publishing, and contributor trust evidence.
@@ -52,6 +52,7 @@ Run this before public release claims:
 ```bash
 npm run goal:audit
 npm run acceptance:universal-trust
+npm run acceptance:universal-deep
 npm run trust:audit
 npm run check
 npm run acceptance:web-quality
@@ -61,5 +62,5 @@ The npm/Homebrew go-live step still requires npm authentication. If npm returns 
 
 ```bash
 npm publish --otp <code>
-npm run homebrew:update -- 0.3.0
+npm run homebrew:update -- 0.4.0
 ```

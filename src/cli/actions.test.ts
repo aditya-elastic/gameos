@@ -23,8 +23,8 @@ describe("cockpit action ranking", () => {
   it("keeps the new-user action list short", () => {
     const actions = rankCockpitActions(null);
 
-    expect(actions).toHaveLength(3);
-    expect(actions.map((action) => action.label)).toEqual(["Create Game", "Doctor", "Quit"]);
+    expect(actions).toHaveLength(5);
+    expect(actions.map((action) => action.label)).toEqual(["Create New Game", "Use Starter Idea", "Import Assets", "Open Recent Project", "Doctor"]);
   });
 
   it("shows no more than five project actions", () => {

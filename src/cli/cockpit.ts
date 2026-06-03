@@ -10,6 +10,7 @@ import { renderArtifactList, renderJourney, renderWorkspaceSummary } from "./out
 import { createStudioProject, createStudioReview, generateWebAdapter, getStudioDashboard, importProjectAssetsFromStoredFile } from "../lib/studio";
 import type { ProjectWorkspace } from "../lib/types";
 import { runWebQa } from "./web-qa";
+import { starterIdeas } from "./starter-ideas";
 
 type CockpitOptions = {
   browser: boolean;
@@ -48,6 +49,16 @@ export async function startCockpit(options: CockpitOptions = { browser: true }):
         switch (actionId) {
           case "create":
             session.message = await createGameFromCockpit(options);
+            break;
+          case "starter":
+            session.message = await createStarterFromCockpit(options);
+            break;
+          case "import-assets":
+            session.message = await createWithAssetsFromCockpit(options);
+            break;
+          case "open-recent":
+            await showLongText(renderRecentProjects());
+            session.message = "Recent projects viewed.";
             break;
           case "doctor":
             session.message = doctorMessage();
@@ -169,7 +180,30 @@ function renderHome(actions: CockpitAction[], session: CockpitSession): void {
 async function createGameFromCockpit(options: CockpitOptions): Promise<string> {
   const prompt = await askLine("Describe the game idea: ");
   if (prompt.trim().length < 20) return "Needs your choice: describe the idea in at least 20 characters.";
-  const assetPath = await askLine("Asset zip/folder path (optional): ");
+  const addAssets = await askLine("Do you want to add assets now? (y/N): ");
+  const assetPath = /^y(es)?$/i.test(addAssets.trim()) ? await askLine("Asset zip/folder path: ") : "";
+  return createFromPromptAndOptionalAssets(prompt, assetPath, options);
+}
+
+async function createStarterFromCockpit(options: CockpitOptions): Promise<string> {
+  const menu = starterIdeas.map((idea, index) => `${index + 1}. ${idea.title}`).join("\n");
+  const choice = await askLine(`Choose a starter idea:\n${menu}\nNumber: `);
+  const index = Number.parseInt(choice.trim(), 10) - 1;
+  const idea = starterIdeas[index] ?? starterIdeas[0];
+  const addAssets = await askLine("Do you want to add assets now? (y/N): ");
+  const assetPath = /^y(es)?$/i.test(addAssets.trim()) ? await askLine("Asset zip/folder path: ") : "";
+  return createFromPromptAndOptionalAssets(idea.prompt, assetPath, options);
+}
+
+async function createWithAssetsFromCockpit(options: CockpitOptions): Promise<string> {
+  const prompt = await askLine("Describe the game idea: ");
+  if (prompt.trim().length < 20) return "Needs your choice: describe the idea in at least 20 characters.";
+  const assetPath = await askLine("Asset zip/folder path: ");
+  if (!assetPath.trim()) return "Needs your choice: add an asset zip or folder path.";
+  return createFromPromptAndOptionalAssets(prompt, assetPath, options);
+}
+
+async function createFromPromptAndOptionalAssets(prompt: string, assetPath: string, options: CockpitOptions): Promise<string> {
   let workspace = createStudioProject({
     prompt,
     targetPlatforms: ["Web"],
@@ -188,6 +222,17 @@ async function createGameFromCockpit(options: CockpitOptions): Promise<string> {
   const status =
     review.scorecard.verdict === "CREATOR_TEST_READY" ? "Creator-test ready" : review.scorecard.verdict === "LOCAL_PROTOTYPE_READY" ? "Local prototype ready" : "Still blocked";
   return `${status}: ${workspace.project.name} · ${qa.report.verdict} · ${review.scorecard.verdict}`;
+}
+
+function renderRecentProjects(): string {
+  const projects = getStudioDashboard();
+  if (projects.length === 0) return "No recent Game OS projects yet.";
+  return [
+    "Recent Game OS projects",
+    "=======================",
+    "",
+    ...projects.slice(0, 12).map((workspace) => `${workspace.project.id} | ${workspace.project.name} | ${workspace.project.status}`)
+  ].join("\n");
 }
 
 async function improveFromCockpit(workspace: ProjectWorkspace | null, options: CockpitOptions): Promise<string> {

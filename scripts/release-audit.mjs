@@ -47,6 +47,7 @@ function checkPackageMetadata() {
   assert(packageJson.engines?.node === ">=24.0.0", "Node 24+ engine requirement must be explicit.");
   assert(packageJson.scripts?.["acceptance:web-quality"] === "node scripts/web-quality-acceptance.mjs", "package scripts must expose acceptance:web-quality.");
   assert(packageJson.scripts?.["acceptance:universal-trust"] === "node scripts/universal-trust-acceptance.mjs", "package scripts must expose acceptance:universal-trust.");
+  assert(packageJson.scripts?.["acceptance:universal-deep"] === "node scripts/universal-deep-acceptance.mjs", "package scripts must expose acceptance:universal-deep.");
   assert(packageJson.scripts?.["trust:audit"] === "node scripts/trust-audit.mjs", "package scripts must expose trust:audit.");
   assert(packageJson.scripts?.["goal:audit"] === "node scripts/goal-audit.mjs", "package scripts must expose goal:audit.");
   assert(packageJson.scripts?.["release:audit"] === "node scripts/release-audit.mjs", "package scripts must expose release:audit.");
@@ -79,6 +80,9 @@ function checkCliBinary() {
     const help = runCli(["--help"], dataDir);
     assert(help.includes("gameos review <project-id>"), "CLI help must expose gameos review.");
     assert(help.includes("gameos diagnose <project-id>"), "CLI help must expose gameos diagnose.");
+    assert(help.includes("gameos examples"), "CLI help must expose gameos examples.");
+    assert(help.includes("gameos next <project-id>"), "CLI help must expose gameos next.");
+    assert(help.includes("gameos assets preview <project-id>"), "CLI help must expose asset preview.");
     assert(help.includes("--strict"), "CLI help must expose strict diagnosis mode.");
     assert(help.includes("--allow-heavy"), "CLI help must expose heavy-lane guardrails.");
 
@@ -222,7 +226,13 @@ function checkDocs() {
   assert(readme.includes("npm install -g gameos"), "README must include npm install instructions.");
   assert(readme.includes("gameos review <project-id>"), "README must document gameos review.");
   assert(readme.includes("gameos diagnose <project-id>"), "README must document gameos diagnose.");
+  assert(readme.includes("gameos examples"), "README must document gameos examples.");
+  assert(readme.includes("gameos next <project-id>"), "README must document gameos next.");
+  assert(readme.includes("gameos assets preview <project-id>"), "README must document asset preview.");
+  assert(readme.includes("Universal Coverage Proof"), "README must explain universal coverage proof.");
+  assert(readme.includes("Passing these gates means Game OS can build and honestly judge many kinds of local Web prototypes"), "README must explain the honest universal acceptance boundary.");
   assert(readme.includes("npm run acceptance:universal-trust"), "README must document acceptance:universal-trust.");
+  assert(readme.includes("npm run acceptance:universal-deep"), "README must document acceptance:universal-deep.");
   assert(readme.includes("npm run trust:audit"), "README must document trust:audit.");
   assert(readme.includes("npm run acceptance:web-quality"), "README must document acceptance:web-quality.");
   assert(readme.includes("npm run goal:audit"), "README must document goal:audit.");
@@ -232,7 +242,12 @@ function checkDocs() {
   const cliDocs = readText("docs/CLI.md");
   assert(cliDocs.includes("Trust Review"), "CLI docs must document Trust Review.");
   assert(cliDocs.includes("gameos diagnose <project-id>"), "CLI docs must document diagnose.");
+  assert(cliDocs.includes("gameos examples"), "CLI docs must document examples.");
+  assert(cliDocs.includes("gameos next <project-id>"), "CLI docs must document next.");
+  assert(cliDocs.includes("gameos assets preview <project-id>"), "CLI docs must document asset preview.");
+  assert(cliDocs.includes("Universal Coverage Proof"), "CLI docs must explain universal coverage proof.");
   assert(cliDocs.includes("npm run acceptance:universal-trust"), "CLI docs must document acceptance:universal-trust.");
+  assert(cliDocs.includes("npm run acceptance:universal-deep"), "CLI docs must document acceptance:universal-deep.");
   assert(cliDocs.includes("npm run trust:audit"), "CLI docs must document trust:audit.");
   assert(cliDocs.includes("npm run acceptance:web-quality"), "CLI docs must document acceptance:web-quality.");
   assert(cliDocs.includes("11-category score"), "CLI docs must explain the 11-category score.");

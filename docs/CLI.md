@@ -15,6 +15,7 @@ For command mode:
 
 ```bash
 gameos doctor
+gameos examples
 gameos make --prompt "A one-button arcade game where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score in quick replayable web sessions." --target web-playable --quality fast --yes
 ```
 
@@ -46,20 +47,24 @@ GAME_OS_DATA_DIR=./my-gameos-data gameos list
 
 ```bash
 gameos
+gameos init
 gameos cockpit
+gameos examples
 gameos doctor
 gameos create --prompt "..." --platform Web
 gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
 gameos list
 gameos status <project-id>
 gameos journey <project-id>
+gameos next <project-id>
 gameos review <project-id>
 gameos diagnose <project-id>
 gameos diagnose <project-id> --strict
 gameos feedback <project-id> --note "what got stuck or should improve"
-gameos improve <project-id> --note "what should change" --yes
+gameos improve <project-id> [--note "what should change"] --yes
 gameos play <project-id>
 gameos assets import <project-id> ./assets.zip
+gameos assets preview <project-id>
 gameos build web <project-id>
 gameos qa web <project-id>
 gameos artifact list <project-id>
@@ -67,6 +72,12 @@ gameos artifact read <project-id> game-bible
 ```
 
 Use `--json` for automation and `--full` when you intentionally want complete artifact content.
+
+## Universal Coverage Proof
+
+Game OS uses a capability graph instead of named game lanes. The Web builder and QA reports should explain the selected systems for each prompt: arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, local multiplayer/pass-and-play, plus supporting input, HUD, camera, assets, storage, and QA.
+
+`npm run acceptance:universal-trust` is the fast proof. `npm run acceptance:universal-deep` is the pre-publish breadth proof across ten families. The acceptance target is honest generation and diagnosis: capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and next action. It is not a claim that every first local Web build is commercially finished.
 
 ## Asset-Led Web QA
 
@@ -98,6 +109,8 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 
 `gameos diagnose <project-id>` explains the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command. Add `--strict` for automation that should exit non-zero on `NEEDS_IMPROVEMENT`.
 
+`gameos next <project-id>` prints only the next best action, why it matters, and the exact command. It is the smallest output for Cursor, Codex CLI, Claude CLI, shell scripts, or a creator who just wants to know what to do next.
+
 - Global OS Architecture
 - Agent Swarm And Skills
 - Game Direction And Design
@@ -117,11 +130,12 @@ For repository trust proof, run:
 ```bash
 npm run goal:audit
 npm run acceptance:universal-trust
+npm run acceptance:universal-deep
 npm run trust:audit
 npm run acceptance:web-quality
 ```
 
-`acceptance:universal-trust` checks five prompt families and verifies that each project receives a capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and honest diagnosis. `acceptance:web-quality` remains the stronger browser-backed Web quality proof when Chrome is available.
+`acceptance:universal-trust` checks five prompt families and verifies that each project receives a capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and honest diagnosis. `acceptance:universal-deep` expands that proof to ten capability families: arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play. `acceptance:web-quality` remains the stronger browser-backed Web quality proof when Chrome is available.
 
 ## Engine Requirements
 

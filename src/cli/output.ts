@@ -2,6 +2,7 @@ import path from "node:path";
 import { readArtifactContent } from "../lib/artifacts";
 import type { StudioScorecard } from "../lib/scorecard";
 import type { ArtifactRecord, ProjectWorkspace, QAGate } from "../lib/types";
+import { friendlyTier } from "./starter-ideas";
 
 export type OutputMode = {
   json: boolean;
@@ -19,7 +20,7 @@ export function printResult(mode: OutputMode, payload: unknown, text: string): v
 
 export function renderWorkspaceSummary(workspace: ProjectWorkspace): string {
   const qa = summarizeQa(workspace.qaGates);
-  const next = recommendNextCommand(workspace);
+  const next = getNextAction(workspace);
 
   return [
     `Game OS project: ${workspace.project.name}`,
@@ -29,7 +30,11 @@ export function renderWorkspaceSummary(workspace: ProjectWorkspace): string {
     `Agents: ${workspace.agents.length} complete`,
     `Artifacts: ${workspace.artifacts.length}`,
     `QA: ${qa.pass} pass, ${qa.watch} watch, ${qa.blocked} blocked`,
-    `Next: ${next}`
+    `Verdict: ${next.verdictLabel}`,
+    `Blocker: ${next.blocker}`,
+    `Confidence: ${next.confidenceReason}`,
+    `Next best action: ${next.label}`,
+    `Command: ${next.command}`
   ].join("\n");
 }
 
@@ -78,16 +83,17 @@ export function renderJourney(workspace: ProjectWorkspace): string {
   const studioVerdict = readMarkdownValue(scorecard, "Verdict") ?? "not run";
   const osDecision = readMarkdownValue(osReview, "UNIVERSAL_CAPABILITY_GRAPH_APPROVED") ?? (/UNIVERSAL_CAPABILITY_GRAPH_APPROVED/.test(osReview) ? "UNIVERSAL_CAPABILITY_GRAPH_APPROVED" : "not run");
 
+  const next = getNextAction(workspace);
   const stages = [
     stageLine("Idea", "pass", `${workspace.project.genre} for ${workspace.project.targetAudience}`),
     stageLine("OS Architecture", capabilityMap && osDecision === "UNIVERSAL_CAPABILITY_GRAPH_APPROVED" ? "pass" : "blocked", capabilityMap ? osDecision : "capability map missing"),
     stageLine("Swarm", workspace.agents.every((agent) => agent.status === "complete") ? "pass" : "watch", `${workspace.agents.length} agents`),
-    stageLine("Assets", assetManifest ? assetVerdictStatus(assetVerdict) : "watch", assetVerdict),
+    stageLine("Assets", assetManifest ? assetVerdictStatus(assetVerdict) : "watch", friendlyVerdictLabel(assetVerdict)),
     stageLine("Build", workspace.artifacts.some((artifact) => artifact.kind === "web-adapter") ? "pass" : "watch", "Web lane"),
-    stageLine("Visual QA", gateStatus(visualVerdict), visualVerdict),
-    stageLine("Physics QA", gateStatus(physicsVerdict), physicsVerdict),
-    stageLine("Player QA", webVerdict.startsWith("WORTH_PLAYING") ? "pass" : webVerdict === "not run" ? "watch" : "blocked", webVerdict),
-    stageLine("Trust Review", readinessStatus(studioVerdict), studioVerdict === "not run" ? studioScore : studioVerdict),
+    stageLine("Visual QA", gateStatus(visualVerdict), friendlyVerdictLabel(visualVerdict)),
+    stageLine("Physics QA", gateStatus(physicsVerdict), friendlyVerdictLabel(physicsVerdict)),
+    stageLine("Player QA", webVerdict.startsWith("WORTH_PLAYING") ? "pass" : webVerdict === "not run" ? "watch" : "blocked", friendlyVerdictLabel(webVerdict)),
+    stageLine("Trust Review", readinessStatus(studioVerdict), studioVerdict === "not run" ? studioScore : friendlyVerdictLabel(studioVerdict)),
     stageLine("Feedback", workspace.artifacts.some((artifact) => artifact.kind === "user-feedback") ? "pass" : "watch", "optional")
   ];
   const blockers = inferJourneyBlockers(workspace, {
@@ -115,7 +121,9 @@ export function renderJourney(workspace: ProjectWorkspace): string {
     "Current blockers:",
     ...(blockers.length ? blockers.map((blocker) => `- ${blocker}`) : ["- none"]),
     "",
-    `Next best command: ${recommendNextCommand(workspace)}`
+    `Confidence: ${next.confidenceReason}`,
+    `Next best action: ${next.label}`,
+    `Next best command: ${next.command}`
   ].join("\n");
 }
 
@@ -134,7 +142,7 @@ export function renderScorecardSummary(scorecard: StudioScorecard): string {
     `Studio review: ${scorecard.projectName}`,
     `Overall: ${formatScore(scorecard.overallScore)}/10`,
     `Minimum category: ${formatScore(scorecard.minimumCategoryScore)}/10`,
-    `Verdict: ${scorecard.verdict}`,
+    `Verdict: ${friendlyVerdictLabel(scorecard.verdict)}`,
     `Agents reviewed: ${scorecard.agentCount}`,
     "",
     "Categories:",
@@ -168,22 +176,91 @@ export function artifactSelector(artifact: ArtifactRecord): string {
 }
 
 export function recommendNextCommand(workspace: ProjectWorkspace): string {
+  return getNextAction(workspace).command;
+}
+
+export type NextAction = {
+  label: string;
+  command: string;
+  reason: string;
+  blocker: string;
+  verdict: string;
+  verdictLabel: string;
+  confidenceReason: string;
+};
+
+export function renderNextAction(workspace: ProjectWorkspace): string {
+  const next = getNextAction(workspace);
+  return [
+    `Next best action: ${next.label}`,
+    `Command: ${next.command}`,
+    `Verdict: ${next.verdictLabel}`,
+    `Blocker: ${next.blocker}`,
+    `Why: ${next.reason}`,
+    `Confidence: ${next.confidenceReason}`
+  ].join("\n");
+}
+
+export function getNextAction(workspace: ProjectWorkspace): NextAction {
   const hasWeb = workspace.artifacts.some((artifact) => artifact.kind === "web-adapter");
   const hasWebQa = workspace.artifacts.some((artifact) => artifact.kind === "web-playtest-report");
   const hasScorecard = workspace.artifacts.some((artifact) => artifact.kind === "studio-scorecard");
   const hasAssets = workspace.artifacts.some((artifact) => artifact.kind === "asset-pack-manifest");
   const webTargeted = workspace.platformPlans.some((plan) => plan.platform === "Web" && plan.status === "targeted");
   const wantsAssetLedPhysics = needsAssetLedPhysicsProof(workspace);
+  const webVerdict = readMarkdownValue(readLatestMarkdownArtifact(workspace, "web-playtest-report"), "Verdict") ?? "not run";
+  const scorecardVerdict = readMarkdownValue(readLatestMarkdownArtifact(workspace, "studio-scorecard"), "Verdict") ?? "not run";
+  const verdict = scorecardVerdict !== "not run" ? scorecardVerdict : webVerdict;
+  const blocker = inferFriendlyBlocker(workspace, verdict);
+  const confidenceReason = confidenceFor(workspace, verdict);
 
-  if (webTargeted && wantsAssetLedPhysics && !hasAssets) return `gameos make --prompt "${workspace.project.prompt.slice(0, 44)}..." --target web-playable --assets ./assets.zip`;
-  if (webTargeted && !hasWeb) return `gameos build web ${workspace.project.id}`;
-  if (hasWeb && !hasWebQa) return `gameos qa web ${workspace.project.id}`;
-  if (hasWebQa) {
-    const webVerdict = readMarkdownValue(readLatestMarkdownArtifact(workspace, "web-playtest-report"), "Verdict") ?? "";
-    if (webVerdict.startsWith("WORTH_PLAYING") && !hasScorecard) return `gameos review ${workspace.project.id}`;
-    return webVerdict.startsWith("WORTH_PLAYING") ? `gameos artifact list ${workspace.project.id}` : `gameos journey ${workspace.project.id}`;
+  if (webTargeted && wantsAssetLedPhysics && !hasAssets) {
+    return nextAction("Add assets", `gameos assets import ${workspace.project.id} ./assets.zip`, "This project selected physics/asset systems and needs role-fit files before stronger QA.", blocker, verdict, confidenceReason);
   }
-  return `gameos artifact list ${workspace.project.id}`;
+  if (webTargeted && !hasWeb) return nextAction("Build Web", `gameos build web ${workspace.project.id}`, "The Web lane is the fastest playable proof path.", blocker, verdict, confidenceReason);
+  if (hasWeb && !hasWebQa) return nextAction("Run Web QA", `gameos qa web ${workspace.project.id}`, "The build exists but no player-agent QA evidence has been recorded.", blocker, verdict, confidenceReason);
+  if (hasWebQa) {
+    if (webVerdict.startsWith("WORTH_PLAYING") && !hasScorecard) return nextAction("Run trust review", `gameos review ${workspace.project.id}`, "QA passed; the project now needs truth/scorecard review.", blocker, verdict, confidenceReason);
+    if (webVerdict.startsWith("WORTH_PLAYING")) return nextAction("Play latest build", `gameos play ${workspace.project.id}`, "The latest evidence says the Web build is playable.", blocker, verdict, confidenceReason);
+    if (webVerdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return nextAction("Run browser QA", `gameos qa web ${workspace.project.id}`, "Static QA passed, but browser QA is required for a stronger verdict.", blocker, verdict, confidenceReason);
+    return nextAction("Improve with feedback", `gameos improve ${workspace.project.id}`, "The player-agent verdict is not strong enough yet.", blocker, verdict, confidenceReason);
+  }
+  return nextAction("Inspect artifacts", `gameos artifact list ${workspace.project.id}`, "Game OS has generated planning artifacts; inspect them or continue building.", blocker, verdict, confidenceReason);
+}
+
+function nextAction(label: string, command: string, reason: string, blocker: string, verdict: string, confidenceReason: string): NextAction {
+  return { label, command, reason, blocker, verdict, verdictLabel: friendlyVerdictLabel(verdict), confidenceReason };
+}
+
+export function friendlyVerdictLabel(verdict: string): string {
+  if (!verdict || verdict === "not run") return "Not run yet";
+  if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Needs browser QA";
+  if (verdict === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS") return "Needs asset fit";
+  if (verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") return "Needs stronger asset fit";
+  if (verdict === "INPUT_GATE_PASS") return "Input proof passed";
+  if (verdict.includes("INPUT") && !verdict.endsWith("_PASS")) return "Needs input proof";
+  if (verdict.startsWith("WORTH_PLAYING")) return "Worth playing locally";
+  if (verdict.includes("PLAYER") || verdict.includes("QA")) return "Needs stronger player evidence";
+  return friendlyTier(verdict);
+}
+
+function inferFriendlyBlocker(workspace: ProjectWorkspace, verdict: string): string {
+  const blockedGate = workspace.qaGates.find((gate) => gate.result === "blocked");
+  if (blockedGate) return blockedGate.name;
+  if (!workspace.artifacts.some((artifact) => artifact.kind === "web-adapter")) return "Web build missing";
+  if (!workspace.artifacts.some((artifact) => artifact.kind === "web-playtest-report")) return "Web QA missing";
+  if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Needs browser QA";
+  if (verdict === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS" || verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") return "Needs asset fit";
+  if (verdict === "NEEDS_IMPROVEMENT") return "Needs stronger player evidence";
+  return "none";
+}
+
+function confidenceFor(workspace: ProjectWorkspace, verdict: string): string {
+  if (verdict === "CREATOR_TEST_READY") return "Acceptance profile, browser QA, scorecard, and provenance agree.";
+  if (verdict === "LOCAL_PROTOTYPE_READY") return "Playable local evidence exists, but creator-test proof is not complete.";
+  if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Static files are valid; browser/player proof is still needed.";
+  if (!workspace.artifacts.some((artifact) => artifact.kind === "web-playtest-report")) return "No QA artifact yet.";
+  return "Based on latest Game OS artifacts and QA evidence.";
 }
 
 function latestArtifact(workspace: ProjectWorkspace, kind: ArtifactRecord["kind"]): ArtifactRecord | undefined {
