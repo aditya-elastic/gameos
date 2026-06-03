@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Adds the Game Quality Engine release target for stronger Web creator-test output.
+- Captures browser visual QA screenshots for every generated Web build, not only asset-led physics games.
+- Adds browser visual QA checks for canvas readability, overflow, watermark visibility, watermark padding, visible controls, and hidden raw machine verdicts.
+- Upgrades Advanced Player evidence with first-10-seconds, replay, control-feel, clarity, difficulty-curve, visual-maturity, and Advanced Player Council verdicts.
+- Tightens studio review so Web builds need visual browser QA evidence and Advanced Player Council proof before creator-test promotion.
+- Adds `gameos export web <project-id>` to create a dependency-free ZIP with the playable Web build, Game OS artifacts, provenance manifest, and required watermark metadata.
+
 ## 0.4.1
 
 - Improves `gameos doctor` with active binary path, PATH shadowing detection, data directory, Chrome/Godot/Unity readiness, and clearer npm/Homebrew install guidance.

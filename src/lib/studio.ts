@@ -59,6 +59,16 @@ type WebPlaytestReport = {
   role_assignments?: unknown;
   browser_interaction?: unknown;
   visual_screenshot?: string;
+  interaction_screenshot?: string;
+  visual_qa?: unknown;
+  visual_qa_verdict?: string;
+  first_ten_seconds_verdict?: string;
+  replay_verdict?: string;
+  control_feel_verdict?: string;
+  clarity_verdict?: string;
+  difficulty_curve_verdict?: string;
+  visual_maturity_verdict?: string;
+  advanced_player_council_verdict?: string;
   trials?: number;
   best_cut_frame?: number | null;
   best_cut_angle?: number | null;
@@ -584,6 +594,16 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
       `- Slow mouse pass: ${String(Boolean(report.slow_mouse_pass))}`,
       `- Reset/recut pass: ${String(Boolean(report.reset_recut_pass))}`,
       `- Visual screenshot: ${report.visual_screenshot ?? "not captured"}`,
+      `- Interaction screenshot: ${report.interaction_screenshot ?? "not captured"}`,
+      `- Visual browser QA verdict: ${report.visual_qa_verdict ?? "not reported"}`,
+      `- Visual browser QA: ${report.visual_qa ? JSON.stringify(report.visual_qa) : "not reported"}`,
+      `- First 10 seconds verdict: ${report.first_ten_seconds_verdict ?? "not reported"}`,
+      `- Replay verdict: ${report.replay_verdict ?? "not reported"}`,
+      `- Control feel verdict: ${report.control_feel_verdict ?? "not reported"}`,
+      `- Clarity verdict: ${report.clarity_verdict ?? "not reported"}`,
+      `- Difficulty curve verdict: ${report.difficulty_curve_verdict ?? "not reported"}`,
+      `- Visual maturity verdict: ${report.visual_maturity_verdict ?? "not reported"}`,
+      `- Advanced Player Council verdict: ${report.advanced_player_council_verdict ?? "not reported"}`,
       `- Assets used: ${report.assets_used ?? 0}`,
       `- Matches: ${report.matches ?? 0}`,
       `- Timing trials: ${report.trials ?? 0}`,
@@ -619,7 +639,17 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
     `- Average turns: ${report.average_turns ?? 0}`,
     `- Timeouts: ${report.timeouts ?? 0}`,
     `- Visual verdict: ${report.visual_verdict ?? "not reported"}`,
+    `- Visual screenshot: ${report.visual_screenshot ?? "not captured"}`,
+    `- Visual browser QA verdict: ${report.visual_qa_verdict ?? "not reported"}`,
+    `- Visual browser QA: ${report.visual_qa ? JSON.stringify(report.visual_qa) : "not reported"}`,
     `- Input verdict: ${report.input_verdict ?? "not reported"}`,
+    `- First 10 seconds verdict: ${report.first_ten_seconds_verdict ?? "not reported"}`,
+    `- Replay verdict: ${report.replay_verdict ?? "not reported"}`,
+    `- Control feel verdict: ${report.control_feel_verdict ?? "not reported"}`,
+    `- Clarity verdict: ${report.clarity_verdict ?? "not reported"}`,
+    `- Difficulty curve verdict: ${report.difficulty_curve_verdict ?? "not reported"}`,
+    `- Visual maturity verdict: ${report.visual_maturity_verdict ?? "not reported"}`,
+    `- Advanced Player Council verdict: ${report.advanced_player_council_verdict ?? "not reported"}`,
     `- Capability verdict: ${report.capability_verdict ?? "not reported"}`,
     `- Selected core capabilities: ${Array.isArray(report.selected_core_capabilities) ? report.selected_core_capabilities.join(", ") : "not reported"}`,
     `- Capability evidence: ${report.capability_evidence ? JSON.stringify(report.capability_evidence) : "not reported"}`,

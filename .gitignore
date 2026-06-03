@@ -11,6 +11,7 @@ tmp/
 coverage/
 docs/qa/*.md
 !docs/qa/v1-local-test-run-2026-05-31.md
+docs/YOUTUBE_GAMEOS_LONG_FORM.md
 tsconfig.tsbuildinfo
 *.log
 *.tgz

@@ -85,31 +85,36 @@ async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<
     const smoke = await page.evaluate(() => globalThis.__gameOsWebAdapter.smoke());
     if (!smoke.ok) throw new Error("Web adapter runtime did not report ready.");
     if (!smoke.watermark) throw new Error("GameOS watermark was missing from the Web build.");
-    const screenshotPath = smoke.kind === "asset-physics" ? path.join(projectRoot, "qa", "asset-physics-visual-qa.png") : "";
-    if (screenshotPath) {
-      fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
-      await page.screenshot({ path: screenshotPath, fullPage: true });
-    }
+    const kind = String(smoke.kind || "web");
+    const screenshotPath = path.join(projectRoot, "qa", `${safeFileStem(kind)}-visual-qa.png`);
+    fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    const visualQa = await evaluateVisualQuality(page);
     const interaction = smoke.kind === "asset-physics" ? await verifyAssetPhysicsBrowserInteraction(page) : {};
-    const playerReport = await page.evaluate(() => globalThis.__gameOsWebAdapter.runPlayerAgent({ matches: 8, seed: 20260601 }));
+    const playerReport = (await page.evaluate(() => globalThis.__gameOsWebAdapter.runPlayerAgent({ matches: 8, seed: 20260601 }))) as Record<string, unknown>;
     const interactionScreenshotPath = smoke.kind === "asset-physics" ? path.join(projectRoot, "qa", "asset-physics-interaction-qa.png") : "";
     if (interactionScreenshotPath) await page.screenshot({ path: interactionScreenshotPath, fullPage: true });
+    const finalPlayerReport = enrichPlayerReportWithQuality(playerReport, visualQa);
     const { recordWebPlaytest } = await import("../lib/studio");
     const workspace = recordWebPlaytest(projectId, {
-      ...playerReport,
+      ...finalPlayerReport,
       browser_interaction: interaction,
-      visual_screenshot: screenshotPath ? path.relative(projectRoot, screenshotPath) : undefined
+      visual_screenshot: path.relative(projectRoot, screenshotPath),
+      interaction_screenshot: interactionScreenshotPath ? path.relative(projectRoot, interactionScreenshotPath) : undefined,
+      visual_qa: visualQa,
+      visual_qa_verdict: visualQa.pass ? "VISUAL_BROWSER_QA_PASS" : "VISUAL_BROWSER_QA_FAIL"
     });
     const report = {
-      kind: String(playerReport.kind || smoke.kind || "web"),
-      verdict: String(playerReport.verdict || "unknown"),
+      kind: String(finalPlayerReport.kind || smoke.kind || "web"),
+      verdict: String(finalPlayerReport.verdict || "unknown"),
       projectRoot,
       details: {
         smoke,
         interaction,
-        screenshot: screenshotPath ? path.relative(projectRoot, screenshotPath) : null,
+        visualQa,
+        screenshot: path.relative(projectRoot, screenshotPath),
         interactionScreenshot: interactionScreenshotPath ? path.relative(projectRoot, interactionScreenshotPath) : null,
-        ...(playerReport as Record<string, unknown>)
+        ...finalPlayerReport
       }
     };
 
@@ -118,6 +123,113 @@ async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<
     await browser.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+}
+
+async function evaluateVisualQuality(page: import("playwright-core").Page): Promise<Record<string, unknown> & { pass: boolean }> {
+  return page.evaluate(() => {
+    const visible = (element: Element | null): boolean => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none" && Number.parseFloat(style.opacity || "1") > 0.05;
+    };
+    const rectPayload = (element: Element | null) => {
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height), right: Math.round(rect.right), bottom: Math.round(rect.bottom) };
+    };
+    const canvas = document.querySelector("canvas");
+    const watermark = document.querySelector(".watermark");
+    const buttons = [...document.querySelectorAll("button")].filter(visible);
+    const canvasRect = rectPayload(canvas);
+    const watermarkRect = rectPayload(watermark);
+    const bodyText = document.body.textContent || "";
+    const noHorizontalOverflow = document.documentElement.scrollWidth <= window.innerWidth + 4;
+    const canvasReadable = Boolean(canvasRect && canvasRect.width >= 480 && canvasRect.height >= 300);
+    const watermarkVisible = visible(watermark) && Boolean(watermark?.textContent?.includes("GameOS"));
+    const watermarkPadded = Boolean(
+      watermarkRect &&
+        watermarkRect.right <= window.innerWidth - 8 &&
+        watermarkRect.bottom <= Math.max(window.innerHeight, document.documentElement.scrollHeight) - 8
+    );
+    const controlsVisible = buttons.length >= 1;
+    const rawMachineVerdictHidden = !/(STATIC_WEB_QA_PASS|NEEDS_ARCHITECTURE_UPGRADE|WORTH_PLAYING_FOR_)/.test(bodyText);
+    const pass = noHorizontalOverflow && canvasReadable && watermarkVisible && watermarkPadded && controlsVisible && rawMachineVerdictHidden;
+
+    return {
+      pass,
+      verdict: pass ? "VISUAL_BROWSER_QA_PASS" : "VISUAL_BROWSER_QA_FAIL",
+      noHorizontalOverflow,
+      canvasReadable,
+      watermarkVisible,
+      watermarkPadded,
+      controlsVisible,
+      rawMachineVerdictHidden,
+      buttonCount: buttons.length,
+      canvasRect,
+      watermarkRect,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      document: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }
+    };
+  });
+}
+
+function enrichPlayerReportWithQuality(report: Record<string, unknown>, visualQa: { pass: boolean }): Record<string, unknown> {
+  const enriched: Record<string, unknown> = {
+    ...report,
+    visual_qa_verdict: visualQa.pass ? "VISUAL_BROWSER_QA_PASS" : "VISUAL_BROWSER_QA_FAIL",
+    visual_qa: visualQa,
+    first_ten_seconds_verdict: String(report.first_ten_seconds_verdict || inferFirstTenSecondsVerdict(report)),
+    replay_verdict: String(report.replay_verdict || inferReplayVerdict(report)),
+    control_feel_verdict: String(report.control_feel_verdict || inferControlFeelVerdict(report)),
+    clarity_verdict: String(report.clarity_verdict || inferClarityVerdict(report, visualQa)),
+    difficulty_curve_verdict: String(report.difficulty_curve_verdict || inferDifficultyCurveVerdict(report)),
+    visual_maturity_verdict: String(report.visual_maturity_verdict || (visualQa.pass ? "VISUAL_MATURITY_PASS" : "VISUAL_MATURITY_FAIL"))
+  };
+  const councilPass = [
+    enriched.first_ten_seconds_verdict,
+    enriched.replay_verdict,
+    enriched.control_feel_verdict,
+    enriched.clarity_verdict,
+    enriched.difficulty_curve_verdict,
+    enriched.visual_maturity_verdict
+  ].every((value) => String(value).endsWith("_PASS"));
+  enriched.advanced_player_council_verdict = councilPass ? "ADVANCED_PLAYER_COUNCIL_PASS" : "ADVANCED_PLAYER_COUNCIL_FAIL";
+
+  if (!visualQa.pass || !councilPass) {
+    enriched.visual_verdict = visualQa.pass ? enriched.visual_verdict || "VISUAL_GATE_PASS" : "VISUAL_GATE_FAIL";
+    if (String(enriched.verdict || "").startsWith("WORTH_PLAYING")) enriched.verdict = !visualQa.pass ? "NEEDS_VISUAL_COMPOSITION_REPAIR" : "NEEDS_ADVANCED_PLAYER_COUNCIL_REVIEW";
+  }
+
+  return enriched;
+}
+
+function inferFirstTenSecondsVerdict(report: Record<string, unknown>): string {
+  return numberValue(report.average_score) >= 250 || numberValue(report.completions) > 0 ? "FIRST_TEN_SECONDS_PASS" : "FIRST_TEN_SECONDS_FAIL";
+}
+
+function inferReplayVerdict(report: Record<string, unknown>): string {
+  return numberValue(report.matches) >= 2 && numberValue(report.timeouts) === 0 ? "REPLAY_LOOP_PASS" : "REPLAY_LOOP_FAIL";
+}
+
+function inferControlFeelVerdict(report: Record<string, unknown>): string {
+  return String(report.input_verdict || "").endsWith("_PASS") && numberValue(report.branching_decisions) >= 8 ? "CONTROL_FEEL_PASS" : String(report.input_verdict || "").endsWith("_PASS") ? "CONTROL_FEEL_PASS" : "CONTROL_FEEL_FAIL";
+}
+
+function inferClarityVerdict(report: Record<string, unknown>, visualQa: { pass: boolean }): string {
+  return visualQa.pass && (String(report.visual_verdict || "").endsWith("_PASS") || String(report.visual_verdict || "") === "not reported") ? "CLARITY_PASS" : "CLARITY_FAIL";
+}
+
+function inferDifficultyCurveVerdict(report: Record<string, unknown>): string {
+  return numberValue(report.timeouts) === 0 && (numberValue(report.captures) > 0 || numberValue(report.completions) > 0 || numberValue(report.average_score) > 100) ? "DIFFICULTY_CURVE_PASS" : "DIFFICULTY_CURVE_FAIL";
+}
+
+function numberValue(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function safeFileStem(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "web";
 }
 
 async function verifyAssetPhysicsBrowserInteraction(page: import("playwright-core").Page): Promise<Record<string, unknown>> {

@@ -8,7 +8,8 @@ describe("web adapter presentation", () => {
 
     expect(source).toContain("right: clamp(20px, 2.4vw, 30px);");
     expect(source).toContain("bottom: clamp(20px, 2.4vw, 30px);");
-    expect(source).toContain('context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);');
+    expect(source).toContain('context.fillText("Made with GameOS", 32, canvas.height - 30);');
+    expect(source).not.toContain('context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);');
     expect(source).not.toContain('context.fillText("Made with GameOS", canvas.width - 24, canvas.height - 22);');
   });
 });

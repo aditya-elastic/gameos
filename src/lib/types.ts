@@ -35,6 +35,7 @@ export type ArtifactKind =
   | "unity-playtest-report"
   | "web-adapter"
   | "web-playtest-report"
+  | "web-export"
   | "os-design-review"
   | "capability-map"
   | "architecture-risk-report"

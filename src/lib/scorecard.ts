@@ -245,6 +245,9 @@ function scoreWebPlayability(workspace: ProjectWorkspace): StudioScorecardCatego
 function scoreQaEvidence(workspace: ProjectWorkspace): StudioScorecardCategory {
   const projectRoot = getProjectArtifactRoot(workspace.project.id);
   const needsPhysicsScreenshots = needsPhysicsProof(workspace);
+  const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
+  const visualScreenshot = readMarkdownValue(webReport, "Visual screenshot") ?? "";
+  const interactionScreenshot = readMarkdownValue(webReport, "Interaction screenshot") ?? "";
   return categoryFromChecks("QA Evidence And Player Agents", [
     artifactCheck(workspace, "qa-plan", "QA gates artifact exists."),
     artifactCheck(workspace, "test-matrix", "Test matrix exists."),
@@ -253,13 +256,14 @@ function scoreQaEvidence(workspace: ProjectWorkspace): StudioScorecardCategory {
     agentCheck(workspace, "advanced-player", "Advanced Player owns worth-playing verdict."),
     {
       label: "Visual QA screenshot captured",
-      pass: !needsPhysicsScreenshots || fs.existsSync(path.join(projectRoot, "web", "qa", "asset-physics-visual-qa.png")),
-      evidence: needsPhysicsScreenshots ? "Visual QA screenshot exists under the generated Web build." : "Visual QA screenshot is not mandatory for this non-physics proof target.",
+      pass: hasRelativeWebFile(projectRoot, visualScreenshot),
+      evidence: "Visual QA screenshot exists under the generated Web build.",
       gap: "Visual QA screenshot is missing."
     },
+    markdownValueCheck(webReport, "Visual browser QA verdict", "VISUAL_BROWSER_QA_PASS", "Browser visual QA passed."),
     {
       label: "Interaction QA screenshot captured",
-      pass: !needsPhysicsScreenshots || fs.existsSync(path.join(projectRoot, "web", "qa", "asset-physics-interaction-qa.png")),
+      pass: !needsPhysicsScreenshots || hasRelativeWebFile(projectRoot, interactionScreenshot),
       evidence: needsPhysicsScreenshots ? "Interaction QA screenshot exists under the generated Web build." : "Interaction QA screenshot is not mandatory for this non-physics proof target.",
       gap: "Interaction QA screenshot is missing."
     }
@@ -315,7 +319,14 @@ function scoreGameFeel(workspace: ProjectWorkspace): StudioScorecardCategory {
       ? markdownValueCheck(webReport, "Reset/recut pass", "true", "Reset/recut proof passed.")
       : passingCheck("Reset/recut physics proof is not required for this non-physics target."),
     needsPhysicsFeel ? markdownValueCheck(webReport, "Early miss verified", "true", "Early miss is verified.") : passingCheck("Early miss proof is not required for this target."),
-    needsPhysicsFeel ? markdownValueCheck(webReport, "Late miss verified", "true", "Late miss is verified.") : passingCheck("Late miss proof is not required for this target.")
+    needsPhysicsFeel ? markdownValueCheck(webReport, "Late miss verified", "true", "Late miss is verified.") : passingCheck("Late miss proof is not required for this target."),
+    markdownValueCheck(webReport, "First 10 seconds verdict", "FIRST_TEN_SECONDS_PASS", "Advanced Player Council approved first 10 seconds."),
+    markdownValueCheck(webReport, "Replay verdict", "REPLAY_LOOP_PASS", "Advanced Player Council approved the replay loop."),
+    markdownValueCheck(webReport, "Control feel verdict", "CONTROL_FEEL_PASS", "Advanced Player Council approved control feel."),
+    markdownValueCheck(webReport, "Clarity verdict", "CLARITY_PASS", "Advanced Player Council approved clarity."),
+    markdownValueCheck(webReport, "Difficulty curve verdict", "DIFFICULTY_CURVE_PASS", "Advanced Player Council approved difficulty curve."),
+    markdownValueCheck(webReport, "Visual maturity verdict", "VISUAL_MATURITY_PASS", "Advanced Player Council approved visual maturity."),
+    markdownValueCheck(webReport, "Advanced Player Council verdict", "ADVANCED_PLAYER_COUNCIL_PASS", "Advanced Player Council approved the first playable.")
   ]);
 }
 
@@ -501,6 +512,13 @@ function readMarkdownValue(content: string, label: string): string | null {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = content.match(new RegExp(`- ${escaped}:\\s*(.+)`));
   return match?.[1]?.trim() ?? null;
+}
+
+function hasRelativeWebFile(projectRoot: string, relativePath: string): boolean {
+  if (!relativePath || relativePath === "not captured") return false;
+  const normalized = path.normalize(relativePath);
+  if (normalized.startsWith("..") || path.isAbsolute(normalized)) return false;
+  return fs.existsSync(path.join(projectRoot, "web", normalized));
 }
 
 function roundScore(value: number): number {

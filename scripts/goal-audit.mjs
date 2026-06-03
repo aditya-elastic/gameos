@@ -72,12 +72,12 @@ const categories = [
     fileCheck("Playable builds must be testable", "src/lib/agents.ts", [/No playable build is accepted unless the implementation can be tested by the QA Director and challenged by the Advanced Player/])
   ]),
   category("Creator UX Flow", [
-    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "init"/, /case "cockpit"/, /case "examples"/, /case "make"/, /case "journey"/, /case "next"/, /case "review"/, /case "diagnose"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "artifact"/]),
+    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "init"/, /case "cockpit"/, /case "examples"/, /case "make"/, /case "journey"/, /case "next"/, /case "review"/, /case "diagnose"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "export"/, /case "artifact"/]),
     fileCheck("Starter examples stay universal", "src/cli/starter-ideas.ts", [/one-button arcade survival/, /physics timing puzzle/, /turn-based strategy/, /combat survival arena/, /Narrative puzzle/]),
     fileCheck("Cockpit keeps actions simple", "src/cli/actions.ts", [/slice\(0, 5\)/, /Create New Game/, /Use Starter Idea/, /Fix With Autopilot/]),
     fileCheck("Cockpit uses keyboard-first controls", "src/cli/cockpit.ts", [/Game OS Cockpit/, /↑\/↓ select/, /n new/, /i improve/]),
     fileCheck("CLI output explains blockers", "src/cli/output.ts", [/Current blockers/, /Next best command/, /Advanced Player did not approve/, /Needs browser QA/, /Needs asset fit/]),
-    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos init/, /gameos examples/, /gameos next/, /gameos cockpit/, /gameos improve/, /gameos play/, /Trust Review/, /gameos diagnose/]),
+    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos init/, /gameos examples/, /gameos next/, /gameos cockpit/, /gameos improve/, /gameos play/, /gameos export web/, /Trust Review/, /gameos diagnose/]),
     fileCheck("Artifact output is summary-first", "src/cli/main.ts", [/--full/, /summarizeArtifactContent/]),
     fileCheck("Playable HUD labels are player-facing", "src/lib/web-adapter.ts", [/formatGameOsStatusLabel/, /displayStatusLabel/])
   ]),
@@ -105,7 +105,9 @@ const categories = [
     fileCheck("Universal deep acceptance covers ten families", "scripts/universal-deep-acceptance.mjs", [/arcade score loop/, /deterministic rules strategy/, /asset-led physics timing/, /platform movement/, /combat\/survival loop/, /racing motion/, /resource\/economy management/, /puzzle logic/, /narrative choice loop/, /local multiplayer\/pass-and-play/, /capability-web/]),
     fileCheck("Trust audit blocks overclaiming", "scripts/trust-audit.mjs", [/10\/10/, /publish-ready/, /diagnose/]),
     fileCheck("Advanced Player blocks shallow games", "scripts/web-player-agent.mjs", [/WEB_PLAYER_AGENT_REPORT/, /MASTERY_GATE_PASS/, /SLOW_MOUSE_BLADE_PASS/]),
-    fileCheck("CLI browser QA proves release reset retry", "src/cli/web-qa.ts", [/firstCutPass/, /noAutoCutPass/, /slowMousePass/, /recutPass/])
+    fileCheck("CLI browser QA proves release reset retry", "src/cli/web-qa.ts", [/firstCutPass/, /noAutoCutPass/, /slowMousePass/, /recutPass/]),
+    fileCheck("CLI browser QA captures universal visual evidence", "src/cli/web-qa.ts", [/evaluateVisualQuality/, /VISUAL_BROWSER_QA_PASS/, /rawMachineVerdictHidden/]),
+    fileCheck("Web export packages playable provenance", "src/cli/export.ts", [/gameos-export-manifest\.json/, /writeStoredZip/, /web-playtest-report/, /Made with GameOS/])
   ]),
   category("Security Privacy And Storage", [
     fileCheck("Security policy is local-first", "SECURITY.md", [/No telemetry/, /No hidden network calls/, /GAME_OS_DATA_DIR/]),

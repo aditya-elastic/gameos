@@ -216,17 +216,32 @@ describe("studio workflow", () => {
     expect(fs.existsSync(path.join(webRoot, "index.html"))).toBe(true);
     expect(fs.existsSync(path.join(webRoot, "scripts", "turn-rules.js"))).toBe(false);
     expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("__gameOsWebAdapter");
+    fs.mkdirSync(path.join(webRoot, "qa"), { recursive: true });
+    fs.writeFileSync(path.join(webRoot, "qa", "capability-web-visual-qa.png"), "visual evidence");
 
     const played = recordWebPlaytest(workspace.project.id, {
       agent: "Advanced Web Player - Browser Table Strategist",
       claim: "browser-playable web-channel player-agent simulation",
+      kind: "capability-web",
       matches: 8,
       average_turns: 205.2,
+      average_score: 900,
       captures: 84,
       releases: 180,
       homes: 28,
       passes: 160,
       timeouts: 0,
+      visual_verdict: "VISUAL_GATE_PASS",
+      input_verdict: "INPUT_GATE_PASS",
+      visual_screenshot: "qa/capability-web-visual-qa.png",
+      visual_qa_verdict: "VISUAL_BROWSER_QA_PASS",
+      first_ten_seconds_verdict: "FIRST_TEN_SECONDS_PASS",
+      replay_verdict: "REPLAY_LOOP_PASS",
+      control_feel_verdict: "CONTROL_FEEL_PASS",
+      clarity_verdict: "CLARITY_PASS",
+      difficulty_curve_verdict: "DIFFICULTY_CURVE_PASS",
+      visual_maturity_verdict: "VISUAL_MATURITY_PASS",
+      advanced_player_council_verdict: "ADVANCED_PLAYER_COUNCIL_PASS",
       branching_decisions: 1200,
       finish_choices: 28,
       capture_choices: 84,

@@ -24,12 +24,13 @@ There is no required website, plugin, MCP server, account, telemetry, or cloud s
 4. Artifacts are written as local Markdown/JSON files.
 5. `gameos make --assets` can import user assets, classify gameplay roles, and write an asset preview manifest before Web generation.
 6. `gameos build web` creates the first playable lane.
-7. `gameos qa web` records static or browser player-agent evidence.
-8. `gameos journey` reports stage-by-stage blockers.
-9. `gameos review` creates the studio trust scorecard and promotes the final trust gate only when creator-test evidence passes.
-10. `gameos diagnose` names the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command.
-11. `gameos feedback` records creator feedback for agent regeneration.
-12. Godot and Unity lanes require `--allow-heavy`.
+7. `gameos qa web` records static or browser player-agent evidence, including visual screenshots for browser QA.
+8. `gameos export web` packages the playable Web build with provenance, QA reports, and required watermark metadata.
+9. `gameos journey` reports stage-by-stage blockers.
+10. `gameos review` creates the studio trust scorecard and promotes the final trust gate only when creator-test evidence passes.
+11. `gameos diagnose` names the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command.
+12. `gameos feedback` records creator feedback for agent regeneration.
+13. Godot and Unity lanes require `--allow-heavy`.
 
 ## Agent Roles
 

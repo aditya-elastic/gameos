@@ -28,6 +28,7 @@ gameos next <project-id>
 gameos qa web <project-id>
 gameos review <project-id>
 gameos play <project-id>
+gameos export web <project-id>
 ```
 
 If browser QA cannot run, install Google Chrome or set `CHROME_PATH`. `gameos doctor` shows the active binary, data directory, Chrome readiness, and whether npm/Homebrew installs may be shadowing each other on PATH.
@@ -78,6 +79,7 @@ gameos assets import <project-id> ./assets.zip
 gameos assets preview <project-id>
 gameos build web <project-id>
 gameos qa web <project-id>
+gameos export web <project-id>
 gameos artifact list <project-id>
 gameos artifact read <project-id> game-bible
 ```
@@ -97,6 +99,17 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 `WORTH_PLAYING` requires:
 
 - visible GameOS watermark
+- browser visual QA screenshot
+- readable play surface
+- no horizontal overflow
+- visible player-facing controls
+- first-10-seconds approval
+- replay-loop approval
+- control-feel approval
+- clarity approval
+- difficulty-curve approval
+- visual-maturity approval
+- Advanced Player Council approval
 - asset-fit role mapping
 - mature visual composition
 - readable physics dynamics without hidden goal attraction
@@ -121,6 +134,8 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 `gameos diagnose <project-id>` explains the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command. Add `--strict` for automation that should exit non-zero on `NEEDS_IMPROVEMENT`.
 
 `gameos next <project-id>` prints only the next best action, why it matters, and the exact command. It is the smallest output for Cursor, Codex CLI, Claude CLI, shell scripts, or a creator who just wants to know what to do next.
+
+`gameos export web <project-id>` writes a dependency-free ZIP containing the playable Web build, Game OS artifacts, provenance manifest, QA report, and required watermark metadata. Use `--output ./name.zip` to choose the file path.
 
 - Global OS Architecture
 - Agent Swarm And Skills

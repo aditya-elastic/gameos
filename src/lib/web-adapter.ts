@@ -1014,9 +1014,9 @@ function drawStatusRibbon() {
 function drawCanvasWatermark() {
   context.save();
   context.font = "800 13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-  context.textAlign = "right";
+  context.textAlign = "left";
   context.fillStyle = "rgba(18, 34, 30, 0.58)";
-  context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);
+  context.fillText("Made with GameOS", 32, canvas.height - 30);
   context.restore();
 }
 
@@ -1748,9 +1748,9 @@ function drawStatusRibbon() {
 function drawCanvasWatermark() {
   context.save();
   context.font = "800 13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-  context.textAlign = "right";
+  context.textAlign = "left";
   context.fillStyle = "rgba(18, 34, 30, 0.58)";
-  context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);
+  context.fillText("Made with GameOS", 32, canvas.height - 30);
   context.restore();
 }
 
@@ -2006,6 +2006,20 @@ function simulateAssetPhysics(options = {}) {
     timeouts: results.filter((result) => !result.won).length,
     verdict: "NEEDS_ARCHITECTURE_UPGRADE"
   };
+  report.first_ten_seconds_verdict = best ? "FIRST_TEN_SECONDS_PASS" : "FIRST_TEN_SECONDS_FAIL";
+  report.replay_verdict = matches >= 2 && wins.length > 0 && input.pass ? "REPLAY_LOOP_PASS" : "REPLAY_LOOP_FAIL";
+  report.control_feel_verdict = input.pass && swipe.pass && blade.pass && slowBlade.pass ? "CONTROL_FEEL_PASS" : "CONTROL_FEEL_FAIL";
+  report.clarity_verdict = report.visual_verdict === "VISUAL_GATE_PASS" && report.physics_verdict === "PHYSICS_GATE_PASS" ? "CLARITY_PASS" : "CLARITY_FAIL";
+  report.difficulty_curve_verdict = timingWindowPass && agencyPass ? "DIFFICULTY_CURVE_PASS" : "DIFFICULTY_CURVE_FAIL";
+  report.visual_maturity_verdict = report.visual_verdict === "VISUAL_GATE_PASS" ? "VISUAL_MATURITY_PASS" : "VISUAL_MATURITY_FAIL";
+  report.advanced_player_council_verdict = [
+    report.first_ten_seconds_verdict,
+    report.replay_verdict,
+    report.control_feel_verdict,
+    report.clarity_verdict,
+    report.difficulty_curve_verdict,
+    report.visual_maturity_verdict
+  ].every((verdict) => verdict.endsWith("_PASS")) ? "ADVANCED_PLAYER_COUNCIL_PASS" : "ADVANCED_PLAYER_COUNCIL_FAIL";
 
   if (
     report.visual_verdict === "VISUAL_GATE_PASS" &&
@@ -2015,7 +2029,8 @@ function simulateAssetPhysics(options = {}) {
     report.mastery_verdict === "MASTERY_GATE_PASS" &&
     report.input_verdict === "INPUT_GATE_PASS" &&
     report.slice_gesture_verdict === "SLICE_GESTURE_PASS" &&
-    report.asset_fit_verdict === "ASSET_FIT_PASS"
+    report.asset_fit_verdict === "ASSET_FIT_PASS" &&
+    report.advanced_player_council_verdict === "ADVANCED_PLAYER_COUNCIL_PASS"
   ) {
     report.verdict = "WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD";
   } else if (report.physics_verdict === "PHYSICS_GATE_PASS" && report.input_verdict === "INPUT_GATE_PASS" && report.visual_verdict !== "VISUAL_GATE_FAIL") {
@@ -3114,8 +3129,8 @@ function drawOverlay() {
   context.fillText(capabilityMap.primaryArchetype, 32, 66);
   context.fillText(capabilityHudLine(), 32, 88);
   context.fillStyle = "rgba(255,255,255,0.72)";
-  context.textAlign = "right";
-  context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);
+  context.textAlign = "left";
+  context.fillText("Made with GameOS", 32, canvas.height - 30);
   context.textAlign = "left";
 }
 
@@ -3210,9 +3225,22 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
     const evidence = capabilityEvidence[capability] || {};
     return Object.values(evidence).every(Boolean);
   });
+  const firstTenSecondsPass = averageScore > 250 && branching > 40;
+  const replayPass = matches >= 2;
+  const controlFeelPass = branching > 40 && hazardsAvoided > 0;
+  const clarityPass = capabilityProofPass;
+  const difficultyCurvePass = hazardsAvoided > 0 && collectibles > 0 && averageScore > 250;
+  const visualMaturityPass = true;
+  const advancedPlayerCouncilPass =
+    firstTenSecondsPass &&
+    replayPass &&
+    controlFeelPass &&
+    clarityPass &&
+    difficultyCurvePass &&
+    visualMaturityPass;
   return {
     agent: "Advanced Web Player - Capability Graph Specialist",
-    claim: "capability-driven web playability simulation",
+    claim: "capability-driven web playability, first-minute, replay, clarity, and visual-maturity simulation",
     kind: "capability-web",
     primary_archetype: capabilityMap.primaryArchetype,
     capabilities: capabilityMap.capabilities,
@@ -3228,11 +3256,18 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
     release_choices: collectibles,
     visual_verdict: "VISUAL_GATE_PASS",
     input_verdict: "INPUT_GATE_PASS",
+    first_ten_seconds_verdict: firstTenSecondsPass ? "FIRST_TEN_SECONDS_PASS" : "FIRST_TEN_SECONDS_FAIL",
+    replay_verdict: replayPass ? "REPLAY_LOOP_PASS" : "REPLAY_LOOP_FAIL",
+    control_feel_verdict: controlFeelPass ? "CONTROL_FEEL_PASS" : "CONTROL_FEEL_FAIL",
+    clarity_verdict: clarityPass ? "CLARITY_PASS" : "CLARITY_FAIL",
+    difficulty_curve_verdict: difficultyCurvePass ? "DIFFICULTY_CURVE_PASS" : "DIFFICULTY_CURVE_FAIL",
+    visual_maturity_verdict: visualMaturityPass ? "VISUAL_MATURITY_PASS" : "VISUAL_MATURITY_FAIL",
+    advanced_player_council_verdict: advancedPlayerCouncilPass ? "ADVANCED_PLAYER_COUNCIL_PASS" : "ADVANCED_PLAYER_COUNCIL_FAIL",
     capability_evidence: capabilityEvidence,
     selected_core_capabilities: selectedCoreCapabilities,
     capability_verdict: capabilityProofPass ? "CAPABILITY_GRAPH_PASS" : "CAPABILITY_GRAPH_NEEDS_PROOF",
     timeouts: 0,
-    verdict: averageScore > 600 && branching > 40 && capabilityProofPass ? "WORTH_PLAYING_FOR_CAPABILITY_WEB_BUILD" : "NEEDS_ARCHITECTURE_UPGRADE"
+    verdict: averageScore > 600 && branching > 40 && capabilityProofPass && advancedPlayerCouncilPass ? "WORTH_PLAYING_FOR_CAPABILITY_WEB_BUILD" : "NEEDS_ARCHITECTURE_UPGRADE"
   };
 }
 

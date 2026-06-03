@@ -71,7 +71,7 @@ brew audit --strict gameos
 - `gameos doctor` explains local readiness.
 - `gameos make` creates a project, Web build, and QA report.
 - `gameos make --assets` imports assets, writes a role preview manifest, and runs worth-playing Web gates.
-- `gameos examples`, `gameos next`, and `gameos assets preview` make the user journey friendly without requiring command memorization.
+- `gameos examples`, `gameos next`, `gameos assets preview`, and `gameos export web` make the user journey friendly without requiring command memorization.
 - `gameos review <project-id>` writes `studio-scorecard.md` and reaches an evidence-backed trust tier.
 - `gameos diagnose <project-id>` explains blocker, failed capability, failed evidence, owning agent, and next command.
 - `gameos status` and `gameos journey` show blockers and next command.

@@ -1,6 +1,6 @@
 {
   "name": "gameos",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": false,
   "description": "Pure CLI local AI game studio runtime.",
   "type": "module",
@@ -9,7 +9,13 @@
   },
   "files": [
     "dist/",
-    "docs/*.md",
+    "docs/ARCHITECTURE.md",
+    "docs/CLI.md",
+    "docs/GOAL_AUDIT.md",
+    "docs/PUBLISHING.md",
+    "docs/RELEASE_CHECKLIST.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/V1_ACCEPTANCE.md",
     "studio-agents/",
     "README.md",
     "LICENSE",

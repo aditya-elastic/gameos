@@ -55,9 +55,25 @@ function checkPackageMetadata() {
   assert(packageJson.scripts?.["homebrew:update"] === "node scripts/update-homebrew-formula.mjs", "package scripts must expose homebrew:update.");
   assert(Array.isArray(packageJson.files), "package files whitelist must be present.");
 
-  for (const required of ["dist/", "docs/*.md", "studio-agents/", "README.md", "LICENSE", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md"]) {
+  for (const required of [
+    "dist/",
+    "docs/ARCHITECTURE.md",
+    "docs/CLI.md",
+    "docs/GOAL_AUDIT.md",
+    "docs/PUBLISHING.md",
+    "docs/RELEASE_CHECKLIST.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/V1_ACCEPTANCE.md",
+    "studio-agents/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md"
+  ]) {
     assert(packageJson.files.includes(required), `package files whitelist must include ${required}.`);
   }
+  assert(!packageJson.files.includes("docs/*.md"), "package files whitelist must not include docs/*.md; explicit docs prevent local scratch files from shipping.");
 
   for (const forbidden of ["src", "scripts", "data", "tmp", ".next", ".codex-plugin"]) {
     assert(!packageJson.files.includes(forbidden), `package files whitelist must not include ${forbidden}.`);
@@ -83,6 +99,7 @@ function checkCliBinary() {
     assert(help.includes("gameos examples"), "CLI help must expose gameos examples.");
     assert(help.includes("gameos next <project-id>"), "CLI help must expose gameos next.");
     assert(help.includes("gameos assets preview <project-id>"), "CLI help must expose asset preview.");
+    assert(help.includes("gameos export web <project-id>"), "CLI help must expose Web export.");
     assert(help.includes("--strict"), "CLI help must expose strict diagnosis mode.");
     assert(help.includes("--allow-heavy"), "CLI help must expose heavy-lane guardrails.");
 
@@ -228,6 +245,7 @@ function checkDocs() {
   assert(readme.includes("gameos diagnose <project-id>"), "README must document gameos diagnose.");
   assert(readme.includes("gameos examples"), "README must document gameos examples.");
   assert(readme.includes("gameos next <project-id>"), "README must document gameos next.");
+  assert(readme.includes("gameos export web <project-id>"), "README must document gameos export web.");
   assert(readme.includes("gameos assets preview <project-id>"), "README must document asset preview.");
   assert(readme.includes("Universal Coverage Proof"), "README must explain universal coverage proof.");
   assert(readme.includes("Passing these gates means Game OS can build and honestly judge many kinds of local Web prototypes"), "README must explain the honest universal acceptance boundary.");
@@ -244,6 +262,7 @@ function checkDocs() {
   assert(cliDocs.includes("gameos diagnose <project-id>"), "CLI docs must document diagnose.");
   assert(cliDocs.includes("gameos examples"), "CLI docs must document examples.");
   assert(cliDocs.includes("gameos next <project-id>"), "CLI docs must document next.");
+  assert(cliDocs.includes("gameos export web <project-id>"), "CLI docs must document export web.");
   assert(cliDocs.includes("gameos assets preview <project-id>"), "CLI docs must document asset preview.");
   assert(cliDocs.includes("Universal Coverage Proof"), "CLI docs must explain universal coverage proof.");
   assert(cliDocs.includes("npm run acceptance:universal-trust"), "CLI docs must document acceptance:universal-trust.");

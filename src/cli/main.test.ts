@@ -29,6 +29,7 @@ describe("gameos cli parser", () => {
     const examples = parseArgv(["examples", "--json"]);
     const next = parseArgv(["next", "game_123", "--json"]);
     const assetPreview = parseArgv(["assets", "preview", "game_123"]);
+    const exportWeb = parseArgv(["export", "web", "game_123", "--output", "./build.zip"]);
 
     expect(make.command).toEqual(["make"]);
     expect(make.flags.get("assets")).toEqual(["./assets.zip"]);
@@ -49,6 +50,9 @@ describe("gameos cli parser", () => {
     expect(next.positionals).toEqual(["game_123"]);
     expect(assetPreview.command).toEqual(["assets", "preview"]);
     expect(assetPreview.positionals).toEqual(["game_123"]);
+    expect(exportWeb.command).toEqual(["export", "web"]);
+    expect(exportWeb.positionals).toEqual(["game_123"]);
+    expect(exportWeb.flags.get("output")).toEqual(["./build.zip"]);
     expect(review.flags.get("json")).toEqual(["true"]);
   });
 

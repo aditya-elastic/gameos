@@ -41,6 +41,7 @@ gameos next <project-id>
 gameos qa web <project-id>
 gameos review <project-id>
 gameos play <project-id>
+gameos export web <project-id>
 ```
 
 If browser QA cannot run, install Google Chrome or set `CHROME_PATH`. `gameos doctor` shows the active binary, data directory, Chrome readiness, and whether npm/Homebrew installs may be shadowing each other on PATH.
@@ -55,6 +56,7 @@ Then play, improve, or inspect:
 
 ```bash
 gameos play <project-id>
+gameos export web <project-id>
 gameos next <project-id>
 gameos improve <project-id> --yes
 gameos list
@@ -97,6 +99,8 @@ gameos build godot <project-id> --allow-heavy
 gameos build unity <project-id> --allow-heavy
 gameos qa web <project-id>
 gameos qa web <project-id> --static
+gameos export web <project-id>
+gameos export web <project-id> --output ./my-game.zip
 gameos artifact list <project-id>
 gameos artifact read <project-id> <artifact-name>
 gameos artifact read <project-id> <artifact-name> --full
@@ -114,7 +118,7 @@ Game OS is designed around reusable capabilities, not a handful of named demo ga
 
 Every project starts with a Global OS Designer review and a capability map. This designer owns ultra-global business expansion, category-defining product vision, ecosystem strategy, public package direction, universal product language, and release-blocking architecture governance before specialist agents narrow the work. Historical showcase games remain private regression fixtures; the public CLI should generate unfamiliar game ideas from reusable systems such as rules, physics, arcade loops, platforming, combat, economy, multiplayer, narrative, accessibility, localization readiness, camera, input, HUD, assets, storage, and QA.
 
-For asset-led Web games, Game OS blocks promotion unless the generated prototype passes role-fit assets, visible GameOS watermark, visual composition, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, deliberate pointer/touch input, reset/retry input, and Advanced Player QA. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
+For Web games, Game OS blocks promotion unless the generated prototype passes browser visual QA, visible GameOS watermark, readable play surface, no horizontal overflow, compact player-facing controls, and Advanced Player Council evidence for first-10-seconds, replay, control feel, clarity, difficulty curve, and visual maturity. Asset-led Web games also require role-fit assets, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, deliberate pointer/touch input, and reset/retry input. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
 
 ## Trust Review
 
@@ -141,6 +145,8 @@ The scorecard covers:
 - open-source release readiness
 
 Run `gameos diagnose <project-id>` for the exact blocker, failed capability, failed evidence, owning agent, and next best command. Use `--strict` in automation when `NEEDS_IMPROVEMENT` should fail the command.
+
+Use `gameos export web <project-id>` after browser QA/review to create a zipped local Web build with Game OS provenance, artifacts, QA evidence, and the required visible watermark.
 
 Run `npm run goal:audit`, `npm run acceptance:universal-trust`, `npm run acceptance:universal-deep`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, and open-source release evidence.
 

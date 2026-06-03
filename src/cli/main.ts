@@ -104,6 +104,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return build(parsed, options, subcommand);
     case "qa":
       return qa(parsed, options, subcommand);
+    case "export":
+      return exportProject(parsed, options, subcommand);
     case "artifact":
       return artifact(parsed, options, subcommand);
     default:
@@ -156,7 +158,7 @@ const valueFlags = new Set(["prompt", "platform", "engine", "genre", "audience",
 function commandArity(command: string[], token: string): number {
   if (command.length === 0) return 1;
   const first = command[0];
-  if (["agents", "assets", "build", "qa", "artifact"].includes(first)) return 2;
+  if (["agents", "assets", "build", "qa", "export", "artifact"].includes(first)) return 2;
   return 1;
 }
 
@@ -419,6 +421,18 @@ async function qa(parsed: ParsedArgv, options: CliOptions, lane?: string): Promi
   if (!ok) process.exitCode = result.status ?? 1;
 }
 
+async function exportProject(parsed: ParsedArgv, options: CliOptions, lane?: string): Promise<void> {
+  const projectId = parsed.positionals[0];
+  if (!projectId || lane !== "web") throw new Error("Usage: gameos export web <project-id> [--output ./build.zip]");
+  const { exportWebProject } = await import("./export");
+  const result = exportWebProject(projectId, firstFlag(parsed, "output") ?? "");
+  printResult(
+    options,
+    result,
+    [`Web export: ${result.outputPath}`, `Project: ${result.projectName} (${result.projectId})`, `Files: ${result.fileCount}`, `Bytes: ${result.bytes}`, "Watermark/provenance: included"].join("\n")
+  );
+}
+
 async function artifact(parsed: ParsedArgv, options: CliOptions, subcommand?: string): Promise<void> {
   const projectId = parsed.positionals[0];
   if (!projectId) throw new Error("Usage: gameos artifact list <project-id> OR gameos artifact read <project-id> <artifact>");
@@ -576,6 +590,7 @@ Usage:
   gameos build godot <project-id> --allow-heavy
   gameos build unity <project-id> --allow-heavy
   gameos qa web <project-id> [--static]
+  gameos export web <project-id> [--output ./build.zip]
   gameos artifact list <project-id>
   gameos artifact read <project-id> <artifact> [--full]
 
