@@ -33,14 +33,15 @@ export type CockpitState = {
 export function getCockpitState(projects: ProjectWorkspace[]): CockpitState {
   const sorted = [...projects].sort((left, right) => Date.parse(right.project.updatedAt) - Date.parse(left.project.updatedAt));
   const activeProject = sorted[0] ?? null;
-  const verdict = activeProject ? latestWebVerdict(activeProject) : "No project yet";
-  const blocker = activeProject ? oneLineBlocker(activeProject, verdict) : "Create your first game to start the studio.";
+  const rawVerdict = activeProject ? latestWebVerdict(activeProject) : "No project yet";
+  const verdict = activeProject ? friendlyCockpitVerdict(rawVerdict) : rawVerdict;
+  const blocker = activeProject ? oneLineBlocker(activeProject, rawVerdict) : "Create your first game to start the studio.";
 
   return {
     activeProject,
     verdict,
     blocker,
-    actions: rankCockpitActions(activeProject, verdict).slice(0, 5)
+    actions: rankCockpitActions(activeProject, rawVerdict).slice(0, 5)
   };
 }
 
@@ -59,8 +60,19 @@ export function rankCockpitActions(workspace: ProjectWorkspace | null, verdict =
   const hasWeb = workspace.artifacts.some((artifact) => artifact.kind === "web-adapter");
   const hasWebQa = workspace.artifacts.some((artifact) => artifact.kind === "web-playtest-report");
   const hasScorecard = workspace.artifacts.some((artifact) => artifact.kind === "studio-scorecard");
+  const needsBrowserQa = verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING";
   const worthPlaying = verdict.startsWith("WORTH_PLAYING");
   const failedQa = hasWebQa && !worthPlaying;
+
+  if (needsBrowserQa) {
+    return [
+      action("qa-web", "Run Browser QA", "Static QA passed; browser proof unlocks creator-test review.", "r"),
+      action("view-verdict", "View Blocker", "Show why browser QA is required.", "v"),
+      action("play", "Play Current Build", "Open the static-verified Web build.", "p"),
+      action("improve", "Improve", "Add feedback if browser QA still finds a blocker.", "i"),
+      action("quit", "Quit", "Leave Game OS Cockpit.", "q")
+    ];
+  }
 
   if (failedQa) {
     return [
@@ -99,8 +111,16 @@ export function oneLineBlocker(workspace: ProjectWorkspace, verdict = latestWebV
   }
   if (!workspace.artifacts.some((artifact) => artifact.kind === "web-adapter")) return "Web build has not been generated yet.";
   if (!workspace.artifacts.some((artifact) => artifact.kind === "web-playtest-report")) return "Web QA has not been run yet.";
+  if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Needs browser QA. Run gameos qa web to prove real browser playability.";
   if (verdict && !verdict.startsWith("WORTH_PLAYING") && verdict !== "not run") return verdict;
   return "none";
+}
+
+function friendlyCockpitVerdict(verdict: string): string {
+  if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Needs browser QA";
+  if (verdict.startsWith("WORTH_PLAYING")) return "Worth playing locally";
+  if (!verdict || verdict === "not run") return "Not run yet";
+  return verdict;
 }
 
 function latestWebVerdict(workspace: ProjectWorkspace): string {

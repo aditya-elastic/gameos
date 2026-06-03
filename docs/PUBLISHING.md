@@ -6,7 +6,7 @@
 npm ci
 npm run check
 npm run homebrew:audit
-npm run homebrew:update -- 0.4.0 --check
+npm run homebrew:update -- 0.4.1 --check
 npm pack --dry-run
 npm pack
 npm install -g ./gameos-*.tgz

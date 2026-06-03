@@ -11,7 +11,7 @@
 - Run `npm run acceptance:web-quality` on a machine with Chrome for the full asset-led Web quality proof.
 - Run `npm run release:audit` when debugging publish-boundary failures directly.
 - Run `npm run homebrew:audit` to verify published formulae and detect pending formula updates.
-- Run `npm run homebrew:update -- 0.4.0 --check` after npm publication to verify the updater against the currently published stable formula.
+- Run `npm run homebrew:update -- 0.4.1 --check` after npm publication to verify the updater against the currently published stable formula.
 - Run `npm pack --dry-run` and confirm the package contains only publish-safe files.
 - Run `npm pack`.
 - Install the tarball globally:
@@ -61,7 +61,7 @@ npm run homebrew:audit
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.4.0
+brew install aditya-elastic/gameos/gameos@0.4.1
 brew test gameos
 brew audit --strict gameos
 ```

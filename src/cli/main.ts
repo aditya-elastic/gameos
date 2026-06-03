@@ -1,8 +1,7 @@
 #!/usr/bin/env -S node --disable-warning=ExperimentalWarning
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { readArtifactContent, toProjectRelativeArtifactPath } from "../lib/artifacts";
@@ -22,6 +21,8 @@ import {
 import { parseMakeTarget, parseQuality, type QualityLevel } from "./quality";
 import { examplesPayload, renderExamplesText } from "./starter-ideas";
 import { runWebQa } from "./web-qa";
+import { DEFAULT_DATA_DIR, createDoctorReport, findChrome, findUnity, renderDoctorReportText } from "./doctor";
+import { VERSION } from "./version";
 
 type ParsedArgv = {
   command: string[];
@@ -36,9 +37,6 @@ type CliOptions = {
   allowHeavy: boolean;
   dataDir?: string;
 };
-
-const VERSION = "0.4.0";
-const DEFAULT_DATA_DIR = path.join(os.homedir(), ".gameos");
 
 process.on("warning", (warning) => {
   if (warning.name === "ExperimentalWarning" && warning.message.includes("SQLite")) return;
@@ -164,35 +162,8 @@ function commandArity(command: string[], token: string): number {
 
 async function doctor(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   const dataRoot = process.env.GAME_OS_DATA_DIR || DEFAULT_DATA_DIR;
-  const status = {
-    ok: true,
-    version: VERSION,
-    node: process.version,
-    dataRoot,
-    commands: {
-      chrome: Boolean(findChrome()),
-      godot: commandExists("godot"),
-      unity: Boolean(findUnity())
-    },
-    privacy: {
-      telemetry: false,
-      cloudCalls: false,
-      hiddenNetwork: false
-    }
-  };
-
-  const lines = [
-    `Game OS CLI ${VERSION}`,
-    `Node: ${process.version}`,
-    `Data: ${dataRoot}`,
-    `Chrome: ${status.commands.chrome ? "found" : "missing"}`,
-    `Godot: ${status.commands.godot ? "found" : "missing"}`,
-    `Unity: ${status.commands.unity ? "found" : "missing"}`,
-    "Telemetry: off",
-    "Cloud calls: none"
-  ];
-
-  printResult(options, status, lines.join("\n"));
+  const status = createDoctorReport({ dataRoot, argv1: process.argv[1] });
+  printResult(options, status, renderDoctorReportText(status));
 }
 
 async function cockpit(parsed: ParsedArgv, _options: CliOptions): Promise<void> {
@@ -568,32 +539,6 @@ function allFlags(parsed: ParsedArgv, name: string): string[] {
 
 function hasFlag(parsed: ParsedArgv, name: string): boolean {
   return parsed.flags.has(name);
-}
-
-function commandExists(command: string): boolean {
-  try {
-    execFileSync("which", [command], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function findChrome(): string {
-  const candidates = [
-    process.env.CHROME_PATH,
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium"
-  ].filter(Boolean) as string[];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? "";
-}
-
-function findUnity(): string {
-  const candidates = [
-    process.env.UNITY_PATH,
-    "/Applications/Unity/Hub/Editor/6000.4.1f1/Unity.app/Contents/MacOS/Unity"
-  ].filter(Boolean) as string[];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? "";
 }
 
 function unitySmokeCommand(projectRoot: string): string[] {

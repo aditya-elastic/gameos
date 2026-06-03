@@ -19,7 +19,18 @@ gameos examples
 gameos make --prompt "A one-button arcade game where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score in quick replayable web sessions." --target web-playable --quality fast --yes
 ```
 
-The command creates a local project, writes OS design and capability artifacts, generates a Web build, runs fast static QA, and prints the next command.
+The command creates a local project, writes OS design and capability artifacts, generates a Web build, runs fast static QA, and prints the next command. The normal first-user loop is:
+
+```bash
+gameos examples
+gameos make --prompt "..." --target web-playable --quality fast --yes
+gameos next <project-id>
+gameos qa web <project-id>
+gameos review <project-id>
+gameos play <project-id>
+```
+
+If browser QA cannot run, install Google Chrome or set `CHROME_PATH`. `gameos doctor` shows the active binary, data directory, Chrome readiness, and whether npm/Homebrew installs may be shadowing each other on PATH.
 
 For an asset-led Web prototype:
 
@@ -123,7 +134,7 @@ When `--assets` is provided, Game OS imports the pack, maps gameplay roles such 
 - Security And Privacy
 - Open Source Release Readiness
 
-Only `CREATOR_TEST_READY` promotes the final trust gate. `LOCAL_PROTOTYPE_READY` means the Web prototype has useful local evidence but should still be treated as a creator-testing artifact.
+Only `CREATOR_TEST_READY` promotes the final trust gate. It means the local Web prototype has enough evidence for creator playtesting, not commercial or platform publishing. `LOCAL_PROTOTYPE_READY` means the Web prototype has useful local evidence but should still be treated as a creator-testing artifact.
 
 For repository trust proof, run:
 

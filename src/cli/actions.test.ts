@@ -59,4 +59,25 @@ describe("cockpit action ranking", () => {
     expect(state.actions).toHaveLength(5);
     expect(state.actions.map((action) => action.label)).toEqual(["Play", "Improve", "Add Assets", "View Verdict", "Open Artifacts"]);
   });
+
+  it("prioritizes browser QA after static Web QA passes", () => {
+    const workspace = createStudioProject({
+      prompt: "A one-button arcade survival game with score, hazards, streaks, and fast retry.",
+      targetPlatforms: ["Web"],
+      enginePreference: "Web first"
+    });
+    generateWebAdapter(workspace.project.id);
+    const played = recordWebPlaytest(workspace.project.id, {
+      kind: "capability-web",
+      matches: 0,
+      timeouts: 0,
+      verdict: "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING"
+    });
+    const state = getCockpitState([played]);
+
+    expect(state.verdict).toBe("Needs browser QA");
+    expect(state.blocker).toContain("Needs browser QA");
+    expect(state.actions[0]?.label).toBe("Run Browser QA");
+    expect(state.actions[0]?.id).toBe("qa-web");
+  });
 });

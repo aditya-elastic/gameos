@@ -323,8 +323,8 @@ button:disabled {
 
 .watermark {
   position: absolute;
-  right: 18px;
-  bottom: 16px;
+  right: clamp(20px, 2.4vw, 30px);
+  bottom: clamp(20px, 2.4vw, 30px);
   padding: 5px 8px;
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.88);
@@ -1016,7 +1016,7 @@ function drawCanvasWatermark() {
   context.font = "800 13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
   context.textAlign = "right";
   context.fillStyle = "rgba(18, 34, 30, 0.58)";
-  context.fillText("Made with GameOS", canvas.width - 24, canvas.height - 22);
+  context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);
   context.restore();
 }
 
@@ -1750,7 +1750,7 @@ function drawCanvasWatermark() {
   context.font = "800 13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
   context.textAlign = "right";
   context.fillStyle = "rgba(18, 34, 30, 0.58)";
-  context.fillText("Made with GameOS", canvas.width - 24, canvas.height - 22);
+  context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);
   context.restore();
 }
 
@@ -2785,8 +2785,8 @@ button {
 
 .watermark {
   position: absolute;
-  right: 16px;
-  bottom: 14px;
+  right: clamp(20px, 2.4vw, 30px);
+  bottom: clamp(20px, 2.4vw, 30px);
   border-radius: 6px;
   padding: 5px 8px;
   color: rgba(255, 255, 255, 0.9);
@@ -3114,7 +3114,9 @@ function drawOverlay() {
   context.fillText(capabilityMap.primaryArchetype, 32, 66);
   context.fillText(capabilityHudLine(), 32, 88);
   context.fillStyle = "rgba(255,255,255,0.72)";
-  context.fillText("Made with GameOS", canvas.width - 170, canvas.height - 24);
+  context.textAlign = "right";
+  context.fillText("Made with GameOS", canvas.width - 32, canvas.height - 30);
+  context.textAlign = "left";
 }
 
 function capabilityHudLine() {
@@ -3555,8 +3557,8 @@ button:disabled {
 
 .watermark {
   position: absolute;
-  right: 18px;
-  bottom: 16px;
+  right: clamp(20px, 2.4vw, 30px);
+  bottom: clamp(20px, 2.4vw, 30px);
   padding: 5px 8px;
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.88);

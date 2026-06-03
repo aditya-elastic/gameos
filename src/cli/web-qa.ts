@@ -71,7 +71,7 @@ export async function runWebQa(projectId: string, options: WebQaOptions): Promis
 async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<{ workspace: ProjectWorkspace; report: WebQaReport }> {
   const chromePath = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   if (!fs.existsSync(chromePath)) {
-    throw new Error(`Chrome executable not found at ${chromePath}. Use --static for structure-only QA or set CHROME_PATH.`);
+    throw new Error(`Browser QA needs Google Chrome. Install Google Chrome or set CHROME_PATH. Checked: ${chromePath}. Use --static only when you want structure-only QA.`);
   }
 
   const { chromium } = await import("playwright-core");

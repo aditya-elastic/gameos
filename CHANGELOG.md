@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- Improves `gameos doctor` with active binary path, PATH shadowing detection, data directory, Chrome/Godot/Unity readiness, and clearer npm/Homebrew install guidance.
+- Prioritizes browser QA in `gameos next`, `gameos status`, `gameos journey`, and the cockpit after static Web QA passes.
+- Adds SQLite busy timeout, WAL mode, and retry handling so rapid local commands are less likely to fail with `database is locked`.
+- Adds friendlier Chrome guidance when browser QA cannot run.
+- Pads visible GameOS watermarks in generated Web builds so provenance stays visible without hugging the edge.
+- Updates quickstart docs around the full first-user loop: examples, make, next, browser QA, review, and play.
+
 ## 0.4.0
 
 - Adds first-run polish with `gameos init`, `gameos examples`, starter idea presets, and a friendlier cockpit action set.

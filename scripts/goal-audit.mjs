@@ -109,7 +109,7 @@ const categories = [
   ]),
   category("Security Privacy And Storage", [
     fileCheck("Security policy is local-first", "SECURITY.md", [/No telemetry/, /No hidden network calls/, /GAME_OS_DATA_DIR/]),
-    fileCheck("Doctor reports privacy posture", "src/cli/main.ts", [/telemetry: false/, /cloudCalls: false/, /hiddenNetwork: false/]),
+    fileCheck("Doctor reports privacy posture", "src/cli/doctor.ts", [/telemetry: false/, /cloudCalls: false/, /hiddenNetwork: false/]),
     fileCheck("Storage and memory managers are scored", "src/lib/scorecard.ts", [/Memory And Storage/, /Security And Privacy/, /Artifacts live under project root/]),
     fileCheck("Build Sentinel gates heavy work", "src/lib/agents.ts", [/Only one heavy engine\/build lane may run at a time/, /Unity, Godot, Xcode, SteamCMD, and headed QA commands must be serialized/])
   ]),

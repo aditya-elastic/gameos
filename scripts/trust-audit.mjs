@@ -24,7 +24,7 @@ console.log("GAMEOS_TRUST_AUDIT: PASS");
 console.log(JSON.stringify({ ok: true, package: `${packageJson.name}@${packageJson.version}`, verdicts: ["LOCAL_PROTOTYPE_READY", "CREATOR_TEST_READY", "NEEDS_IMPROVEMENT", "BLOCKED"], agents: agents.length }, null, 2));
 
 function checkPackage() {
-  assert(packageJson.version === "0.4.0", "package version must be 0.4.0 for the polish and universal acceptance release.");
+  assert(packageJson.version === "0.4.1", "package version must be 0.4.1 for the first-user polish patch release.");
   assert(packageJson.scripts?.["trust:audit"] === "node scripts/trust-audit.mjs", "package must expose trust:audit.");
   assert(packageJson.scripts?.["acceptance:universal-trust"] === "node scripts/universal-trust-acceptance.mjs", "package must expose acceptance:universal-trust.");
   assert(packageJson.scripts?.["acceptance:universal-deep"] === "node scripts/universal-deep-acceptance.mjs", "package must expose acceptance:universal-deep.");

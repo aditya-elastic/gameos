@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { createInterface } from "node:readline/promises";
@@ -11,6 +10,7 @@ import { createStudioProject, createStudioReview, generateWebAdapter, getStudioD
 import type { ProjectWorkspace } from "../lib/types";
 import { runWebQa } from "./web-qa";
 import { starterIdeas } from "./starter-ideas";
+import { createDoctorReport } from "./doctor";
 
 type CockpitOptions = {
   browser: boolean;
@@ -287,10 +287,8 @@ async function askLine(prompt: string): Promise<string> {
 }
 
 function doctorMessage(): string {
-  return [
-    `Node: ${process.version}`,
-    `Data: ${process.env.GAME_OS_DATA_DIR || path.join(os.homedir(), ".gameos")}`,
-    "Telemetry: off",
-    "Cloud calls: none"
-  ].join(" · ");
+  const report = createDoctorReport();
+  const installNote = report.install.shadowed ? " · npm/Homebrew PATH overlap detected" : "";
+  const chrome = report.commands.chrome ? "Chrome ready" : "Chrome missing: install Google Chrome or set CHROME_PATH";
+  return [`Node: ${report.node}`, `Data: ${report.dataRoot}`, chrome, "Telemetry: off", "Cloud calls: none"].join(" · ") + installNote;
 }

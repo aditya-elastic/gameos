@@ -14,6 +14,8 @@ import type {
 } from "./types";
 
 const databases = new Map<string, DatabaseSync>();
+const DEFAULT_BUSY_RETRIES = 6;
+const DEFAULT_BUSY_DELAY_MS = 35;
 
 export function getDatabasePath(): string {
   return path.join(getDataRoot(), "game-os.sqlite");
@@ -26,6 +28,7 @@ export function getDb(): DatabaseSync {
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
+  configureDatabase(db);
   migrate(db);
   databases.set(dbPath, db);
   return db;
@@ -40,138 +43,204 @@ export function closeDatabasesForTests(): void {
 }
 
 export function saveWorkspace(workspace: ProjectWorkspace): void {
-  const db = getDb();
-  db.exec("BEGIN");
+  withDatabaseRetry(() => {
+    const db = getDb();
+    let transactionStarted = false;
 
-  try {
-    insertProject(db, workspace.project);
-    insertBrief(db, workspace.brief);
-    insertAssetPlan(db, workspace.assetPlan);
-    replacePlatformPlans(db, workspace.project.id, workspace.platformPlans);
-    replaceQAGates(db, workspace.project.id, workspace.qaGates);
-    replaceAgentRuns(db, workspace.project.id, workspace.agents);
-    insertArtifacts(db, workspace.artifacts);
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      transactionStarted = true;
+      insertProject(db, workspace.project);
+      insertBrief(db, workspace.brief);
+      insertAssetPlan(db, workspace.assetPlan);
+      replacePlatformPlans(db, workspace.project.id, workspace.platformPlans);
+      replaceQAGates(db, workspace.project.id, workspace.qaGates);
+      replaceAgentRuns(db, workspace.project.id, workspace.agents);
+      insertArtifacts(db, workspace.artifacts);
+      db.exec("COMMIT");
+    } catch (error) {
+      rollbackQuietly(db, transactionStarted);
+      throw error;
+    }
+  });
 }
 
 export function listWorkspaces(): ProjectWorkspace[] {
-  const db = getDb();
-  const rows = db.prepare("SELECT id FROM projects ORDER BY created_at DESC").all() as unknown as Array<{ id: string }>;
-  return rows.map((row) => getWorkspace(row.id)).filter(Boolean) as ProjectWorkspace[];
+  return withDatabaseRetry(() => {
+    const db = getDb();
+    const rows = db.prepare("SELECT id FROM projects ORDER BY created_at DESC").all() as unknown as Array<{ id: string }>;
+    return rows.map((row) => getWorkspace(row.id)).filter(Boolean) as ProjectWorkspace[];
+  });
 }
 
 export function getWorkspace(projectId: string): ProjectWorkspace | null {
-  const db = getDb();
-  const project = getProject(db, projectId);
-  if (!project) return null;
+  return withDatabaseRetry(() => {
+    const db = getDb();
+    const project = getProject(db, projectId);
+    if (!project) return null;
 
-  const brief = getBrief(db, projectId);
-  const assetPlan = getAssetPlan(db, projectId);
-  const agents = getAgentRuns(db, projectId);
-  const platformPlans = getPlatformPlans(db, projectId);
-  const qaGates = getQAGates(db, projectId);
-  const artifacts = getArtifacts(db, projectId);
-  const studioPlanArtifact = artifacts.find((artifact) => artifact.kind === "studio-plan");
-  const studioPlan = studioPlanArtifact ? readArtifactContent(studioPlanArtifact.path) : "";
+    const brief = getBrief(db, projectId);
+    const assetPlan = getAssetPlan(db, projectId);
+    const agents = getAgentRuns(db, projectId);
+    const platformPlans = getPlatformPlans(db, projectId);
+    const qaGates = getQAGates(db, projectId);
+    const artifacts = getArtifacts(db, projectId);
+    const studioPlanArtifact = artifacts.find((artifact) => artifact.kind === "studio-plan");
+    const studioPlan = studioPlanArtifact ? readArtifactContent(studioPlanArtifact.path) : "";
 
-  if (!brief || !assetPlan) return null;
+    if (!brief || !assetPlan) return null;
 
-  return {
-    project,
-    brief,
-    agents,
-    assetPlan,
-    platformPlans,
-    qaGates,
-    artifacts,
-    studioPlan
-  };
+    return {
+      project,
+      brief,
+      agents,
+      assetPlan,
+      platformPlans,
+      qaGates,
+      artifacts,
+      studioPlan
+    };
+  });
 }
 
 export function getArtifact(projectId: string, artifactId: string): ArtifactRecord | null {
-  const db = getDb();
-  const row = db
-    .prepare("SELECT * FROM artifacts WHERE project_id = ? AND id = ?")
-    .get(projectId, artifactId) as unknown as ArtifactRow | undefined;
+  return withDatabaseRetry(() => {
+    const db = getDb();
+    const row = db
+      .prepare("SELECT * FROM artifacts WHERE project_id = ? AND id = ?")
+      .get(projectId, artifactId) as unknown as ArtifactRow | undefined;
 
-  if (!row) return null;
+    if (!row) return null;
 
-  return {
-    id: row.id,
-    projectId: row.project_id,
-    kind: row.kind as ArtifactRecord["kind"],
-    label: row.label,
-    path: row.path,
-    createdAt: row.created_at
-  };
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      kind: row.kind as ArtifactRecord["kind"],
+      label: row.label,
+      path: row.path,
+      createdAt: row.created_at
+    };
+  });
 }
 
 export function updateAgentRun(projectId: string, agent: AgentRun, artifact: ArtifactRecord): void {
-  const db = getDb();
-  db.exec("BEGIN");
+  withDatabaseRetry(() => {
+    const db = getDb();
+    let transactionStarted = false;
 
-  try {
-    const existing = db.prepare("SELECT created_at FROM agent_runs WHERE project_id = ? AND role = ?").get(projectId, agent.role) as unknown as
-      | { created_at: string }
-      | undefined;
-    const createdAt = existing?.created_at ?? agent.createdAt;
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      transactionStarted = true;
+      const existing = db.prepare("SELECT created_at FROM agent_runs WHERE project_id = ? AND role = ?").get(projectId, agent.role) as unknown as
+        | { created_at: string }
+        | undefined;
+      const createdAt = existing?.created_at ?? agent.createdAt;
 
-    db.prepare(
-      `INSERT INTO agent_runs (
-        id, project_id, role, title, input, output, status, artifacts_json, confidence, blockers_json, run_number, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(project_id, role) DO UPDATE SET
-        id = excluded.id,
-        title = excluded.title,
-        input = excluded.input,
-        output = excluded.output,
-        status = excluded.status,
-        artifacts_json = excluded.artifacts_json,
-        confidence = excluded.confidence,
-        blockers_json = excluded.blockers_json,
-        run_number = excluded.run_number,
-        updated_at = excluded.updated_at`
-    ).run(
-      agent.id,
-      projectId,
-      agent.role,
-      agent.title,
-      agent.input,
-      agent.output,
-      agent.status,
-      JSON.stringify([artifact]),
-      agent.confidence,
-      JSON.stringify(agent.blockers),
-      agent.runNumber,
-      createdAt,
-      agent.updatedAt
-    );
+      db.prepare(
+        `INSERT INTO agent_runs (
+          id, project_id, role, title, input, output, status, artifacts_json, confidence, blockers_json, run_number, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(project_id, role) DO UPDATE SET
+          id = excluded.id,
+          title = excluded.title,
+          input = excluded.input,
+          output = excluded.output,
+          status = excluded.status,
+          artifacts_json = excluded.artifacts_json,
+          confidence = excluded.confidence,
+          blockers_json = excluded.blockers_json,
+          run_number = excluded.run_number,
+          updated_at = excluded.updated_at`
+      ).run(
+        agent.id,
+        projectId,
+        agent.role,
+        agent.title,
+        agent.input,
+        agent.output,
+        agent.status,
+        JSON.stringify([artifact]),
+        agent.confidence,
+        JSON.stringify(agent.blockers),
+        agent.runNumber,
+        createdAt,
+        agent.updatedAt
+      );
 
-    insertArtifacts(db, [artifact]);
-    touchProject(db, projectId);
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+      insertArtifacts(db, [artifact]);
+      touchProject(db, projectId);
+      db.exec("COMMIT");
+    } catch (error) {
+      rollbackQuietly(db, transactionStarted);
+      throw error;
+    }
+  });
 }
 
 export function addArtifact(artifact: ArtifactRecord): void {
-  const db = getDb();
-  db.exec("BEGIN");
+  withDatabaseRetry(() => {
+    const db = getDb();
+    let transactionStarted = false;
 
-  try {
-    insertArtifacts(db, [artifact]);
-    touchProject(db, artifact.projectId);
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      transactionStarted = true;
+      insertArtifacts(db, [artifact]);
+      touchProject(db, artifact.projectId);
+      db.exec("COMMIT");
+    } catch (error) {
+      rollbackQuietly(db, transactionStarted);
+      throw error;
+    }
+  });
+}
+
+export function withDatabaseRetry<T>(
+  operation: () => T,
+  options: { retries?: number; baseDelayMs?: number } = {}
+): T {
+  const retries = options.retries ?? DEFAULT_BUSY_RETRIES;
+  const baseDelayMs = options.baseDelayMs ?? DEFAULT_BUSY_DELAY_MS;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return operation();
+    } catch (error) {
+      lastError = error;
+      if (!isSqliteBusyError(error) || attempt === retries) throw error;
+      sleepSync(baseDelayMs * (attempt + 1));
+    }
   }
+
+  throw lastError;
+}
+
+export function isSqliteBusyError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /database is locked|database is busy|SQLITE_BUSY|SQLITE_LOCKED/i.test(message);
+}
+
+function configureDatabase(db: DatabaseSync): void {
+  db.exec(`
+    PRAGMA busy_timeout = 5000;
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA foreign_keys = ON;
+  `);
+}
+
+function rollbackQuietly(db: DatabaseSync, transactionStarted: boolean): void {
+  if (!transactionStarted) return;
+  try {
+    db.exec("ROLLBACK");
+  } catch {
+    // The original database error is more useful than a failed cleanup.
+  }
+}
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 function migrate(db: DatabaseSync): void {

@@ -62,5 +62,5 @@ The npm/Homebrew go-live step still requires npm authentication. If npm returns 
 
 ```bash
 npm publish --otp <code>
-npm run homebrew:update -- 0.4.0
+npm run homebrew:update -- 0.4.1
 ```

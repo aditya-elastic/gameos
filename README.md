@@ -15,7 +15,7 @@ Homebrew release target:
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.4.0
+brew install aditya-elastic/gameos/gameos@0.4.1
 ```
 
 ## 60-Second Quickstart
@@ -33,6 +33,17 @@ gameos doctor
 gameos examples
 gameos make --prompt "A one-button arcade game where players swap lanes, dodge blockers, collect charge shards, build streaks, and chase a high score in quick replayable web sessions." --target web-playable --quality fast --yes
 ```
+
+After `make`, let Game OS tell you the smallest next step:
+
+```bash
+gameos next <project-id>
+gameos qa web <project-id>
+gameos review <project-id>
+gameos play <project-id>
+```
+
+If browser QA cannot run, install Google Chrome or set `CHROME_PATH`. `gameos doctor` shows the active binary, data directory, Chrome readiness, and whether npm/Homebrew installs may be shadowing each other on PATH.
 
 Asset-led Web prototype:
 
@@ -114,7 +125,7 @@ Run `gameos review <project-id>` after build and QA. It writes a `studio-scoreca
 - `NEEDS_IMPROVEMENT`
 - `BLOCKED`
 
-Game OS only claims local prototype or creator-test readiness in V1. Commercial launch claims require later engine export, platform compliance, packaging, and human review.
+Game OS only claims local prototype or creator-test readiness in V1. `CREATOR_TEST_READY` means a local Web build has enough evidence for creator playtesting; it is not a commercial, store, or platform publish claim. Commercial launch claims require later engine export, platform compliance, packaging, and human review.
 
 The scorecard covers:
 
@@ -172,7 +183,7 @@ npm run trust:audit
 npm run acceptance:web-quality
 npm run release:audit
 npm run homebrew:audit
-npm run homebrew:update -- 0.4.0 --check
+npm run homebrew:update -- 0.4.1 --check
 ```
 
 Publish checks:

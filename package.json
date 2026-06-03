@@ -1,6 +1,6 @@
 {
   "name": "gameos",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": false,
   "description": "Pure CLI local AI game studio runtime.",
   "type": "module",
