@@ -29,6 +29,7 @@ npm run goal:audit
 
 - The 21-agent swarm is present and each agent has usable skills.
 - Studio Director, Game Designer, Gameplay Developer, UX Flow Director, Game Feel Director, Physics Gameplay Engineer, Advanced Player, QA Director, Memory Manager, Storage Manager, Security Privacy Reviewer, Build Sentinel, and Open Source Release Engineer are wired into the system.
+- The ultra-friendly creator path is present through `gameos`/`gameos cockpit`, max-five action ranking, `gameos play`, and `gameos improve`.
 - The Cut Rope Web lane includes asset role mapping, no-goal-magnet physics, timing skill, agency, mastery, smooth and slow mouse blade input, reset/recut proof, watermarking, and Advanced Player gates.
 - Playable Web HUDs stay player-facing instead of leaking raw machine verdict constants; manifests and QA reports keep the exact machine-readable fields.
 - The open-source package includes release, security, privacy, Homebrew, CI, publishing, and contributor trust evidence.

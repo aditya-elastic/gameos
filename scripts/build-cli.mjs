@@ -8,14 +8,12 @@ fs.mkdirSync(outdir, { recursive: true });
 
 await build({
   entryPoints: ["src/cli/main.ts"],
-  outdir: "dist",
+  outfile: "dist/cli.js",
   bundle: true,
-  splitting: true,
+  splitting: false,
   platform: "node",
   target: ["node24"],
   format: "esm",
-  entryNames: "cli",
-  chunkNames: "chunks/[name]-[hash]",
   sourcemap: false,
   external: ["playwright-core"]
 });

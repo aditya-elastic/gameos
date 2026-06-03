@@ -52,6 +52,11 @@ export async function runCli(argv: string[]): Promise<void> {
     return;
   }
 
+  if (shouldLaunchCockpit(parsed.command.length, options)) {
+    const { startCockpit } = await import("./cockpit");
+    return startCockpit({ browser: true });
+  }
+
   if (parsed.command.length === 0 || hasFlag(parsed, "help") || hasFlag(parsed, "h")) {
     printResult(options, { ok: true, help: helpText() }, helpText());
     return;
@@ -62,6 +67,8 @@ export async function runCli(argv: string[]): Promise<void> {
   switch (command) {
     case "doctor":
       return doctor(parsed, options);
+    case "cockpit":
+      return cockpit(parsed, options);
     case "create":
       return createProject(parsed, options);
     case "make":
@@ -76,6 +83,10 @@ export async function runCli(argv: string[]): Promise<void> {
       return review(parsed, options);
     case "feedback":
       return feedback(parsed, options);
+    case "improve":
+      return improve(parsed, options);
+    case "play":
+      return play(parsed, options);
     case "agents":
       return agents(parsed, options, subcommand);
     case "assets":
@@ -123,7 +134,15 @@ export function parseArgv(argv: string[]): ParsedArgv {
   return { command, flags, positionals };
 }
 
-const valueFlags = new Set(["prompt", "platform", "engine", "genre", "audience", "target", "quality", "data-dir", "output", "name", "assets", "note"]);
+export function shouldLaunchCockpit(
+  commandLength: number,
+  options: Pick<CliOptions, "json">,
+  streams: { stdin?: { isTTY?: boolean }; stdout?: { isTTY?: boolean } } = { stdin: process.stdin, stdout: process.stdout }
+): boolean {
+  return commandLength === 0 && !options.json && Boolean(streams.stdin?.isTTY && streams.stdout?.isTTY);
+}
+
+const valueFlags = new Set(["prompt", "platform", "engine", "genre", "audience", "target", "quality", "data-dir", "output", "name", "assets", "note", "port"]);
 
 function commandArity(command: string[], token: string): number {
   if (command.length === 0) return 1;
@@ -163,6 +182,11 @@ async function doctor(parsed: ParsedArgv, options: CliOptions): Promise<void> {
   ];
 
   printResult(options, status, lines.join("\n"));
+}
+
+async function cockpit(parsed: ParsedArgv, _options: CliOptions): Promise<void> {
+  const { startCockpit } = await import("./cockpit");
+  return startCockpit({ browser: !hasFlag(parsed, "static") });
 }
 
 async function createProject(parsed: ParsedArgv, options: CliOptions): Promise<void> {
@@ -248,6 +272,52 @@ async function feedback(parsed: ParsedArgv, options: CliOptions): Promise<void> 
     options,
     projectPayload(workspace),
     [`Feedback recorded for ${workspace.project.name}.`, `Next: gameos agents rerun ${workspace.project.id} visual-quality-director`].join("\n")
+  );
+}
+
+async function improve(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const { improveProjectWithAutopilot } = await import("./autopilot");
+  const projectId = parsed.positionals[0];
+  const note = firstFlag(parsed, "note") || parsed.positionals.slice(1).join(" ");
+  if (!projectId || !note) throw new Error('Usage: gameos improve <project-id> --note "what should change" --yes');
+  if (!options.yes) throw new Error("Autopilot improve writes feedback, agent, build, QA, and review artifacts. Re-run with --yes.");
+
+  const result = await improveProjectWithAutopilot(projectId, note, { browser: !hasFlag(parsed, "static") });
+  const payload = {
+    status: result.status,
+    project: projectPayload(result.workspace),
+    roles: result.roles,
+    qaVerdict: result.qaVerdict,
+    reviewVerdict: result.reviewVerdict,
+    blocker: result.blocker
+  };
+  const text = [
+    result.status,
+    `Project: ${result.workspace.project.name} (${result.workspace.project.id})`,
+    `Agents rerun: ${result.roles.join(", ")}`,
+    `QA verdict: ${result.qaVerdict}`,
+    `Review verdict: ${result.reviewVerdict}`,
+    `Blocker: ${result.blocker}`,
+    `Next: ${result.status === "Improved" ? `gameos play ${result.workspace.project.id}` : `gameos journey ${result.workspace.project.id}`}`
+  ].join("\n");
+
+  printResult(options, payload, text);
+  if (result.status !== "Improved") process.exitCode = 1;
+}
+
+async function play(parsed: ParsedArgv, options: CliOptions): Promise<void> {
+  const { playProject } = await import("./play");
+  const projectId = parsed.positionals[0];
+  if (!projectId) throw new Error("Usage: gameos play <project-id> [--port 4183] [--no-open]");
+  const portValue = firstFlag(parsed, "port");
+  const port = portValue ? Number.parseInt(portValue, 10) : 0;
+  if (Number.isNaN(port) || port < 0 || port > 65535) throw new Error(`Invalid --port value: ${portValue}`);
+  const playServer = await playProject(projectId, { port, open: !hasFlag(parsed, "no-open") });
+
+  printResult(
+    options,
+    { url: playServer.url, projectRoot: playServer.projectRoot },
+    [`Play URL: ${playServer.url}`, `Project root: ${playServer.projectRoot}`, "Press Ctrl+C to stop the local server."].join("\n")
   );
 }
 
@@ -472,6 +542,8 @@ function helpText(): string {
 Game OS CLI
 
 Usage:
+  gameos
+  gameos cockpit
   gameos doctor [--json]
   gameos create --prompt "..." --platform Web
   gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
@@ -480,6 +552,8 @@ Usage:
   gameos journey <project-id>
   gameos review <project-id>
   gameos feedback <project-id> --note "what got stuck or should improve"
+  gameos improve <project-id> --note "what should change" --yes
+  gameos play <project-id>
   gameos agents run <project-id>
   gameos agents rerun <project-id> <role>
   gameos assets import <project-id> ./assets.zip
@@ -495,6 +569,7 @@ Global options:
   --data-dir DIR  Store Game OS data in DIR. Defaults to ~/.gameos.
   --full          Print complete artifact content.
   --allow-heavy   Allow long-running Godot/Unity work.
+  --yes           Allow Autopilot commands that write new artifacts.
 `.trim();
 }
 

@@ -5,6 +5,8 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 ## Local CLI Experience
 
 - `npm install -g gameos` installs a `gameos` binary.
+- `gameos` opens the keyboard-first Cockpit in an interactive terminal and prints help in non-interactive shells.
+- `gameos cockpit` opens the same guided flow explicitly.
 - `gameos doctor` reports Node, data root, optional engines, privacy posture, and readiness.
 - `gameos make --target web-playable --quality fast` creates a local project from one prompt.
 - `gameos make --target web-playable --assets ./assets.zip --quality standard` imports assets, maps gameplay roles, builds Web, runs QA, and prints a verdict.
@@ -13,6 +15,8 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - `gameos review <project-id>` creates a 10-category `studio-scorecard` and fails unless every category is 10/10.
 - `npm run goal:audit` verifies the repository-level 10/10 local-readiness proof across agents, skills, UX, security, game direction, gameplay development, QA, and open-source release evidence.
 - `gameos feedback <project-id> --note "..."` records creator feedback for regeneration.
+- `gameos improve <project-id> --note "..." --yes` records feedback, reruns routed agents, rebuilds Web, reruns QA, and writes a studio review.
+- `gameos play <project-id>` starts a local Web play server and prints the playable URL.
 - `gameos artifact read` is summary-first and requires `--full` for full output.
 - `--json` works for core commands.
 

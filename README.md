@@ -21,6 +21,14 @@ brew install aditya-elastic/gameos/gameos@0.2.0
 ## 60-Second Quickstart
 
 ```bash
+gameos
+```
+
+In an interactive terminal, `gameos` opens the Game OS Cockpit: a keyboard-first studio flow with at most five actions on screen. Use arrows, Enter, and hotkeys like `n` for new game, `p` to play, `i` to improve, `a` to add assets, `v` for verdict, and `q` to quit.
+
+Command mode is still available for AI coding agents, scripts, and advanced users:
+
+```bash
 gameos doctor
 gameos make --prompt "A small Ludo game for creator playtesting with dice, tokens, captures, safe squares, and a fast web prototype." --target web-playable --quality fast --yes
 ```
@@ -31,9 +39,11 @@ Asset-led Web prototype:
 gameos make --prompt "A rope-cut physics puzzle where the player drops candy into a hungry character and collects stars." --target web-playable --assets ./assets.zip --quality standard --yes
 ```
 
-Then inspect:
+Then play, improve, or inspect:
 
 ```bash
+gameos play <project-id>
+gameos improve <project-id> --note "make the rope easier to cut and polish the background" --yes
 gameos list
 gameos status <project-id>
 gameos journey <project-id>
@@ -46,6 +56,8 @@ gameos artifact read <project-id> game-bible
 ## Commands
 
 ```bash
+gameos
+gameos cockpit
 gameos doctor
 gameos create --prompt "..." --platform Web
 gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
@@ -54,6 +66,8 @@ gameos status <project-id>
 gameos journey <project-id>
 gameos review <project-id>
 gameos feedback <project-id> --note "what got stuck or should improve"
+gameos improve <project-id> --note "what should change" --yes
+gameos play <project-id>
 gameos agents run <project-id>
 gameos agents rerun <project-id> <role>
 gameos assets import <project-id> ./assets.zip

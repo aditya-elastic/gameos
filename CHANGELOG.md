@@ -3,6 +3,7 @@
 ## 0.2.0
 
 - Adds `gameos make --assets` for the one-command asset-led Web creator journey.
+- Adds the Game OS Cockpit TUI through `gameos`/`gameos cockpit`, plus `gameos play` and `gameos improve` for no-command game iteration.
 - Adds `gameos journey` and `gameos feedback` for blocker diagnosis and creator feedback routing.
 - Adds Asset Pipeline Director, Visual Quality Director, and Physics Gameplay Engineer swarm roles.
 - Upgrades Cut Rope style Web generation with role-based asset selection, polished procedural fallback, reset debouncing, canvas/DOM GameOS watermark, and cleaner HUD composition.

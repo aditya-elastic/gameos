@@ -48,9 +48,11 @@ const categories = [
     fileCheck("Playable builds must be testable", "src/lib/agents.ts", [/No playable build is accepted unless the implementation can be tested by the QA Director and challenged by the Advanced Player/])
   ]),
   category("Creator UX Flow", [
-    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "make"/, /case "journey"/, /case "review"/, /case "feedback"/, /case "artifact"/]),
+    fileCheck("CLI exposes core creator commands", "src/cli/main.ts", [/case "cockpit"/, /case "make"/, /case "journey"/, /case "review"/, /case "feedback"/, /case "improve"/, /case "play"/, /case "artifact"/]),
+    fileCheck("Cockpit keeps actions simple", "src/cli/actions.ts", [/slice\(0, 5\)/, /Create Game/, /Fix With Autopilot/]),
+    fileCheck("Cockpit uses keyboard-first controls", "src/cli/cockpit.ts", [/Game OS Cockpit/, /↑\/↓ select/, /n new/, /i improve/]),
     fileCheck("CLI output explains blockers", "src/cli/output.ts", [/Current blockers/, /Next best command/, /Advanced Player did not approve/]),
-    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos make/, /gameos journey/, /gameos feedback/, /Studio Review/]),
+    fileCheck("Docs explain the command journey", "docs/CLI.md", [/gameos cockpit/, /gameos improve/, /gameos play/, /Studio Review/]),
     fileCheck("Artifact output is summary-first", "src/cli/main.ts", [/--full/, /summarizeArtifactContent/]),
     fileCheck("Playable HUD labels are player-facing", "src/lib/web-adapter.ts", [/formatGameOsStatusLabel/, /displayStatusLabel/])
   ]),

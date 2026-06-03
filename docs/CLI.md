@@ -6,6 +6,14 @@ Game OS is a pure local command-line game studio runtime. It does not require a 
 
 ```bash
 npm install -g gameos
+gameos
+```
+
+In an interactive terminal, `gameos` opens the Game OS Cockpit. The user selects from a short, ranked action list with arrows, Enter, and hotkeys: `n` new game, `p` play, `i` improve, `a` assets, `v` verdict, and `q` quit.
+
+For command mode:
+
+```bash
 gameos doctor
 gameos make --prompt "A small Ludo game for creator playtesting with dice, tokens, captures, and a fast web prototype." --target web-playable --quality fast --yes
 ```
@@ -37,6 +45,8 @@ GAME_OS_DATA_DIR=./my-gameos-data gameos list
 ## Core Commands
 
 ```bash
+gameos
+gameos cockpit
 gameos doctor
 gameos create --prompt "..." --platform Web
 gameos make --prompt "..." --target web-playable --assets ./assets.zip --quality fast|standard|strict
@@ -45,6 +55,8 @@ gameos status <project-id>
 gameos journey <project-id>
 gameos review <project-id>
 gameos feedback <project-id> --note "what got stuck or should improve"
+gameos improve <project-id> --note "what should change" --yes
+gameos play <project-id>
 gameos assets import <project-id> ./assets.zip
 gameos build web <project-id>
 gameos qa web <project-id>
