@@ -6,7 +6,7 @@
 npm ci
 npm run check
 npm run homebrew:audit
-npm run homebrew:update -- 0.4.1 --check
+npm run homebrew:update -- 0.6.0 --check
 npm pack --dry-run
 npm pack
 npm install -g ./gameos-*.tgz
@@ -52,7 +52,6 @@ npm run homebrew:update -- "$VERSION" --check
 npm run homebrew:audit
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@"$VERSION"
 brew test gameos
 brew audit --strict gameos
 ```

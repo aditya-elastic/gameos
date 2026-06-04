@@ -11,7 +11,7 @@
 - Run `npm run acceptance:web-quality` on a machine with Chrome for the full asset-led Web quality proof.
 - Run `npm run release:audit` when debugging publish-boundary failures directly.
 - Run `npm run homebrew:audit` to verify published formulae and detect pending formula updates.
-- Run `npm run homebrew:update -- 0.4.1 --check` after npm publication to verify the updater against the currently published stable formula.
+- Run `npm run homebrew:update -- 0.6.0 --check` after npm publication to verify the updater against the currently published stable formula.
 - Run `npm pack --dry-run` and confirm the package contains only publish-safe files.
 - Run `npm pack`.
 - Install the tarball globally:
@@ -61,7 +61,6 @@ npm run homebrew:audit
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.4.1
 brew test gameos
 brew audit --strict gameos
 ```
@@ -71,6 +70,8 @@ brew audit --strict gameos
 - `gameos doctor` explains local readiness.
 - `gameos make` creates a project, Web build, and QA report.
 - `gameos make --assets` imports assets, writes a role preview manifest, and runs worth-playing Web gates.
+- `gameos build godot|unity --allow-heavy` consumes capability-map and acceptance-profile evidence when generating optional engine lanes.
+- `gameos qa godot|unity --allow-heavy` writes `engine-qa-report` artifacts with command output, provenance, watermark policy, and local-only boundaries.
 - `gameos examples`, `gameos next`, `gameos assets preview`, and `gameos export web` make the user journey friendly without requiring command memorization.
 - `gameos review <project-id>` writes `studio-scorecard.md` and reaches an evidence-backed trust tier.
 - `gameos diagnose <project-id>` explains blocker, failed capability, failed evidence, owning agent, and next command.

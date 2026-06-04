@@ -15,7 +15,7 @@ Homebrew release target:
 ```bash
 brew tap aditya-elastic/gameos
 brew install gameos
-brew install aditya-elastic/gameos/gameos@0.4.1
+brew install aditya-elastic/gameos/gameos@0.1.0
 ```
 
 ## 60-Second Quickstart
@@ -99,6 +99,8 @@ gameos build godot <project-id> --allow-heavy
 gameos build unity <project-id> --allow-heavy
 gameos qa web <project-id>
 gameos qa web <project-id> --static
+gameos qa godot <project-id> --allow-heavy
+gameos qa unity <project-id> --allow-heavy
 gameos export web <project-id>
 gameos export web <project-id> --output ./my-game.zip
 gameos artifact list <project-id>
@@ -148,6 +150,12 @@ Run `gameos diagnose <project-id>` for the exact blocker, failed capability, fai
 
 Use `gameos export web <project-id>` after browser QA/review to create a zipped local Web build with Game OS provenance, artifacts, QA evidence, and the required visible watermark.
 
+## Engine Lane Parity
+
+Godot and Unity are optional heavy local lanes. When selected, their generated adapters now consume the same capability map and acceptance profile as Web, write adapter manifests with `generatedBy: "Game OS"`, require the visible `Made with GameOS` watermark, and record `engine-qa-report` artifacts when `gameos qa godot|unity --allow-heavy` runs.
+
+These lanes prove local engine scaffolding and smoke-test readiness only. They do not claim commercial launch readiness, store submission readiness, platform compliance, packaging completeness, or direct publishing automation.
+
 Run `npm run goal:audit`, `npm run acceptance:universal-trust`, `npm run acceptance:universal-deep`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, and open-source release evidence.
 
 ## Data And Privacy
@@ -189,7 +197,7 @@ npm run trust:audit
 npm run acceptance:web-quality
 npm run release:audit
 npm run homebrew:audit
-npm run homebrew:update -- 0.4.1 --check
+npm run homebrew:update -- 0.6.0 --check
 ```
 
 Publish checks:

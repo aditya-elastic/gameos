@@ -20,6 +20,7 @@ npm run goal:audit
 - Creator UX Flow
 - Asset Pipeline And Visual Quality
 - Web Game Playability
+- Engine Lane Parity
 - QA Player Agent Evidence
 - Security Privacy And Storage
 - Open Source Release Readiness
@@ -33,6 +34,7 @@ npm run goal:audit
 - Game OS generates OS design review, capability map, acceptance profile, architecture risk report, and upgrade doctrine artifacts so examples cannot become accidental product architecture.
 - The ultra-friendly creator path is present through `gameos`/`gameos init`/`gameos cockpit`, starter ideas, max-five action ranking, `gameos next`, `gameos play`, `gameos assets preview`, and `gameos improve`.
 - The Web quality proof includes asset role mapping, no-goal-magnet physics, timing skill, agency, mastery, smooth and slow pointer input, reset/retry proof, watermarking, and Advanced Player gates.
+- Godot and Unity adapter scaffolds consume the same capability map, acceptance profile, watermark policy, provenance, and local-only boundary as the Web lane, with QA evidence recorded through `engine-qa-report`.
 - Playable Web HUDs stay player-facing instead of leaking raw machine verdict constants; manifests and QA reports keep the exact machine-readable fields.
 - The open-source package includes release, security, privacy, Homebrew, CI, publishing, and contributor trust evidence.
 - The acceptance paths can prove capability maps, acceptance profiles, Web builds, watermark/provenance, QA reports, and honest trust diagnosis across multiple prompt families.
@@ -62,5 +64,5 @@ The npm/Homebrew go-live step still requires npm authentication. If npm returns 
 
 ```bash
 npm publish --otp <code>
-npm run homebrew:update -- 0.4.1
+npm run homebrew:update -- 0.6.0
 ```

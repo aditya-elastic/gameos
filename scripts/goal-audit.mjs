@@ -95,6 +95,13 @@ const categories = [
     fileCheck("Web smoke requires watermark and slow blade", "scripts/web-smoke.mjs", [/GameOS watermark/, /hasSlowMouseBlade/, /slow human mouse blade/]),
     fileCheck("Web smoke rejects machine-verdict HUD leaks", "scripts/web-smoke.mjs", [/Visible HUD leaked machine verdict constants/])
   ]),
+  category("Engine Lane Parity", [
+    fileCheck("Godot adapter consumes universal doctrine", "src/lib/godot-adapter.ts", [/createCapabilityMap/, /createAcceptanceProfile/, /acceptanceProfile/, /Made with GameOS/, /Local Godot engine test lane/]),
+    fileCheck("Unity adapter consumes universal doctrine", "src/lib/unity-adapter.ts", [/createCapabilityMap/, /createAcceptanceProfile/, /acceptanceProfile/, /Made with GameOS/, /Local Unity engine test lane/]),
+    fileCheck("Heavy-lane QA records artifacts", "src/lib/studio.ts", [/recordEngineQa/, /engine-qa-report/, /ENGINE_QA_PASS/, /Watermark required: true/]),
+    fileCheck("CLI heavy-lane QA exposes evidence", "src/cli/main.ts", [/gameos qa godot/, /gameos qa unity/, /recordEngineQa/, /local engine test lane only/]),
+    fileCheck("Engine parity tests exist", "src/lib/studio.integration.test.ts", [/records engine QA evidence/, /Godot adapter scaffold from capability/, /Unity adapter scaffold from capability/])
+  ]),
   category("QA Player Agent Evidence", [
     scriptCheck("acceptance:web-quality", "node scripts/web-quality-acceptance.mjs"),
     scriptCheck("acceptance:universal-trust", "node scripts/universal-trust-acceptance.mjs"),

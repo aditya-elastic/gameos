@@ -12,6 +12,7 @@ import {
   generateWebAdapter,
   getStudioDashboard,
   importProjectAssets,
+  recordEngineQa,
   recordUserFeedback,
   recordUnityAdvancedPlaytest,
   recordWebPlaytest,
@@ -119,7 +120,7 @@ describe("studio workflow", () => {
     }
   });
 
-  it("generates a Godot adapter scaffold for turn-based board-race", () => {
+  it("generates a Godot adapter scaffold from capability and acceptance evidence", () => {
     const workspace = createStudioProject({
       prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Godot", "PC Test"],
@@ -130,18 +131,28 @@ describe("studio workflow", () => {
     const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "godot-adapter");
     const godotRoot = path.join(dataDir, "projects", workspace.project.id, "godot");
 
-    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Godot Adapter");
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Godot Engine Adapter");
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Capability And Acceptance");
     expect(fs.existsSync(path.join(godotRoot, "project.godot"))).toBe(true);
     expect(fs.readFileSync(path.join(godotRoot, "scripts", "turn_rules.gd"), "utf8")).toContain("win_token_target");
     expect(fs.readFileSync(path.join(godotRoot, "scripts", "adapter_smoke.gd"), "utf8")).toContain("GODOT_ADAPTER_SMOKE");
-    expect(fs.readFileSync(path.join(godotRoot, "scripts", "player_agent.gd"), "utf8")).toContain("WORTH_PLAYING_FOR_RULES_PROTOTYPE");
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "adapter_smoke.gd"), "utf8")).toContain("acceptanceProfile");
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "main.gd"), "utf8")).toContain("GameOSWatermark");
+    expect(fs.readFileSync(path.join(godotRoot, "scripts", "player_agent.gd"), "utf8")).toContain("ENGINE_RULES_PLAYER_PROOF_PASS");
+    const manifest = JSON.parse(fs.readFileSync(path.join(godotRoot, "adapter-manifest.json"), "utf8"));
+    expect(manifest.capabilityMap.required).toBe(true);
+    expect(manifest.capabilityMap.selectedCapabilities).toContain("rules");
+    expect(manifest.acceptanceProfile.required).toBe(true);
+    expect(manifest.watermark.required).toBe(true);
+    expect(manifest.watermark.label).toBe("Made with GameOS");
+    expect(manifest.publishBoundary).toContain("Local Godot engine test lane");
 
     const regenerated = generateGodotAdapter(workspace.project.id);
     const regeneratedArtifact = regenerated.artifacts.find((artifact) => artifact.kind === "godot-adapter");
     expect(regeneratedArtifact?.id).toBe(adapterArtifact?.id);
   });
 
-  it("generates a Unity adapter scaffold for turn-based board-race", () => {
+  it("generates a Unity adapter scaffold from capability and acceptance evidence", () => {
     const workspace = createStudioProject({
       prompt: privateTurnRulesPrompt(),
       targetPlatforms: ["Unity", "PC Test"],
@@ -152,14 +163,24 @@ describe("studio workflow", () => {
     const adapterArtifact = updated.artifacts.find((artifact) => artifact.kind === "unity-adapter");
     const unityRoot = path.join(dataDir, "projects", workspace.project.id, "unity");
 
-    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Unity Adapter");
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Unity Engine Adapter");
+    expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("Capability And Acceptance");
     expect(fs.existsSync(path.join(unityRoot, "ProjectSettings", "ProjectVersion.txt"))).toBe(true);
     expect(fs.readFileSync(path.join(unityRoot, "Assets", "Scripts", "TurnRulesEngine.cs"), "utf8")).toContain("WinTokenTarget");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Scripts", "TurnRulesUnityController.cs"), "utf8")).toContain("GameOsWatermarkLabel");
     expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnitySmoke.cs"), "utf8")).toContain("UNITY_ADAPTER_SMOKE");
-    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityPlayerAgent.cs"), "utf8")).toContain("WORTH_PLAYING_FOR_RULES_PROTOTYPE");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnitySmoke.cs"), "utf8")).toContain("watermark label");
+    expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityPlayerAgent.cs"), "utf8")).toContain("ENGINE_RULES_PLAYER_PROOF_PASS");
     expect(fs.readFileSync(path.join(unityRoot, "Assets", "Editor", "GameOsUnityAdvancedPlaytest.cs"), "utf8")).toContain(
       "UNITY_ADVANCED_PLAYTEST_REPORT"
     );
+    const manifest = JSON.parse(fs.readFileSync(path.join(unityRoot, "unity-adapter-manifest.json"), "utf8"));
+    expect(manifest.capabilityMap.required).toBe(true);
+    expect(manifest.capabilityMap.selectedCapabilities).toContain("rules");
+    expect(manifest.acceptanceProfile.required).toBe(true);
+    expect(manifest.watermark.required).toBe(true);
+    expect(manifest.watermark.label).toBe("Made with GameOS");
+    expect(manifest.publishBoundary).toContain("Local Unity engine test lane");
 
     const regenerated = generateUnityAdapter(workspace.project.id);
     const regeneratedArtifact = regenerated.artifacts.find((artifact) => artifact.kind === "unity-adapter");
@@ -175,7 +196,7 @@ describe("studio workflow", () => {
 
     generateUnityAdapter(workspace.project.id);
     const updated = recordUnityAdvancedPlaytest(workspace.project.id, {
-      agent: "Advanced Player - Unity Table Strategist",
+      agent: "Advanced Player Council - Unity Engine Lane",
       claim: "scene-aware advanced-player playtest",
       matches: 12,
       average_turns: 208.3,
@@ -191,6 +212,7 @@ describe("studio workflow", () => {
       release_choices: 286,
       scene_loaded: true,
       controller_found: true,
+      watermark_found: true,
       verdict: "ADVANCED_PLAYER_APPROVED_UNITY_SLICE"
     });
     const artifact = updated.artifacts.find((item) => item.kind === "unity-playtest-report");
@@ -198,6 +220,46 @@ describe("studio workflow", () => {
     expect(artifact?.label).toBe("Unity Advanced Playtest");
     expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("ADVANCED_PLAYER_APPROVED_UNITY_SLICE");
     expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("Branching decisions: 1849");
+    expect(artifact && fs.readFileSync(artifact.path, "utf8")).toContain("Watermark found: true");
+  });
+
+  it("records engine QA evidence as capability-governed artifacts", () => {
+    const workspace = createStudioProject({
+      prompt: privateTurnRulesPrompt(),
+      targetPlatforms: ["Godot", "Unity", "PC Test"],
+      enginePreference: "Engine parity"
+    });
+
+    generateGodotAdapter(workspace.project.id);
+    generateUnityAdapter(workspace.project.id);
+
+    const godotQa = recordEngineQa(workspace.project.id, {
+      lane: "godot",
+      command: ["godot", "--headless", "--path", "godot", "-s", "res://scripts/adapter_smoke.gd"],
+      projectRoot: path.join(dataDir, "projects", workspace.project.id, "godot"),
+      ok: true,
+      status: 0,
+      stdout: "GODOT_ADAPTER_SMOKE: PASS",
+      stderr: ""
+    });
+    const unityQa = recordEngineQa(workspace.project.id, {
+      lane: "unity",
+      command: ["Unity", "-batchmode", "-projectPath", "unity", "-executeMethod", "GameOS.Editor.GameOsUnitySmoke.Run"],
+      projectRoot: path.join(dataDir, "projects", workspace.project.id, "unity"),
+      ok: false,
+      status: 1,
+      stdout: "",
+      stderr: "simulated missing editor"
+    });
+    const reports = unityQa.artifacts.filter((artifact) => artifact.kind === "engine-qa-report");
+    const godotReport = godotQa.artifacts.find((artifact) => artifact.path.endsWith("godot-engine-qa-report.md"));
+    const unityReport = unityQa.artifacts.find((artifact) => artifact.path.endsWith("unity-engine-qa-report.md"));
+
+    expect(reports.length).toBe(2);
+    expect(godotReport && fs.readFileSync(godotReport.path, "utf8")).toContain("ENGINE_QA_PASS");
+    expect(godotReport && fs.readFileSync(godotReport.path, "utf8")).toContain("Watermark required: true");
+    expect(unityReport && fs.readFileSync(unityReport.path, "utf8")).toContain("ENGINE_QA_BLOCKED");
+    expect(unityReport && fs.readFileSync(unityReport.path, "utf8")).toContain("Capability map:");
   });
 
   it("generates and records a capability Web adapter for private rules regression prompts", () => {

@@ -26,11 +26,12 @@ There is no required website, plugin, MCP server, account, telemetry, or cloud s
 6. `gameos build web` creates the first playable lane.
 7. `gameos qa web` records static or browser player-agent evidence, including visual screenshots for browser QA.
 8. `gameos export web` packages the playable Web build with provenance, QA reports, and required watermark metadata.
-9. `gameos journey` reports stage-by-stage blockers.
-10. `gameos review` creates the studio trust scorecard and promotes the final trust gate only when creator-test evidence passes.
-11. `gameos diagnose` names the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command.
-12. `gameos feedback` records creator feedback for agent regeneration.
-13. Godot and Unity lanes require `--allow-heavy`.
+9. `gameos build godot|unity --allow-heavy` creates optional local engine lanes that consume the same capability map and acceptance profile.
+10. `gameos qa godot|unity --allow-heavy` records an `engine-qa-report` artifact with command output, Game OS provenance, watermark policy, and the local-only engine boundary.
+11. `gameos journey` reports stage-by-stage blockers.
+12. `gameos review` creates the studio trust scorecard and promotes the final trust gate only when creator-test evidence passes.
+13. `gameos diagnose` names the current verdict, blocker, failed capability, failed evidence, owning agent, and next best command.
+14. `gameos feedback` records creator feedback for agent regeneration.
 
 ## Agent Roles
 
@@ -74,6 +75,12 @@ There is no required website, plugin, MCP server, account, telemetry, or cloud s
 ## Web Worth-Playing Doctrine
 
 Asset-led Web prototypes are not promoted by render success alone. `WORTH_PLAYING` requires role-fit assets, visible GameOS watermark, coherent screenshot composition, readable physics without hidden goal attraction, timing skill, player agency, mastery proof, smooth primary gesture input, deliberate pointer/touch input, reset/retry input proof, and Advanced Player approval. Partial asset packs may still produce playable prototypes, but `gameos journey` must explain the blocker.
+
+## Engine Lane Parity Doctrine
+
+Godot and Unity adapters are local heavy lanes, not product strategy. They must consume the project capability map and acceptance profile, include Game OS provenance in their manifests, display the required `Made with GameOS` watermark at runtime, and record local QA evidence through `engine-qa-report` artifacts.
+
+Engine lane QA proves local adapter scaffolding, runtime watermark policy, smoke-test command execution, and capability-governed evidence. It does not claim commercial launch readiness, store submission readiness, platform compliance, packaging completeness, or direct publishing automation.
 
 ## Global OS Design Doctrine
 

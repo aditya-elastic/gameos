@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- Adds engine lane parity for Godot and Unity as optional heavy local lanes.
+- Godot and Unity adapter manifests now include Game OS provenance, selected capabilities, acceptance-profile requirements, watermark policy, and local-only engine boundaries.
+- Adds visible `Made with GameOS` runtime watermark support to generated Godot and Unity scaffolds.
+- Updates Godot and Unity smoke/player-agent scripts to check capability evidence, manifest policy, and watermark presence.
+- Adds `engine-qa-report` artifacts so `gameos qa godot|unity --allow-heavy` records command output and honest pass/blocker evidence.
+- Updates docs and audits so engine lanes are presented as local adapter scaffolding and smoke-test proof, not platform launch readiness.
+
 ## 0.5.0
 
 - Adds the Game Quality Engine release target for stronger Web creator-test output.

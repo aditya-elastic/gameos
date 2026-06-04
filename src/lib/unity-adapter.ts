@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getProjectArtifactRoot, toProjectRelativeArtifactPath } from "./artifacts";
+import { createCapabilityMap } from "./capability-graph";
+import { createAcceptanceProfile } from "./trust";
 import type { ProjectWorkspace } from "./types";
 
 const unityEditorVersion = "6000.4.7f1";
@@ -577,6 +579,7 @@ namespace GameOS.UnityAdapter
 }
 
 function renderUnityControllerScript(workspace: ProjectWorkspace): string {
+  const doctrine = engineDoctrine(workspace);
   return `using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -585,12 +588,16 @@ namespace GameOS.UnityAdapter
 {
     public sealed class TurnRulesUnityController : MonoBehaviour
     {
+        public const string GameOsWatermarkLabel = "Made with GameOS";
+
         private readonly TurnRulesEngine rules = new TurnRulesEngine();
         private readonly System.Random rng = new System.Random();
         private TurnRulesState state;
         private string lastEvent = "New Unity match ready.";
         private bool botsEnabled = true;
         private float nextBotStep;
+
+        public string WatermarkText => GameOsWatermarkLabel;
 
         private void Start()
         {
@@ -616,7 +623,8 @@ namespace GameOS.UnityAdapter
             }
 
             GUILayout.BeginArea(new Rect(24, 20, 640, Screen.height - 40), GUI.skin.box);
-            GUILayout.Label("${escapeCSharpString(workspace.project.name)} - Unity Creator Sprint");
+            GUILayout.Label("${escapeCSharpString(workspace.project.name)} - Unity Capability Test Lane");
+            GUILayout.Label("Primary archetype: ${escapeCSharpString(doctrine.primaryArchetype)}");
             GUILayout.Label("First " + state.WinTokenTarget + " tokens home wins. Turn: " + CurrentPlayer().Color + (state.Turn == 0 ? " (human)" : " (bot)") + " Phase: " + state.Phase + " Dice: " + state.Dice);
             GUILayout.Label("Last event: " + lastEvent);
 
@@ -670,12 +678,17 @@ namespace GameOS.UnityAdapter
             }
 
             GUILayout.EndArea();
+
+            var previousAlignment = GUI.skin.label.alignment;
+            GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            GUI.Label(new Rect(Math.Max(24, Screen.width - 224), Math.Max(24, Screen.height - 44), 200, 24), GameOsWatermarkLabel);
+            GUI.skin.label.alignment = previousAlignment;
         }
 
         private void NewMatch()
         {
             state = rules.CreateInitialState(4, 2);
-            lastEvent = "Creator Sprint ready.";
+            lastEvent = "Capability proof sprint ready.";
             nextBotStep = Time.time + 0.5f;
         }
 
@@ -800,6 +813,7 @@ namespace GameOS.Editor
                 var packed = JsonUtility.ToJson(state);
                 var restored = JsonUtility.FromJson<TurnRulesState>(packed);
                 Expect(restored.Turn == state.Turn, "json save resume turn");
+                Expect(TurnRulesUnityController.GameOsWatermarkLabel.Contains("GameOS"), "watermark label");
 
                 Debug.Log("UNITY_ADAPTER_SMOKE: PASS");
                 EditorApplication.Exit(0);
@@ -863,8 +877,8 @@ namespace GameOS.Editor
 
             var averageTurns = (float)totalTurns / matches;
             var worth = timeouts == 0 && averageTurns <= 360f && releases >= 12 && homes >= 8 && passes > 0;
-            var verdict = worth ? "WORTH_PLAYING_FOR_RULES_PROTOTYPE" : "NEEDS_ARCHITECTURE_UPGRADE";
-            Debug.Log("UNITY_PLAYER_AGENT_REPORT: {\"agent\":\"Crowned Unity Table Master\",\"claim\":\"elite Unity player-agent simulation\",\"matches\":" + matches + ",\"average_turns\":" + averageTurns.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + ",\"captures\":" + captures + ",\"releases\":" + releases + ",\"homes\":" + homes + ",\"passes\":" + passes + ",\"timeouts\":" + timeouts + ",\"verdict\":\"" + verdict + "\"}");
+            var verdict = worth ? "ENGINE_RULES_PLAYER_PROOF_PASS" : "NEEDS_ARCHITECTURE_UPGRADE";
+            Debug.Log("UNITY_PLAYER_AGENT_REPORT: {\"agent\":\"Advanced Player Council - Unity Engine Lane\",\"claim\":\"capability-backed local engine player-agent simulation\",\"matches\":" + matches + ",\"average_turns\":" + averageTurns.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + ",\"captures\":" + captures + ",\"releases\":" + releases + ",\"homes\":" + homes + ",\"passes\":" + passes + ",\"timeouts\":" + timeouts + ",\"verdict\":\"" + verdict + "\"}");
             EditorApplication.Exit(worth ? 0 : 2);
         }
 
@@ -1024,8 +1038,10 @@ namespace GameOS.Editor
                 var report = RunAdvancedPlayerSet();
                 report.SceneLoaded = scene.IsValid();
                 report.ControllerFound = true;
+                report.WatermarkFound = controller.WatermarkText.Contains("GameOS");
                 report.Verdict = report.SceneLoaded &&
                     report.ControllerFound &&
+                    report.WatermarkFound &&
                     report.Timeouts == 0 &&
                     report.AverageTurns <= 260f &&
                     report.BranchingDecisions >= 20 &&
@@ -1049,8 +1065,8 @@ namespace GameOS.Editor
         {
             var report = new AdvancedPlaytestReport
             {
-                Agent = "Advanced Player - Unity Table Strategist",
-                Claim = "scene-aware advanced-player playtest",
+                Agent = "Advanced Player Council - Unity Engine Lane",
+                Claim = "scene-aware capability engine playtest",
                 Matches = 12
             };
 
@@ -1263,6 +1279,7 @@ namespace GameOS.Editor
             public int ReleaseChoices;
             public bool SceneLoaded;
             public bool ControllerFound;
+            public bool WatermarkFound;
             public string Verdict;
 
             public string ToJson()
@@ -1284,6 +1301,7 @@ namespace GameOS.Editor
                     "\"release_choices\":" + ReleaseChoices + "," +
                     "\"scene_loaded\":" + (SceneLoaded ? "true" : "false") + "," +
                     "\"controller_found\":" + (ControllerFound ? "true" : "false") + "," +
+                    "\"watermark_found\":" + (WatermarkFound ? "true" : "false") + "," +
                     "\"verdict\":\"" + Verdict + "\"" +
                     "}";
             }
@@ -1296,9 +1314,12 @@ namespace GameOS.Editor
 function renderUnityBrief(workspace: ProjectWorkspace): string {
   const rules = workspace.artifacts.find((artifact) => artifact.kind === "rules-spec");
   const memory = workspace.artifacts.find((artifact) => artifact.kind === "memory-map");
+  const capabilityMapArtifact = workspace.artifacts.find((artifact) => artifact.kind === "capability-map");
+  const acceptanceProfileArtifact = workspace.artifacts.find((artifact) => artifact.kind === "acceptance-profile");
+  const doctrine = engineDoctrine(workspace);
 
   return [
-    `# ${workspace.project.name} Unity Brief`,
+    `# ${workspace.project.name} Unity Engine Lane Brief`,
     "",
     "## Source",
     workspace.brief.summary,
@@ -1309,13 +1330,19 @@ function renderUnityBrief(workspace: ProjectWorkspace): string {
     "## Adapter Inputs",
     `- Rules spec: ${rules ? toProjectRelativeArtifactPath(rules.path, workspace.project.id) : "missing"}`,
     `- Memory map: ${memory ? toProjectRelativeArtifactPath(memory.path, workspace.project.id) : "missing"}`,
+    `- Capability map: ${capabilityMapArtifact ? toProjectRelativeArtifactPath(capabilityMapArtifact.path, workspace.project.id) : "missing"}`,
+    `- Acceptance profile: ${acceptanceProfileArtifact ? toProjectRelativeArtifactPath(acceptanceProfileArtifact.path, workspace.project.id) : "missing"}`,
     `- Unity version: ${unityEditorVersion}`,
-    "- Mode: Creator Sprint, first two tokens home wins for the first worth-playable slice.",
-    "- Target: local playable rules prototype, no store publishing."
+    `- Primary archetype: ${doctrine.primaryArchetype}`,
+    `- Selected capabilities: ${doctrine.capabilityLabels.join(", ")}`,
+    "- Watermark: Made with GameOS is required in runtime UI and manifest provenance.",
+    "- Mode: local capability proof sprint, first two tokens home wins for a short engine-lane validation slice.",
+    "- Target: local playable engine test lane, no store or platform publishing automation."
   ].join("\n");
 }
 
 function renderAdapterManifest(workspace: ProjectWorkspace): string {
+  const doctrine = engineDoctrine(workspace);
   return `${JSON.stringify(
     {
       generatedBy: "Game OS",
@@ -1325,6 +1352,26 @@ function renderAdapterManifest(workspace: ProjectWorkspace): string {
       projectName: workspace.project.name,
       genre: workspace.project.genre,
       targetPlatforms: workspace.project.targetPlatforms,
+      capabilityMap: {
+        required: true,
+        primaryArchetype: doctrine.primaryArchetype,
+        selectedCapabilities: doctrine.capabilityIds,
+        selectedCapabilityLabels: doctrine.capabilityLabels
+      },
+      acceptanceProfile: {
+        required: true,
+        selectedCapabilities: doctrine.acceptanceProfile.selectedCapabilities,
+        requiredPlayerActions: doctrine.acceptanceProfile.requiredPlayerActions,
+        requiredVisualChecks: doctrine.acceptanceProfile.requiredVisualChecks,
+        requiredInputChecks: doctrine.acceptanceProfile.requiredInputChecks,
+        blockedPublishClaims: doctrine.acceptanceProfile.blockedPublishClaims
+      },
+      watermark: {
+        required: true,
+        label: "Made with GameOS",
+        placement: "runtime-ui-bottom-right"
+      },
+      publishBoundary: "Local Unity engine test lane only. Store/platform publishing automation is outside this release.",
       scenes: ["Assets/Scenes/Main.unity"],
       scripts: [
         "Assets/Scripts/TurnRulesEngine.cs",
@@ -1344,8 +1391,9 @@ function renderAdapterManifest(workspace: ProjectWorkspace): string {
 }
 
 function renderUnityReport(workspace: ProjectWorkspace, projectRoot: string, files: string[]): string {
+  const doctrine = engineDoctrine(workspace);
   return [
-    `# ${workspace.project.name} Unity Adapter`,
+    `# ${workspace.project.name} Unity Engine Adapter`,
     "",
     "## Generated Project",
     `Path: ${projectRoot}`,
@@ -1368,12 +1416,30 @@ function renderUnityReport(workspace: ProjectWorkspace, projectRoot: string, fil
     `npm run unity:advanced -- ${projectRoot}`,
     "```",
     "",
+    "## Capability And Acceptance",
+    `- Primary archetype: ${doctrine.primaryArchetype}`,
+    ...doctrine.capabilityLabels.map((label) => `- Capability: ${label}`),
+    "- Acceptance profile: required before engine-lane QA is trusted.",
+    "- Watermark/provenance: Made with GameOS required in runtime UI and adapter manifest.",
+    "",
     "## Architect Notes",
-    "- This is a playable Unity rules prototype lane, not publishing automation.",
-    "- The playable mode is Creator Sprint: first two tokens home wins, with classic completion reserved for a later long-match mode.",
-    "- The generated C# rules resolver is the source of truth for human moves, bot moves, QA simulation, save/resume, and replay validation.",
-    "- The Unity editor batchmode smoke, player agent, and scene-aware advanced-player playtest must pass before visual polish is promoted."
+    "- This is a local Unity capability engine lane, not publishing automation.",
+    "- The playable mode is a short capability proof sprint; longer modes belong behind later quality gates.",
+    "- The generated C# resolver is the source of truth for human moves, bot moves, QA simulation, save/resume, and replay validation.",
+    "- The Unity editor batchmode smoke, player agent, and scene-aware advanced-player playtest must pass before this lane is promoted."
   ].join("\n");
+}
+
+function engineDoctrine(workspace: ProjectWorkspace) {
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  const capabilityIds = capabilityMap.selectedCapabilities.map((capability) => capability.id);
+  const acceptanceProfile = createAcceptanceProfile(workspace, capabilityIds);
+  return {
+    primaryArchetype: capabilityMap.primaryArchetype,
+    capabilityIds,
+    capabilityLabels: capabilityMap.selectedCapabilities.map((capability) => capability.label),
+    acceptanceProfile
+  };
 }
 
 function escapeCSharpString(value: string): string {

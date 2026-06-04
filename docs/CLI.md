@@ -78,7 +78,11 @@ gameos play <project-id>
 gameos assets import <project-id> ./assets.zip
 gameos assets preview <project-id>
 gameos build web <project-id>
+gameos build godot <project-id> --allow-heavy
+gameos build unity <project-id> --allow-heavy
 gameos qa web <project-id>
+gameos qa godot <project-id> --allow-heavy
+gameos qa unity <project-id> --allow-heavy
 gameos export web <project-id>
 gameos artifact list <project-id>
 gameos artifact read <project-id> game-bible
@@ -168,6 +172,8 @@ npm run acceptance:web-quality
 - Web build generation requires Node.js 24+.
 - Web browser QA requires Google Chrome or `CHROME_PATH`.
 - Godot and Unity are optional heavy lanes and require `--allow-heavy`.
+- Godot and Unity generated adapters consume the project capability map and acceptance profile, include `Made with GameOS` runtime watermark/provenance, and write `engine-qa-report` artifacts when their QA commands run.
+- Engine lane QA proves local scaffolding and smoke-test readiness only. It does not claim commercial launch readiness, platform compliance, store submission, packaging completeness, or direct publishing automation.
 
 ## Privacy
 

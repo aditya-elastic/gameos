@@ -32,6 +32,7 @@ export type ArtifactKind =
   | "user-feedback"
   | "godot-adapter"
   | "unity-adapter"
+  | "engine-qa-report"
   | "unity-playtest-report"
   | "web-adapter"
   | "web-playtest-report"

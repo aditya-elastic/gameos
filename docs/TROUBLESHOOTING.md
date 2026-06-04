@@ -61,7 +61,11 @@ Godot and Unity are heavy optional lanes. Install the engine first, then pass `-
 ```bash
 gameos build godot <project-id> --allow-heavy
 gameos build unity <project-id> --allow-heavy
+gameos qa godot <project-id> --allow-heavy
+gameos qa unity <project-id> --allow-heavy
 ```
+
+If QA fails, read the generated `engine-qa-report` artifact. It records the command, stdout/stderr, Game OS provenance, required watermark policy, and whether the lane is blocked by a missing engine, a smoke-test failure, or adapter setup.
 
 ## Too much output
 

@@ -12,6 +12,8 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - `gameos doctor` reports Node, data root, optional engines, privacy posture, and readiness.
 - `gameos make --target web-playable --quality fast` creates a local project from one prompt.
 - `gameos make --target web-playable --assets ./assets.zip --quality standard` imports assets, maps gameplay roles, builds Web, runs QA, and prints a verdict.
+- `gameos build godot <project-id> --allow-heavy` and `gameos build unity <project-id> --allow-heavy` generate optional local engine lanes only after those platforms are selected.
+- `gameos qa godot <project-id> --allow-heavy` and `gameos qa unity <project-id> --allow-heavy` write `engine-qa-report` artifacts with command output, Game OS provenance, and the local-only engine boundary.
 - `gameos status <project-id>` shows verdicts, blockers, artifact count, and next command.
 - `gameos journey <project-id>` explains the current stage and exact blocker.
 - `gameos next <project-id>` prints the next best action, confidence reason, and exact command.
@@ -44,6 +46,9 @@ Game OS V1 is shippable when the pure CLI path is reliable.
 - `npm run acceptance:universal-deep` creates ten prompt-family fixtures and verifies capability-specific diagnosis across arcade, rules, physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative, and local multiplayer/pass-and-play.
 - `npm run acceptance:web-quality` creates a fresh asset-led Web quality fixture, runs browser QA, runs trust review, and reruns Web smoke/player checks.
 - Godot and Unity adapter commands are explicit heavy lanes.
+- Godot and Unity adapter manifests include `generatedBy: "Game OS"`, selected capability ids, acceptance-profile requirements, required `Made with GameOS` watermark policy, and no store or platform publishing automation claim.
+- Godot and Unity runtime scaffolds include the visible `Made with GameOS` watermark and smoke checks that prove the watermark/provenance policy exists.
+- Godot and Unity QA produces local evidence artifacts. These lanes prove adapter and smoke-test readiness only; commercial launch readiness remains outside V1.
 
 ## Open Source Readiness
 

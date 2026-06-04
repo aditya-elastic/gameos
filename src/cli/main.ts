@@ -412,12 +412,33 @@ async function qa(parsed: ParsedArgv, options: CliOptions, lane?: string): Promi
   }
 
   requireHeavy(options, `${lane} QA`);
+  if (lane !== "godot" && lane !== "unity") throw new Error("Usage: gameos qa <web|godot|unity> <project-id>");
+  const studio = await import("../lib/studio");
   const workspace = await requireProject(projectId);
   const projectRoot = path.join(process.env.GAME_OS_DATA_DIR || DEFAULT_DATA_DIR, "projects", projectId, lane);
   const command = lane === "godot" ? ["godot", "--headless", "--path", projectRoot, "-s", "res://scripts/adapter_smoke.gd"] : unitySmokeCommand(projectRoot);
   const result = spawnSync(command[0], command.slice(1), { encoding: "utf8" });
   const ok = result.status === 0;
-  printResult(options, { ok, command, stdout: result.stdout, stderr: result.stderr }, `${lane} QA ${ok ? "passed" : "failed"} for ${workspace.project.name}`);
+  const updated = studio.recordEngineQa(projectId, {
+    lane: lane as "godot" | "unity",
+    command,
+    projectRoot,
+    ok,
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    error: result.error?.message
+  });
+  printResult(
+    options,
+    { ok, command, stdout: result.stdout, stderr: result.stderr, error: result.error?.message, project: projectPayload(updated, options.full) },
+    [
+      `${lane} QA ${ok ? "passed" : "failed"} for ${workspace.project.name}`,
+      `Evidence: ${lane}-engine-qa-report.md`,
+      "Boundary: local engine test lane only; no store publishing automation.",
+      `Next: gameos status ${projectId}`
+    ].join("\n")
+  );
   if (!ok) process.exitCode = result.status ?? 1;
 }
 
@@ -590,6 +611,8 @@ Usage:
   gameos build godot <project-id> --allow-heavy
   gameos build unity <project-id> --allow-heavy
   gameos qa web <project-id> [--static]
+  gameos qa godot <project-id> --allow-heavy
+  gameos qa unity <project-id> --allow-heavy
   gameos export web <project-id> [--output ./build.zip]
   gameos artifact list <project-id>
   gameos artifact read <project-id> <artifact> [--full]
