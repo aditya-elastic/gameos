@@ -86,6 +86,9 @@ export function diagnoseTrust(workspace: ProjectWorkspace): TrustDiagnosis {
   if (!watermarkOk) return diagnosis(workspace, "BLOCKED", "GameOS provenance or watermark is missing.", "hud", "Web manifest lacks generatedBy or required watermark.", "evidence-auditor", "gameos build web " + workspace.project.id, evidence);
   if (!webReport) return diagnosis(workspace, "BLOCKED", "Web QA has not run.", "qa", "No web-playtest-report artifact exists.", "qa-director", "gameos qa web " + workspace.project.id, evidence);
   if (browserQaRequired) return diagnosis(workspace, "NEEDS_IMPROVEMENT", "Browser QA is required for a stronger verdict.", "qa", webVerdict, "qa-director", "gameos qa web " + workspace.project.id, evidence);
+  if (webVerdict === "NEEDS_BROWSER_INTERACTION_PROOF") {
+    return diagnosis(workspace, "NEEDS_IMPROVEMENT", "Browser interaction proof is incomplete.", "input", webVerdict, "qa-director", "gameos improve " + workspace.project.id + " --note \"fix browser interaction, reset, and retry proof\" --yes", evidence);
+  }
   if (failedProfileCheck) {
     return diagnosis(
       workspace,

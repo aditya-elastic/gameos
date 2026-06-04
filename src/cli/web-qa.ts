@@ -11,6 +11,11 @@ declare global {
     getRopeForQa?: () => { a: { x: number; y: number }; b: { x: number; y: number } };
     getCanvasForQa?: () => { width: number; height: number };
     releaseRope?: (source?: string) => boolean;
+    start?: () => boolean;
+    primaryAction?: () => boolean;
+    moveForQa?: (dx: number, dy: number) => boolean;
+    spawnProofObjectForQa?: () => Record<string, unknown>;
+    forceFailureForQa?: () => Record<string, unknown>;
     swipeRopeForQa?: () => Record<string, unknown>;
     freeMoveRopeForQa?: () => Record<string, unknown>;
     slowFreeMoveRopeForQa?: () => Record<string, unknown>;
@@ -90,11 +95,17 @@ async function runBrowserWebQa(projectId: string, projectRoot: string): Promise<
     fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
     await page.screenshot({ path: screenshotPath, fullPage: true });
     const visualQa = await evaluateVisualQuality(page);
-    const interaction = smoke.kind === "asset-physics" ? await verifyAssetPhysicsBrowserInteraction(page) : {};
+    const interaction =
+      smoke.kind === "asset-physics"
+        ? await verifyAssetPhysicsBrowserInteraction(page)
+        : smoke.kind === "capability-web"
+          ? await verifyCapabilityBrowserInteraction(page)
+          : {};
     const playerReport = (await page.evaluate(() => globalThis.__gameOsWebAdapter.runPlayerAgent({ matches: 8, seed: 20260601 }))) as Record<string, unknown>;
-    const interactionScreenshotPath = smoke.kind === "asset-physics" ? path.join(projectRoot, "qa", "asset-physics-interaction-qa.png") : "";
+    const interactionScreenshotPath =
+      smoke.kind === "asset-physics" || smoke.kind === "capability-web" ? path.join(projectRoot, "qa", `${safeFileStem(kind)}-interaction-qa.png`) : "";
     if (interactionScreenshotPath) await page.screenshot({ path: interactionScreenshotPath, fullPage: true });
-    const finalPlayerReport = enrichPlayerReportWithQuality(playerReport, visualQa);
+    const finalPlayerReport = enrichPlayerReportWithQuality(playerReport, visualQa, interaction);
     const { recordWebPlaytest } = await import("../lib/studio");
     const workspace = recordWebPlaytest(projectId, {
       ...finalPlayerReport,
@@ -174,9 +185,11 @@ async function evaluateVisualQuality(page: import("playwright-core").Page): Prom
   });
 }
 
-function enrichPlayerReportWithQuality(report: Record<string, unknown>, visualQa: { pass: boolean }): Record<string, unknown> {
+function enrichPlayerReportWithQuality(report: Record<string, unknown>, visualQa: { pass: boolean }, interaction: Record<string, unknown>): Record<string, unknown> {
+  const interactionPass = browserInteractionPassed(interaction);
   const enriched: Record<string, unknown> = {
     ...report,
+    browser_interaction_verdict: interactionPass ? "BROWSER_INTERACTION_PASS" : "BROWSER_INTERACTION_FAIL",
     visual_qa_verdict: visualQa.pass ? "VISUAL_BROWSER_QA_PASS" : "VISUAL_BROWSER_QA_FAIL",
     visual_qa: visualQa,
     first_ten_seconds_verdict: String(report.first_ten_seconds_verdict || inferFirstTenSecondsVerdict(report)),
@@ -192,16 +205,26 @@ function enrichPlayerReportWithQuality(report: Record<string, unknown>, visualQa
     enriched.control_feel_verdict,
     enriched.clarity_verdict,
     enriched.difficulty_curve_verdict,
-    enriched.visual_maturity_verdict
+    enriched.visual_maturity_verdict,
+    enriched.browser_interaction_verdict
   ].every((value) => String(value).endsWith("_PASS"));
   enriched.advanced_player_council_verdict = councilPass ? "ADVANCED_PLAYER_COUNCIL_PASS" : "ADVANCED_PLAYER_COUNCIL_FAIL";
 
-  if (!visualQa.pass || !councilPass) {
+  if (!visualQa.pass || !interactionPass || !councilPass) {
     enriched.visual_verdict = visualQa.pass ? enriched.visual_verdict || "VISUAL_GATE_PASS" : "VISUAL_GATE_FAIL";
-    if (String(enriched.verdict || "").startsWith("WORTH_PLAYING")) enriched.verdict = !visualQa.pass ? "NEEDS_VISUAL_COMPOSITION_REPAIR" : "NEEDS_ADVANCED_PLAYER_COUNCIL_REVIEW";
+    if (String(enriched.verdict || "").startsWith("WORTH_PLAYING")) {
+      enriched.verdict = !visualQa.pass ? "NEEDS_VISUAL_COMPOSITION_REPAIR" : !interactionPass ? "NEEDS_BROWSER_INTERACTION_PROOF" : "NEEDS_ADVANCED_PLAYER_COUNCIL_REVIEW";
+    }
   }
 
   return enriched;
+}
+
+function browserInteractionPassed(interaction: Record<string, unknown>): boolean {
+  if (Object.keys(interaction).length === 0) return true;
+  if (typeof interaction.pass === "boolean") return interaction.pass;
+  const requiredKeys = ["firstCutPass", "resetSafePass", "recutPass"];
+  return requiredKeys.every((key) => interaction[key] === true);
 }
 
 function inferFirstTenSecondsVerdict(report: Record<string, unknown>): string {
@@ -230,6 +253,100 @@ function numberValue(value: unknown): number {
 
 function safeFileStem(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "web";
+}
+
+async function verifyCapabilityBrowserInteraction(page: import("playwright-core").Page): Promise<Record<string, unknown> & { pass: boolean }> {
+  const smoke = (await page.evaluate(() => globalThis.__gameOsWebAdapter.smoke())) as Record<string, unknown>;
+  const webPattern = String(smoke.webPattern || "capability-foundation");
+  const before = await readCapabilityState(page);
+
+  await page.locator("#start-button").click();
+  await page.waitForTimeout(180);
+  const afterStart = await readCapabilityState(page);
+
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(180);
+  const afterPrimary = await readCapabilityState(page);
+
+  if (webPattern === "combat-survival") {
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(100);
+  }
+
+  const afterProof = (await page.evaluate(() => globalThis.__gameOsWebAdapter.spawnProofObjectForQa?.() ?? {})) as Record<string, unknown>;
+  await page.waitForTimeout(180);
+  const afterProofSettled = await readCapabilityState(page);
+
+  const afterFailure = (await page.evaluate(() => globalThis.__gameOsWebAdapter.forceFailureForQa?.() ?? {})) as Record<string, unknown>;
+  await page.waitForTimeout(120);
+
+  await page.locator("#reset-button").click();
+  await page.waitForTimeout(180);
+  const afterReset = await readCapabilityState(page);
+
+  await page.locator("#start-button").click();
+  await page.waitForTimeout(120);
+  const afterRetry = await readCapabilityState(page);
+
+  const startPass = afterStart.running === true;
+  const primaryPass = stateNumber(afterPrimary, "controlsUsed") > stateNumber(before, "controlsUsed");
+  const stateChangedPass =
+    stateNumber(afterPrimary, "score") !== stateNumber(afterStart, "score") ||
+    stateNumber(afterPrimary, "playerLane") !== stateNumber(afterStart, "playerLane") ||
+    stateNumber(stateObject(afterPrimary, "player"), "y") !== stateNumber(stateObject(afterStart, "player"), "y") ||
+    stateNumber(afterPrimary, "attacks") > stateNumber(afterStart, "attacks");
+  const proofPass =
+    webPattern === "arcade-survival"
+      ? stateNumber(afterProofSettled, "collectibles") > stateNumber(afterPrimary, "collectibles") && stateNumber(afterProofSettled, "score") > stateNumber(afterPrimary, "score")
+      : webPattern === "platform-movement"
+        ? stateNumber(afterProofSettled, "checkpoints") > stateNumber(afterPrimary, "checkpoints") && stateNumber(afterProofSettled, "score") > stateNumber(afterPrimary, "score")
+        : webPattern === "combat-survival"
+          ? stateNumber(afterProofSettled, "hits") > stateNumber(afterPrimary, "hits") && stateNumber(afterProofSettled, "attacks") > stateNumber(afterPrimary, "attacks")
+          : stateNumber(afterProofSettled, "score") >= stateNumber(afterPrimary, "score");
+  const failurePass = afterFailure.running === false && stateNumber(afterFailure, "lives") === 0 && stateNumber(afterFailure, "failures") > 0;
+  const resetPass = afterReset.running === false && stateNumber(afterReset, "score") === 0 && stateNumber(afterReset, "lives") >= 3;
+  const retryPass = afterRetry.running === true;
+  const pass = startPass && primaryPass && stateChangedPass && proofPass && failurePass && resetPass && retryPass;
+
+  if (!pass) {
+    throw new Error(
+      `capability web browser interaction failed: pattern=${webPattern}, start=${startPass}, primary=${primaryPass}, stateChanged=${stateChangedPass}, proof=${proofPass}, failure=${failurePass}, reset=${resetPass}, retry=${retryPass}.`
+    );
+  }
+
+  return {
+    pass,
+    webPattern,
+    startPass,
+    primaryPass,
+    stateChangedPass,
+    proofPass,
+    failurePass,
+    resetPass,
+    retryPass,
+    before,
+    afterStart,
+    afterPrimary,
+    afterProof,
+    afterProofSettled,
+    afterFailure,
+    afterReset,
+    afterRetry
+  };
+}
+
+async function readCapabilityState(page: import("playwright-core").Page): Promise<Record<string, unknown>> {
+  return (await page.evaluate(() => globalThis.__gameOsWebAdapter.getState?.() ?? {})) as Record<string, unknown>;
+}
+
+function stateObject(source: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = source[key];
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stateNumber(source: Record<string, unknown>, key: string): number {
+  const value = source[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 async function verifyAssetPhysicsBrowserInteraction(page: import("playwright-core").Page): Promise<Record<string, unknown>> {

@@ -236,6 +236,7 @@ function scoreWebPlayability(workspace: ProjectWorkspace): StudioScorecardCatego
     : [
         numericMarkdownCheck(webReport, "Matches", 1, "Player-agent simulation ran at least one short session."),
         numericMarkdownCheck(webReport, "Branching decisions", 1, "Selected capabilities produced player choices or state branches."),
+        markdownValueCheck(webReport, "Browser interaction verdict", "BROWSER_INTERACTION_PASS", "Browser interaction probe passed."),
         passingCheck("Capability-specific input and visual feel are covered by the non-physics Advanced Player report.")
       ];
 
@@ -244,7 +245,6 @@ function scoreWebPlayability(workspace: ProjectWorkspace): StudioScorecardCatego
 
 function scoreQaEvidence(workspace: ProjectWorkspace): StudioScorecardCategory {
   const projectRoot = getProjectArtifactRoot(workspace.project.id);
-  const needsPhysicsScreenshots = needsPhysicsProof(workspace);
   const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
   const visualScreenshot = readMarkdownValue(webReport, "Visual screenshot") ?? "";
   const interactionScreenshot = readMarkdownValue(webReport, "Interaction screenshot") ?? "";
@@ -261,10 +261,11 @@ function scoreQaEvidence(workspace: ProjectWorkspace): StudioScorecardCategory {
       gap: "Visual QA screenshot is missing."
     },
     markdownValueCheck(webReport, "Visual browser QA verdict", "VISUAL_BROWSER_QA_PASS", "Browser visual QA passed."),
+    markdownValueCheck(webReport, "Browser interaction verdict", "BROWSER_INTERACTION_PASS", "Browser interaction QA passed."),
     {
       label: "Interaction QA screenshot captured",
-      pass: !needsPhysicsScreenshots || hasRelativeWebFile(projectRoot, interactionScreenshot),
-      evidence: needsPhysicsScreenshots ? "Interaction QA screenshot exists under the generated Web build." : "Interaction QA screenshot is not mandatory for this non-physics proof target.",
+      pass: hasRelativeWebFile(projectRoot, interactionScreenshot),
+      evidence: "Interaction QA screenshot exists under the generated Web build.",
       gap: "Interaction QA screenshot is missing."
     }
   ]);
@@ -480,11 +481,11 @@ function readLatestJsonArtifact<T>(workspace: ProjectWorkspace, kind: ArtifactRe
   }
 }
 
-function readWebAdapterManifest(workspace: ProjectWorkspace): { generatedBy?: string; prototype?: string; capabilities?: string[]; watermark?: { required?: boolean; label?: string } } | null {
+function readWebAdapterManifest(workspace: ProjectWorkspace): { generatedBy?: string; prototype?: string; webPattern?: string; capabilities?: string[]; watermark?: { required?: boolean; label?: string } } | null {
   const manifestPath = path.join(getProjectArtifactRoot(workspace.project.id), "web", "web-adapter-manifest.json");
   if (!fs.existsSync(manifestPath)) return null;
   try {
-    return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { generatedBy?: string; prototype?: string; capabilities?: string[]; watermark?: { required?: boolean; label?: string } };
+    return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { generatedBy?: string; prototype?: string; webPattern?: string; capabilities?: string[]; watermark?: { required?: boolean; label?: string } };
   } catch {
     return null;
   }
@@ -496,16 +497,8 @@ function needsAssetLedPhysicsProof(workspace: ProjectWorkspace): boolean {
 
 function needsPhysicsProof(workspace: ProjectWorkspace): boolean {
   const manifest = readWebAdapterManifest(workspace);
-  if (manifest?.prototype === "asset-physics" || manifest?.capabilities?.includes("physics")) return true;
-
-  const capabilityMap = readLatestMarkdownArtifact(workspace, "capability-map");
-  if (/- Id:\s*physics\b/i.test(capabilityMap) || /Readable Physics System/i.test(capabilityMap)) return true;
-
-  const webReport = readLatestMarkdownArtifact(workspace, "web-playtest-report");
-  if (/PHYSICS_GATE_PASS|TIMING_SKILL_PASS|SMOOTH_MOUSE_BLADE_PASS|SLOW_MOUSE_BLADE_PASS/i.test(webReport)) return true;
-
-  const prompt = `${workspace.project.name} ${workspace.project.genre} ${workspace.project.prompt}`.toLowerCase();
-  return /\b(physics|rope|swing|gravity|pendulum|projectile|trajectory|collision)\b/.test(prompt);
+  if (manifest?.prototype === "asset-physics") return true;
+  return Boolean(readLatestJsonArtifact<Record<string, unknown>>(workspace, "asset-pack-manifest"));
 }
 
 function readMarkdownValue(content: string, label: string): string | null {

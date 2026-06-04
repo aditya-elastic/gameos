@@ -17,7 +17,7 @@ describe("gameos doctor", () => {
   it("renders a friendly Chrome browser QA hint", () => {
     const report: DoctorReport = {
       ok: true,
-      version: "0.6.0",
+      version: "0.7.0",
       node: "v24.0.0",
       dataRoot: "/tmp/gameos",
       install: {

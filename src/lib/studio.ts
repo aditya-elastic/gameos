@@ -70,6 +70,7 @@ type WebPlaytestReport = {
   reset_recut_pass?: boolean;
   role_assignments?: unknown;
   browser_interaction?: unknown;
+  browser_interaction_verdict?: string;
   visual_screenshot?: string;
   interaction_screenshot?: string;
   visual_qa?: unknown;
@@ -93,6 +94,7 @@ type WebPlaytestReport = {
   stars_collected?: number;
   average_seconds?: number;
   average_score?: number;
+  web_pattern?: string;
   primary_archetype?: string;
   capabilities?: unknown;
   capability_verdict?: string;
@@ -680,6 +682,8 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
       `- Slow mouse verdict: ${report.slow_mouse_verdict ?? "unknown"}`,
       `- Slow mouse pass: ${String(Boolean(report.slow_mouse_pass))}`,
       `- Reset/recut pass: ${String(Boolean(report.reset_recut_pass))}`,
+      `- Browser interaction verdict: ${report.browser_interaction_verdict ?? "not reported"}`,
+      `- Browser interaction: ${report.browser_interaction ? JSON.stringify(report.browser_interaction) : "not reported"}`,
       `- Visual screenshot: ${report.visual_screenshot ?? "not captured"}`,
       `- Interaction screenshot: ${report.interaction_screenshot ?? "not captured"}`,
       `- Visual browser QA verdict: ${report.visual_qa_verdict ?? "not reported"}`,
@@ -720,6 +724,7 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
     "",
     "## Player Metrics",
     `- Kind: ${report.kind ?? "rules"}`,
+    `- Web pattern: ${report.web_pattern ?? "not reported"}`,
     `- Primary archetype: ${report.primary_archetype ?? "rules-led game"}`,
     `- Matches: ${report.matches ?? 0}`,
     `- Average score: ${report.average_score ?? 0}`,
@@ -729,6 +734,9 @@ function renderWebPlaytestMarkdown(workspace: ProjectWorkspace, report: WebPlayt
     `- Visual screenshot: ${report.visual_screenshot ?? "not captured"}`,
     `- Visual browser QA verdict: ${report.visual_qa_verdict ?? "not reported"}`,
     `- Visual browser QA: ${report.visual_qa ? JSON.stringify(report.visual_qa) : "not reported"}`,
+    `- Browser interaction verdict: ${report.browser_interaction_verdict ?? "not reported"}`,
+    `- Browser interaction: ${report.browser_interaction ? JSON.stringify(report.browser_interaction) : "not reported"}`,
+    `- Interaction screenshot: ${report.interaction_screenshot ?? "not captured"}`,
     `- Input verdict: ${report.input_verdict ?? "not reported"}`,
     `- First 10 seconds verdict: ${report.first_ten_seconds_verdict ?? "not reported"}`,
     `- Replay verdict: ${report.replay_verdict ?? "not reported"}`,

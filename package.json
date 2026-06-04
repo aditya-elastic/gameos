@@ -1,6 +1,6 @@
 {
   "name": "gameos",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": false,
   "description": "Pure CLI local AI game studio runtime.",
   "type": "module",
@@ -39,6 +39,7 @@
     "build:cli": "node scripts/build-cli.mjs",
     "test:cli": "node scripts/cli-smoke.mjs",
     "acceptance:web-quality": "node scripts/web-quality-acceptance.mjs",
+    "acceptance:capability-web-quality": "node scripts/capability-web-quality-acceptance.mjs",
     "acceptance:universal-trust": "node scripts/universal-trust-acceptance.mjs",
     "acceptance:universal-deep": "node scripts/universal-deep-acceptance.mjs",
     "trust:audit": "node scripts/trust-audit.mjs",
@@ -63,7 +64,7 @@
     "web:smoke": "node scripts/web-smoke.mjs",
     "web:player": "node scripts/web-player-agent.mjs",
     "visual:smoke": "node scripts/visual-smoke.mjs",
-    "check": "npm test && npm run build:cli && npm run test:cli && npm run goal:audit && npm run acceptance:universal-trust && npm run acceptance:universal-deep && npm run trust:audit && npm run release:audit && npm run build && npm audit --audit-level=moderate && npm run package:dry-run"
+    "check": "npm test && npm run build:cli && npm run test:cli && npm run goal:audit && npm run acceptance:universal-trust && npm run acceptance:universal-deep && npm run acceptance:capability-web-quality && npm run trust:audit && npm run release:audit && npm run build && npm audit --audit-level=moderate && npm run package:dry-run"
   },
   "dependencies": {
     "playwright-core": "^1.60.0",

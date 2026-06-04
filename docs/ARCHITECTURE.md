@@ -76,6 +76,8 @@ There is no required website, plugin, MCP server, account, telemetry, or cloud s
 
 Asset-led Web prototypes are not promoted by render success alone. `WORTH_PLAYING` requires role-fit assets, visible GameOS watermark, coherent screenshot composition, readable physics without hidden goal attraction, timing skill, player agency, mastery proof, smooth primary gesture input, deliberate pointer/touch input, reset/retry input proof, and Advanced Player approval. Partial asset packs may still produce playable prototypes, but `gameos journey` must explain the blocker.
 
+Capability Web prototypes use reusable play patterns selected from the capability map, not named game lanes. v0.7 browser-proves `arcade-survival`, `platform-movement`, and `combat-survival` with start, primary input, visible state change, capability-specific proof, fail state, reset, retry, visual QA, watermark, and Advanced Player Council evidence before creator-test promotion.
+
 ## Engine Lane Parity Doctrine
 
 Godot and Unity adapters are local heavy lanes, not product strategy. They must consume the project capability map and acceptance profile, include Game OS provenance in their manifests, display the required `Made with GameOS` watermark at runtime, and record local QA evidence through `engine-qa-report` artifacts.
@@ -94,7 +96,7 @@ Every project receives a capability map before adapter generation. Historical sh
 
 `gameos diagnose` is the plain-language trust debugger. It reports the exact blocker, failed capability, failed evidence, owning agent, and next best command without dumping large artifacts.
 
-`npm run acceptance:universal-trust` proves the fast doctrine across arcade, deterministic rules, asset-led physics timing, platform movement, and combat/survival prompt families. `npm run acceptance:universal-deep` expands the pre-release proof to arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play. `npm run acceptance:web-quality` remains the browser-backed Web quality proof for a role-fit asset-led game.
+`npm run acceptance:universal-trust` proves the fast doctrine across arcade, deterministic rules, asset-led physics timing, platform movement, and combat/survival prompt families. `npm run acceptance:universal-deep` expands the pre-release proof to arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play. `npm run acceptance:capability-web-quality` browser-proves the v0.7 arcade, platforming, and combat Web patterns. `npm run acceptance:web-quality` remains the browser-backed Web quality proof for a role-fit asset-led game.
 
 ## V1 Boundary
 

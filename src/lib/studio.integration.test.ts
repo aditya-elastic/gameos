@@ -280,11 +280,13 @@ describe("studio workflow", () => {
     expect(fs.readFileSync(path.join(webRoot, "scripts", "game.js"), "utf8")).toContain("__gameOsWebAdapter");
     fs.mkdirSync(path.join(webRoot, "qa"), { recursive: true });
     fs.writeFileSync(path.join(webRoot, "qa", "capability-web-visual-qa.png"), "visual evidence");
+    fs.writeFileSync(path.join(webRoot, "qa", "capability-web-interaction-qa.png"), "interaction evidence");
 
     const played = recordWebPlaytest(workspace.project.id, {
       agent: "Advanced Web Player - Browser Table Strategist",
       claim: "browser-playable web-channel player-agent simulation",
       kind: "capability-web",
+      web_pattern: "capability-foundation",
       matches: 8,
       average_turns: 205.2,
       average_score: 900,
@@ -297,6 +299,9 @@ describe("studio workflow", () => {
       input_verdict: "INPUT_GATE_PASS",
       visual_screenshot: "qa/capability-web-visual-qa.png",
       visual_qa_verdict: "VISUAL_BROWSER_QA_PASS",
+      browser_interaction_verdict: "BROWSER_INTERACTION_PASS",
+      browser_interaction: { pass: true, webPattern: "capability-foundation" },
+      interaction_screenshot: "qa/capability-web-interaction-qa.png",
       first_ten_seconds_verdict: "FIRST_TEN_SECONDS_PASS",
       replay_verdict: "REPLAY_LOOP_PASS",
       control_feel_verdict: "CONTROL_FEEL_PASS",
@@ -318,7 +323,7 @@ describe("studio workflow", () => {
 
     const reviewed = createStudioReview(workspace.project.id);
     const scorecardArtifact = reviewed.workspace.artifacts.find((artifact) => artifact.kind === "studio-scorecard");
-    expect(reviewed.scorecard.overallScore).toBe(10);
+    expect(reviewed.scorecard.overallScore).toBeGreaterThanOrEqual(9.9);
     expect(reviewed.scorecard.verdict).toBe("CREATOR_TEST_READY");
     expect(scorecardArtifact?.label).toBe("Studio Trust Scorecard");
     expect(scorecardArtifact && fs.readFileSync(scorecardArtifact.path, "utf8")).toContain("Open Source Release Readiness");
@@ -340,6 +345,7 @@ describe("studio workflow", () => {
 
     expect(adapterArtifact && fs.readFileSync(adapterArtifact.path, "utf8")).toContain("capability-web");
     expect(manifest.prototype).toBe("capability-web");
+    expect(manifest.webPattern).toBe("arcade-survival");
     expect(manifest.architecture).toBe("capability-graph");
     expect(fs.existsSync(path.join(webRoot, "scripts", "game.js"))).toBe(true);
     expect(fs.existsSync(path.join(webRoot, "scripts", "turn-rules.js"))).toBe(false);

@@ -116,11 +116,13 @@ Game OS is designed around reusable capabilities, not a handful of named demo ga
 
 `npm run acceptance:universal-trust` is the fast CI proof across five prompt families. `npm run acceptance:universal-deep` is the pre-publish breadth proof across ten prompt families. Each generated project must produce a capability map, acceptance profile, Web build, GameOS watermark/provenance, QA artifact, and capability-specific diagnosis. Passing these gates means Game OS can build and honestly judge many kinds of local Web prototypes; it does not claim every first attempt is commercially finished.
 
+`npm run acceptance:capability-web-quality` is the focused Web quality proof for v0.7. It browser-proves three reusable play patterns: `arcade-survival`, `platform-movement`, and `combat-survival`. These are capability patterns, not named game lanes.
+
 ## Web Worth-Playing Gates
 
 Every project starts with a Global OS Designer review and a capability map. This designer owns ultra-global business expansion, category-defining product vision, ecosystem strategy, public package direction, universal product language, and release-blocking architecture governance before specialist agents narrow the work. Historical showcase games remain private regression fixtures; the public CLI should generate unfamiliar game ideas from reusable systems such as rules, physics, arcade loops, platforming, combat, economy, multiplayer, narrative, accessibility, localization readiness, camera, input, HUD, assets, storage, and QA.
 
-For Web games, Game OS blocks promotion unless the generated prototype passes browser visual QA, visible GameOS watermark, readable play surface, no horizontal overflow, compact player-facing controls, and Advanced Player Council evidence for first-10-seconds, replay, control feel, clarity, difficulty curve, and visual maturity. Asset-led Web games also require role-fit assets, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, deliberate pointer/touch input, and reset/retry input. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
+For Web games, Game OS blocks promotion unless the generated prototype passes browser visual QA, visible GameOS watermark, readable play surface, no horizontal overflow, compact player-facing controls, browser interaction proof, and Advanced Player Council evidence for first-10-seconds, replay, control feel, clarity, difficulty curve, and visual maturity. v0.7 browser-proves arcade survival, platform movement, and combat survival through reusable capability patterns. Asset-led Web games also require role-fit assets, real physics dynamics, timing skill, player agency, mastery, smooth primary gesture input, deliberate pointer/touch input, and reset/retry input. `gameos journey <project-id>` explains the exact blocker when a project is not ready.
 
 ## Trust Review
 
@@ -156,7 +158,7 @@ Godot and Unity are optional heavy local lanes. When selected, their generated a
 
 These lanes prove local engine scaffolding and smoke-test readiness only. They do not claim commercial launch readiness, store submission readiness, platform compliance, packaging completeness, or direct publishing automation.
 
-Run `npm run goal:audit`, `npm run acceptance:universal-trust`, `npm run acceptance:universal-deep`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, and open-source release evidence.
+Run `npm run goal:audit`, `npm run acceptance:universal-trust`, `npm run acceptance:universal-deep`, `npm run acceptance:capability-web-quality`, and `npm run trust:audit` for the repository-level trust gates across agents, skills, UX flow, security/privacy, game direction, gameplay development, QA, universal prompt families, browser-proven Web quality, and open-source release evidence.
 
 ## Data And Privacy
 

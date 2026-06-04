@@ -62,6 +62,7 @@ const categories = [
     fileCheck("Scorecard gates OS architecture", "src/lib/scorecard.ts", [/Global OS Architecture/, /global-os-designer/, /Capability graph approved/, /trustVerdictFromScore/]),
     fileCheck("OS design artifacts include expansion language", "src/lib/capability-graph.ts", [/Global Market Vision/, /Universal Product Direction/, /Public Language Approval/, /globally expandable developer platform/]),
     fileCheck("Web adapter uses capability routing", "src/lib/web-adapter.ts", [/createCapabilityMap/, /capability-web/, /Named game fixtures are bypassed/]),
+    fileCheck("Web adapter selects universal play patterns", "src/lib/web-adapter.ts", [/selectWebPlayPattern/, /arcade-survival/, /platform-movement/, /combat-survival/, /webPattern/]),
     fileCheck("CLI smoke asserts capability artifacts", "scripts/cli-smoke.mjs", [/capability-map/, /os-design-review/]),
     fileCheck("Architecture docs forbid example lanes", "docs/ARCHITECTURE.md", [/Global OS Design Doctrine/, /regression fixtures only/, /reusable systems/])
   ]),
@@ -104,16 +105,19 @@ const categories = [
   ]),
   category("QA Player Agent Evidence", [
     scriptCheck("acceptance:web-quality", "node scripts/web-quality-acceptance.mjs"),
+    scriptCheck("acceptance:capability-web-quality", "node scripts/capability-web-quality-acceptance.mjs"),
     scriptCheck("acceptance:universal-trust", "node scripts/universal-trust-acceptance.mjs"),
     scriptCheck("acceptance:universal-deep", "node scripts/universal-deep-acceptance.mjs"),
     scriptCheck("trust:audit", "node scripts/trust-audit.mjs"),
     fileCheck("Acceptance tests prove trust evidence", "scripts/web-quality-acceptance.mjs", [/CREATOR_TEST_READY/, /WORTH_PLAYING_FOR_ASSET_PHYSICS_WEB_BUILD/, /acceptance-profile/]),
+    fileCheck("Capability Web quality acceptance proves three families", "scripts/capability-web-quality-acceptance.mjs", [/arcade-survival/, /platform-movement/, /combat-survival/, /CREATOR_TEST_READY/, /BROWSER_INTERACTION_PASS/]),
     fileCheck("Universal trust acceptance covers prompt families", "scripts/universal-trust-acceptance.mjs", [/arcade score loop/, /deterministic rules strategy/, /asset-led physics timing/, /platform movement/, /combat\/survival loop/, /diagnose/]),
     fileCheck("Universal deep acceptance covers ten families", "scripts/universal-deep-acceptance.mjs", [/arcade score loop/, /deterministic rules strategy/, /asset-led physics timing/, /platform movement/, /combat\/survival loop/, /racing motion/, /resource\/economy management/, /puzzle logic/, /narrative choice loop/, /local multiplayer\/pass-and-play/, /capability-web/]),
     fileCheck("Trust audit blocks overclaiming", "scripts/trust-audit.mjs", [/10\/10/, /publish-ready/, /diagnose/]),
     fileCheck("Advanced Player blocks shallow games", "scripts/web-player-agent.mjs", [/WEB_PLAYER_AGENT_REPORT/, /MASTERY_GATE_PASS/, /SLOW_MOUSE_BLADE_PASS/]),
     fileCheck("CLI browser QA proves release reset retry", "src/cli/web-qa.ts", [/firstCutPass/, /noAutoCutPass/, /slowMousePass/, /recutPass/]),
     fileCheck("CLI browser QA captures universal visual evidence", "src/cli/web-qa.ts", [/evaluateVisualQuality/, /VISUAL_BROWSER_QA_PASS/, /rawMachineVerdictHidden/]),
+    fileCheck("CLI browser QA proves capability interactions", "src/cli/web-qa.ts", [/verifyCapabilityBrowserInteraction/, /BROWSER_INTERACTION_PASS/, /capability web browser interaction failed/]),
     fileCheck("Web export packages playable provenance", "src/cli/export.ts", [/gameos-export-manifest\.json/, /writeStoredZip/, /web-playtest-report/, /Made with GameOS/])
   ]),
   category("Security Privacy And Storage", [
@@ -142,7 +146,9 @@ const categories = [
     check("npm run check includes trust:audit", packageJson.scripts?.check?.includes("npm run trust:audit"), "check runs trust:audit before release/build gates.", "npm run check does not include trust:audit."),
     check("npm run check includes universal trust acceptance", packageJson.scripts?.check?.includes("npm run acceptance:universal-trust"), "check runs universal trust acceptance before release/build gates.", "npm run check does not include acceptance:universal-trust."),
     check("npm run check includes universal deep acceptance", packageJson.scripts?.check?.includes("npm run acceptance:universal-deep"), "check runs universal deep acceptance before release/build gates.", "npm run check does not include acceptance:universal-deep."),
+    check("npm run check includes capability Web quality acceptance", packageJson.scripts?.check?.includes("npm run acceptance:capability-web-quality"), "check runs capability Web quality acceptance before release/build gates.", "npm run check does not include acceptance:capability-web-quality."),
     check("package exposes universal deep acceptance", Boolean(packageJson.scripts?.["acceptance:universal-deep"]), "package exposes acceptance:universal-deep for pre-publish breadth proof.", "package.json does not expose acceptance:universal-deep."),
+    check("package exposes capability Web quality acceptance", Boolean(packageJson.scripts?.["acceptance:capability-web-quality"]), "package exposes acceptance:capability-web-quality for v0.7 proof.", "package.json does not expose acceptance:capability-web-quality."),
     check("npm run check includes goal:audit", packageJson.scripts?.check?.includes("npm run goal:audit"), "check runs goal:audit before release/build gates.", "npm run check does not include goal:audit."),
     fileCheck("Release audit requires goal audit", "scripts/release-audit.mjs", [/goal:audit/, /docs\/GOAL_AUDIT\.md/]),
     fileCheck("Architecture documents trust doctrine", "docs/ARCHITECTURE.md", [/Trust Review Doctrine/, /npm run acceptance:universal-trust/, /npm run acceptance:web-quality/]),

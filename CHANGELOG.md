@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+- Adds capability-first Web play patterns for `arcade-survival`, `platform-movement`, and `combat-survival`.
+- Records `webPattern` and capability-specific browser QA expectations in generated Web manifests.
+- Upgrades browser QA for capability Web builds with real interaction probes covering start, primary input, proof event, fail state, reset, and retry.
+- Adds `Browser interaction verdict` evidence to Web player-agent reports and studio scorecards.
+- Prevents non-asset platform/physics movement games from being judged by asset-led rope-physics gates.
+- Adds `npm run acceptance:capability-web-quality` to browser-prove the three v0.7 Web quality families through QA, review, and diagnosis.
+- Keeps breadth coverage honest through universal trust/deep acceptance without claiming every game family is creator-test ready yet.
+
 ## 0.6.0
 
 - Adds engine lane parity for Godot and Unity as optional heavy local lanes.

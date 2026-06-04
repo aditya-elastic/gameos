@@ -96,6 +96,12 @@ Game OS uses a capability graph instead of named game lanes. The Web builder and
 
 `npm run acceptance:universal-trust` is the fast proof. `npm run acceptance:universal-deep` is the pre-publish breadth proof across ten families. The acceptance target is honest generation and diagnosis: capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and next action. It is not a claim that every first local Web build is commercially finished.
 
+`npm run acceptance:capability-web-quality` is the focused v0.7 Web quality proof. It browser-proves three reusable patterns: `arcade-survival`, `platform-movement`, and `combat-survival`.
+
+## Capability Web QA
+
+For non-asset Web games, Game OS records a `webPattern` in the generated manifest and browser-proves start, primary input, visible state change, capability-specific proof, failure, reset, and retry. A simulation-only report is not enough for `CREATOR_TEST_READY`.
+
 ## Asset-Led Web QA
 
 When `--assets` is provided, Game OS imports the pack, maps gameplay roles such as hero object, goal character, collectible, background, hazard, and UI, writes an asset preview manifest, builds the Web lane, runs browser QA when available, and records the Advanced Player verdict.
@@ -161,11 +167,12 @@ For repository trust proof, run:
 npm run goal:audit
 npm run acceptance:universal-trust
 npm run acceptance:universal-deep
+npm run acceptance:capability-web-quality
 npm run trust:audit
 npm run acceptance:web-quality
 ```
 
-`acceptance:universal-trust` checks five prompt families and verifies that each project receives a capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and honest diagnosis. `acceptance:universal-deep` expands that proof to ten capability families: arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play. `acceptance:web-quality` remains the stronger browser-backed Web quality proof when Chrome is available.
+`acceptance:universal-trust` checks five prompt families and verifies that each project receives a capability map, acceptance profile, Web build, watermark/provenance, QA artifact, and honest diagnosis. `acceptance:universal-deep` expands that proof to ten capability families: arcade, deterministic rules, asset-led physics timing, platform movement, combat/survival, racing, economy, puzzle, narrative choice, and local multiplayer/pass-and-play. `acceptance:capability-web-quality` browser-proves the v0.7 arcade, platforming, and combat patterns. `acceptance:web-quality` remains the stronger browser-backed asset-led Web proof when Chrome is available.
 
 ## Engine Requirements
 

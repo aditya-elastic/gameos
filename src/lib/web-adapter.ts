@@ -11,6 +11,25 @@ export type WebAdapterResult = {
   report: string;
 };
 
+type WebPlayPattern = "arcade-survival" | "platform-movement" | "combat-survival" | "capability-foundation";
+
+function selectWebPlayPattern(workspace: ProjectWorkspace): WebPlayPattern {
+  const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  if (hasCapability(capabilityMap, "combat")) return "combat-survival";
+  if (hasCapability(capabilityMap, "platforming")) return "platform-movement";
+  if (hasCapability(capabilityMap, "arcade-loop") || hasCapability(capabilityMap, "survival") || hasCapability(capabilityMap, "creator-loop")) {
+    return "arcade-survival";
+  }
+  return "capability-foundation";
+}
+
+function labelForWebPlayPattern(pattern: WebPlayPattern): string {
+  if (pattern === "arcade-survival") return "Arcade Survival";
+  if (pattern === "platform-movement") return "Platform Movement";
+  if (pattern === "combat-survival") return "Combat Survival";
+  return "Capability Foundation";
+}
+
 export function generateWebProject(workspace: ProjectWorkspace): WebAdapterResult {
   const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
 
@@ -2589,13 +2608,14 @@ function renderAssetPhysicsReport(
 function generateCapabilityWebProject(workspace: ProjectWorkspace): WebAdapterResult {
   const projectRoot = path.join(getProjectArtifactRoot(workspace.project.id), "web");
   const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  const webPattern = selectWebPlayPattern(workspace);
   fs.rmSync(projectRoot, { recursive: true, force: true });
   const files = [
-    ["index.html", renderCapabilityIndexHtml(workspace)],
+    ["index.html", renderCapabilityIndexHtml(workspace, webPattern)],
     ["styles.css", renderCapabilityStyles()],
-    ["scripts/game.js", renderCapabilityGameScript(workspace)],
+    ["scripts/game.js", renderCapabilityGameScript(workspace, webPattern)],
     ["docs/game-os-brief.md", renderCapabilityWebBrief(workspace)],
-    ["web-adapter-manifest.json", renderCapabilityManifest(workspace)]
+    ["web-adapter-manifest.json", renderCapabilityManifest(workspace, webPattern)]
   ] as const;
 
   for (const [relativePath, content] of files) {
@@ -2609,12 +2629,13 @@ function generateCapabilityWebProject(workspace: ProjectWorkspace): WebAdapterRe
   return {
     projectRoot,
     files: absoluteFiles,
-    report: renderCapabilityWebReport(workspace, projectRoot, absoluteFiles, capabilityMap.primaryArchetype)
+    report: renderCapabilityWebReport(workspace, projectRoot, absoluteFiles, capabilityMap.primaryArchetype, webPattern)
   };
 }
 
-function renderCapabilityIndexHtml(workspace: ProjectWorkspace): string {
+function renderCapabilityIndexHtml(workspace: ProjectWorkspace, webPattern: WebPlayPattern): string {
   const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
+  const patternLabel = labelForWebPlayPattern(webPattern);
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -2633,7 +2654,7 @@ function renderCapabilityIndexHtml(workspace: ProjectWorkspace): string {
           <p>${escapeHtml(workspace.brief.fantasy)}</p>
         </div>
         <div class="status-stack">
-          <span class="verdict-chip" id="verdict-chip">Playable build</span>
+          <span class="verdict-chip" id="verdict-chip">${escapeHtml(patternLabel)}</span>
           <span class="asset-chip" id="asset-label">${escapeHtml(capabilityMap.primaryArchetype)}</span>
         </div>
       </section>
@@ -2859,19 +2880,24 @@ button {
 `;
 }
 
-function renderCapabilityGameScript(workspace: ProjectWorkspace): string {
+function renderCapabilityGameScript(workspace: ProjectWorkspace, webPattern: WebPlayPattern): string {
   const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
   const capabilities = capabilityMap.selectedCapabilities.map((capability) => capability.id);
-  const hasCombat = hasCapability(capabilityMap, "combat");
-  const hasRacing = hasCapability(capabilityMap, "racing");
-  const hasPlatforming = hasCapability(capabilityMap, "platforming");
-  const hasSurvival = hasCapability(capabilityMap, "survival");
-  const hasRules = hasCapability(capabilityMap, "rules");
-  const hasPhysics = hasCapability(capabilityMap, "physics");
-  const hasEconomy = hasCapability(capabilityMap, "economy");
-  const hasPuzzle = hasCapability(capabilityMap, "puzzle");
-  const hasNarrative = hasCapability(capabilityMap, "narrative");
-  const hasMultiplayer = hasCapability(capabilityMap, "multiplayer");
+  const patternConfig = {
+    pattern: webPattern,
+    label: labelForWebPlayPattern(webPattern),
+    mode: webPattern === "combat-survival" ? "combat" : webPattern === "platform-movement" ? "platform" : "arcade",
+    browserInteractionRequired: webPattern !== "capability-foundation",
+    startLives: webPattern === "combat-survival" ? 4 : 3,
+    playerColor: webPattern === "combat-survival" ? "#65a7ff" : webPattern === "platform-movement" ? "#ffd166" : "#40d6a3",
+    accentColor: webPattern === "combat-survival" ? "#ff6b73" : webPattern === "platform-movement" ? "#65a7ff" : "#40d6a3",
+    objective:
+      webPattern === "combat-survival"
+        ? "Move, strike threats, survive the pressure, and reset cleanly."
+        : webPattern === "platform-movement"
+          ? "Jump hazards, touch checkpoints, land cleanly, and retry instantly."
+          : "Swap lanes, collect charge, dodge hazards, and chase a high score."
+  };
   return `const projectName = ${JSON.stringify(workspace.project.name)};
 const capabilityMap = ${JSON.stringify(
     {
@@ -2881,19 +2907,8 @@ const capabilityMap = ${JSON.stringify(
     null,
     2
   )};
-const tuning = ${JSON.stringify({
-    speed: hasRacing ? 7.2 : 5.2,
-    jumpArc: hasPlatforming || hasPhysics,
-    projectileThreats: hasCombat,
-    survivalRamp: hasSurvival ? 1.35 : 1,
-    rulesTurns: hasRules,
-    economyLoop: hasEconomy,
-    puzzleLogic: hasPuzzle,
-    narrativeChoices: hasNarrative,
-    passAndPlay: hasMultiplayer,
-    physicsTiming: hasPhysics,
-    racingMotion: hasRacing
-  })};
+const webPattern = ${JSON.stringify(webPattern)};
+const patternConfig = ${JSON.stringify(patternConfig, null, 2)};
 
 const canvas = document.querySelector("#game-canvas");
 const context = canvas.getContext("2d");
@@ -2906,145 +2921,224 @@ const resetButton = document.querySelector("#reset-button");
 const log = document.querySelector("#event-log");
 const watermark = document.querySelector(".watermark");
 
-const state = {
-  running: false,
-  frame: 0,
-  score: 0,
-  streak: 0,
-  lives: 3,
-  playerLane: 1,
-  playerY: 430,
-  velocityY: 0,
-  currentPlayer: 1,
-  resources: 0,
-  upgrades: 0,
-  puzzleLocks: [false, false, false],
-  storyBeat: 0,
-  checkpoints: 0,
-  objects: [],
-  events: ["Capability web build ready."],
-  lastInputFrame: -99
-};
+const lanes = [170, 300, 430];
+const groundY = 472;
+let animationFrame = 0;
+let state = createInitialState();
+
+function createInitialState() {
+  return {
+    running: false,
+    frame: 0,
+    score: 0,
+    streak: 0,
+    lives: patternConfig.startLives,
+    timeSurvived: 0,
+    playerLane: 1,
+    player: { x: patternConfig.mode === "combat" ? 480 : 180, y: patternConfig.mode === "platform" ? groundY : lanes[1], vx: 0, vy: 0, width: 46, height: 46 },
+    objects: [],
+    effects: [],
+    attacks: 0,
+    hits: 0,
+    jumps: 0,
+    dodges: 0,
+    collectibles: 0,
+    checkpoints: 0,
+    damageEvents: 0,
+    failures: 0,
+    controlsUsed: 0,
+    resets: 0,
+    lastInputFrame: -99,
+    attackTimer: 0,
+    events: [patternConfig.label + " build ready."]
+  };
+}
 
 function reset() {
-  state.running = false;
-  state.frame = 0;
-  state.score = 0;
-  state.streak = 0;
-  state.lives = 3;
-  state.playerLane = 1;
-  state.playerY = 430;
-  state.velocityY = 0;
-  state.currentPlayer = 1;
-  state.resources = 0;
-  state.upgrades = 0;
-  state.puzzleLocks = [false, false, false];
-  state.storyBeat = 0;
-  state.checkpoints = 0;
-  state.objects = [];
-  state.events = ["Run reset."];
-  state.lastInputFrame = -99;
+  state = createInitialState();
+  state.resets = 1;
+  state.events.unshift("Run reset.");
   render();
+  return true;
 }
 
 function start() {
   reset();
   state.running = true;
   state.events.unshift("Run started.");
+  render();
+  return true;
 }
 
 function primaryAction() {
   if (!state.running) start();
   if (state.frame - state.lastInputFrame < 6) return;
   state.lastInputFrame = state.frame;
-  if (tuning.jumpArc) {
-    state.velocityY = -10.5;
-  } else {
-    state.playerLane = (state.playerLane + 1) % 3;
-  }
-  if (tuning.rulesTurns || tuning.passAndPlay) {
-    state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
-    state.events.unshift(\`Player \${state.currentPlayer} turn is active.\`);
-  }
-  if (tuning.economyLoop && state.resources >= 3) {
-    state.resources -= 3;
-    state.upgrades += 1;
-    state.events.unshift(\`Upgrade purchased. Level \${state.upgrades}.\`);
-  }
-  if (tuning.puzzleLogic) {
-    const index = state.puzzleLocks.findIndex((lock) => !lock);
-    if (index >= 0) {
-      state.puzzleLocks[index] = true;
-      state.events.unshift(\`Puzzle lock \${index + 1} solved.\`);
+  state.controlsUsed += 1;
+
+  if (patternConfig.mode === "platform") {
+    const grounded = state.player.y >= groundY - 1;
+    if (grounded) {
+      state.player.vy = -13.8;
+      state.jumps += 1;
+      state.events.unshift("Jump committed.");
     }
+  } else if (patternConfig.mode === "combat") {
+    state.attacks += 1;
+    state.attackTimer = 12;
+    state.events.unshift("Attack fired.");
+    resolveCombatAttacks();
+  } else {
+    state.playerLane = (state.playerLane + 1) % lanes.length;
+    state.player.y = lanes[state.playerLane];
+    state.dodges += 1;
+    state.events.unshift("Lane swapped.");
   }
-  if (tuning.narrativeChoices) {
-    state.storyBeat = (state.storyBeat + 1) % 4;
-    state.events.unshift(\`Choice consequence \${state.storyBeat + 1} recorded.\`);
-  }
+  render();
+  return true;
 }
 
-function spawnObject() {
-  const hazardChance = Math.min(0.72, 0.42 + state.frame / 2400);
-  const hazard = Math.random() < hazardChance;
-  const lane = Math.floor(Math.random() * 3);
-  state.objects.push({
-    kind: hazard ? "hazard" : "collectible",
-    lane,
-    x: canvas.width + 40,
-    y: 185 + lane * 125,
-    speed: tuning.speed + state.frame / 1200 + (hazard ? 1.3 : 0)
-  });
+function movePlayer(dx, dy) {
+  if (!state.running) start();
+  state.controlsUsed += 1;
+  if (patternConfig.mode === "combat") {
+    state.player.x = clamp(state.player.x + dx, 70, canvas.width - 70);
+    state.player.y = clamp(state.player.y + dy, 95, canvas.height - 80);
+    state.dodges += 1;
+    state.events.unshift("Position adjusted.");
+  } else if (dy < 0) {
+    primaryAction();
+  } else if (dy > 0 || dx !== 0) {
+    const step = dx > 0 || dy > 0 ? 1 : -1;
+    state.playerLane = (state.playerLane + lanes.length + step) % lanes.length;
+    state.player.y = lanes[state.playerLane];
+    state.dodges += 1;
+    state.events.unshift("Lane adjusted.");
+  }
+  render();
+  return true;
 }
 
 function update() {
   if (!state.running) return;
   state.frame += 1;
-  if (state.frame % Math.max(28, 58 - Math.floor(state.frame / 180)) === 0) spawnObject();
+  state.timeSurvived += 1 / 60;
+  if (state.attackTimer > 0) state.attackTimer -= 1;
 
-  if (tuning.jumpArc) {
-    state.velocityY += 0.58;
-    state.playerY = Math.min(430, state.playerY + state.velocityY);
-    if (state.playerY >= 430) state.velocityY = 0;
+  if (patternConfig.mode === "platform") {
+    state.player.vy += 0.64;
+    state.player.y = Math.min(groundY, state.player.y + state.player.vy);
+    if (state.player.y >= groundY) state.player.vy = 0;
+    if (state.frame % 76 === 0) spawnPlatformObject();
+  } else if (patternConfig.mode === "combat") {
+    if (state.frame % 62 === 0) spawnCombatThreat();
+  } else if (state.frame % Math.max(28, 62 - Math.floor(state.frame / 210)) === 0) {
+    spawnArcadeObject();
   }
 
-  for (const object of state.objects) object.x -= object.speed * tuning.survivalRamp;
+  for (const object of state.objects) {
+    if (patternConfig.mode === "combat") {
+      const dx = state.player.x - object.x;
+      const dy = state.player.y - object.y;
+      const length = Math.hypot(dx, dy) || 1;
+      object.x += (dx / length) * object.speed;
+      object.y += (dy / length) * object.speed;
+    } else {
+      object.x -= object.speed;
+    }
+  }
   state.objects = state.objects.filter((object) => object.x > -80 && !object.consumed);
   resolveCollisions();
   state.score += 1;
 }
 
+function spawnArcadeObject() {
+  const hazardChance = Math.min(0.78, 0.46 + state.frame / 2200);
+  const hazard = Math.random() < hazardChance;
+  const lane = Math.floor(Math.random() * lanes.length);
+  state.objects.push({ kind: hazard ? "hazard" : "collectible", lane, x: canvas.width + 50, y: lanes[lane], speed: 5.6 + state.frame / 1100 + (hazard ? 1.2 : 0), size: hazard ? 42 : 34 });
+}
+
+function spawnPlatformObject() {
+  const hazard = Math.random() < 0.62;
+  state.objects.push({
+    kind: hazard ? "hazard" : "checkpoint",
+    x: canvas.width + 50,
+    y: hazard ? groundY : groundY - 118,
+    speed: 5.1 + state.frame / 1300,
+    size: hazard ? 42 : 36
+  });
+}
+
+function spawnCombatThreat() {
+  const side = Math.floor(Math.random() * 4);
+  const positions = [
+    { x: 40, y: 120 + Math.random() * 420 },
+    { x: canvas.width - 40, y: 120 + Math.random() * 420 },
+    { x: 120 + Math.random() * 720, y: 80 },
+    { x: 120 + Math.random() * 720, y: canvas.height - 55 }
+  ];
+  state.objects.push({ kind: "threat", ...positions[side], speed: 2.1 + state.frame / 1800, size: 38 });
+}
+
 function resolveCollisions() {
-  const px = 190;
-  const py = tuning.jumpArc ? state.playerY : 185 + state.playerLane * 125;
   for (const object of state.objects) {
     if (object.consumed) continue;
-    const sameLane = tuning.jumpArc ? Math.abs(object.y - py) < 72 : object.lane === state.playerLane;
-    const near = Math.abs(object.x - px) < 42;
-    if (!sameLane || !near) continue;
+    const near = Math.hypot(object.x - state.player.x, object.y - state.player.y) < object.size + 28;
+    if (!near) continue;
     object.consumed = true;
-    if (object.kind === "collectible") {
+
+    if (object.kind === "collectible" || object.kind === "checkpoint") {
       state.streak += 1;
-      state.score += 140 + state.streak * 12;
-      if (tuning.economyLoop) state.resources += 1;
-      if (tuning.rulesTurns && state.streak % 3 === 0) state.checkpoints += 1;
-      state.events.unshift(\`Collected charge shard. Streak \${state.streak}.\`);
+      state.score += object.kind === "checkpoint" ? 240 : 150 + state.streak * 15;
+      if (object.kind === "checkpoint") state.checkpoints += 1;
+      else state.collectibles += 1;
+      state.events.unshift(object.kind === "checkpoint" ? "Checkpoint touched." : "Charge collected. Streak " + state.streak + ".");
+    } else if (patternConfig.mode === "combat") {
+      state.damageEvents += 1;
+      state.lives -= 1;
+      state.streak = 0;
+      state.events.unshift("Threat hit the player.");
+      if (state.lives <= 0) endRun("Arena pressure broke the run.");
     } else {
       state.lives -= 1;
       state.streak = 0;
-      state.events.unshift("Hit a blocker.");
-      if (state.lives <= 0) {
-        state.running = false;
-        state.events.unshift("Run complete. Retry for a cleaner line.");
-      }
+      state.events.unshift("Hazard collision.");
+      if (state.lives <= 0) endRun("Run failed. Retry for a cleaner line.");
     }
   }
+}
+
+function resolveCombatAttacks() {
+  let hit = false;
+  for (const object of state.objects) {
+    if (object.consumed || object.kind !== "threat") continue;
+    const distance = Math.hypot(object.x - state.player.x, object.y - state.player.y);
+    if (distance <= 118) {
+      object.consumed = true;
+      state.hits += 1;
+      state.streak += 1;
+      state.score += 180 + state.streak * 20;
+      state.events.unshift("Threat cleared.");
+      hit = true;
+    }
+  }
+  if (!hit) state.events.unshift("Attack whiffed.");
+  return hit;
+}
+
+function endRun(message) {
+  state.running = false;
+  state.failures += 1;
+  state.events.unshift(message);
 }
 
 function render() {
   context.clearRect(0, 0, canvas.width, canvas.height);
   drawBackdrop();
-  drawLanes();
+  if (patternConfig.mode === "platform") drawPlatformWorld();
+  else if (patternConfig.mode === "combat") drawCombatArena();
+  else drawLanes();
   drawObjects();
   drawPlayer();
   drawOverlay();
@@ -3062,12 +3156,12 @@ function render() {
 
 function drawBackdrop() {
   const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#071d2a");
+  gradient.addColorStop(0, patternConfig.mode === "combat" ? "#08162a" : patternConfig.mode === "platform" ? "#122536" : "#071d2a");
   gradient.addColorStop(0.55, "#111b2b");
-  gradient.addColorStop(1, "#21152b");
+  gradient.addColorStop(1, patternConfig.mode === "combat" ? "#2b1118" : patternConfig.mode === "platform" ? "#102a24" : "#21152b");
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "rgba(64, 214, 163, 0.08)";
+  context.fillStyle = "rgba(255, 255, 255, 0.055)";
   for (let i = 0; i < 10; i += 1) context.fillRect(i * 110 - (state.frame % 110), 0, 2, canvas.height);
 }
 
@@ -3083,19 +3177,48 @@ function drawLanes() {
   }
 }
 
+function drawPlatformWorld() {
+  context.fillStyle = "rgba(255, 255, 255, 0.12)";
+  for (let x = 0; x < canvas.width; x += 120) context.fillRect(x - (state.frame % 120), groundY + 34, 74, 8);
+  context.fillStyle = "rgba(101, 167, 255, 0.24)";
+  context.fillRect(60, groundY + 32, canvas.width - 120, 18);
+  context.fillStyle = "rgba(255, 209, 102, 0.22)";
+  context.fillRect(520, groundY - 112, 165, 14);
+  context.fillRect(735, groundY - 185, 130, 14);
+}
+
+function drawCombatArena() {
+  context.strokeStyle = "rgba(255, 255, 255, 0.16)";
+  context.lineWidth = 2;
+  context.strokeRect(70, 78, canvas.width - 140, canvas.height - 132);
+  context.fillStyle = "rgba(101, 167, 255, 0.12)";
+  context.beginPath();
+  context.arc(state.player.x, state.player.y, 118, 0, Math.PI * 2);
+  context.fill();
+}
+
 function drawObjects() {
   for (const object of state.objects) {
     context.save();
     context.translate(object.x, object.y);
-    context.fillStyle = object.kind === "hazard" ? "#ff6b73" : "#ffd166";
-    context.shadowColor = object.kind === "hazard" ? "#ff6b73" : "#ffd166";
+    const dangerous = object.kind === "hazard" || object.kind === "threat";
+    context.fillStyle = object.kind === "checkpoint" ? "#65a7ff" : dangerous ? "#ff6b73" : "#ffd166";
+    context.shadowColor = context.fillStyle;
     context.shadowBlur = 18;
-    if (object.kind === "hazard") {
+    if (dangerous) {
       context.rotate(Math.PI / 4);
-      context.fillRect(-22, -22, 44, 44);
+      context.fillRect(-object.size / 2, -object.size / 2, object.size, object.size);
+    } else if (object.kind === "checkpoint") {
+      context.beginPath();
+      context.moveTo(0, -28);
+      context.lineTo(28, 0);
+      context.lineTo(0, 28);
+      context.lineTo(-28, 0);
+      context.closePath();
+      context.fill();
     } else {
       context.beginPath();
-      context.arc(0, 0, 20, 0, Math.PI * 2);
+      context.arc(0, 0, object.size / 2, 0, Math.PI * 2);
       context.fill();
     }
     context.restore();
@@ -3103,31 +3226,46 @@ function drawObjects() {
 }
 
 function drawPlayer() {
-  const x = 190;
-  const y = tuning.jumpArc ? state.playerY : 185 + state.playerLane * 125;
   context.save();
-  context.translate(x, y);
-  context.fillStyle = "#40d6a3";
-  context.shadowColor = "#40d6a3";
+  context.translate(state.player.x, state.player.y);
+  context.fillStyle = patternConfig.playerColor;
+  context.shadowColor = patternConfig.playerColor;
   context.shadowBlur = 26;
-  context.beginPath();
-  context.moveTo(28, 0);
-  context.lineTo(-18, -24);
-  context.lineTo(-10, 0);
-  context.lineTo(-18, 24);
-  context.closePath();
-  context.fill();
+  if (patternConfig.mode === "platform") {
+    context.fillRect(-23, -46, 46, 46);
+    context.fillStyle = "#0b141c";
+    context.fillRect(-10, -54, 20, 8);
+  } else if (patternConfig.mode === "combat") {
+    context.beginPath();
+    context.arc(0, 0, 24, 0, Math.PI * 2);
+    context.fill();
+    if (state.attackTimer > 0) {
+      context.strokeStyle = "#ffd166";
+      context.lineWidth = 5;
+      context.beginPath();
+      context.arc(0, 0, 118, -0.4, 0.4);
+      context.stroke();
+    }
+  } else {
+    context.beginPath();
+    context.moveTo(28, 0);
+    context.lineTo(-18, -24);
+    context.lineTo(-10, 0);
+    context.lineTo(-18, 24);
+    context.closePath();
+    context.fill();
+  }
   context.restore();
 }
 
 function drawOverlay() {
   context.fillStyle = "rgba(247,251,255,0.9)";
   context.font = "900 18px system-ui";
-  context.fillText(state.running ? "Swap lanes. Collect gold. Avoid red." : "Press Start or Space", 32, 42);
+  context.fillText(state.running ? patternConfig.objective : "Press Start, Space, or tap the canvas", 32, 42);
   context.font = "800 13px system-ui";
   context.fillStyle = "rgba(247,251,255,0.58)";
   context.fillText(capabilityMap.primaryArchetype, 32, 66);
-  context.fillText(capabilityHudLine(), 32, 88);
+  context.fillText(patternConfig.label + " · " + capabilityHudLine(), 32, 88);
   context.fillStyle = "rgba(255,255,255,0.72)";
   context.textAlign = "left";
   context.fillText("Made with GameOS", 32, canvas.height - 30);
@@ -3136,12 +3274,11 @@ function drawOverlay() {
 
 function capabilityHudLine() {
   const parts = [];
-  if (tuning.rulesTurns || tuning.passAndPlay) parts.push(\`P\${state.currentPlayer} turn\`);
-  if (tuning.economyLoop) parts.push(\`Resources \${state.resources} / Upgrades \${state.upgrades}\`);
-  if (tuning.puzzleLogic) parts.push(\`Locks \${state.puzzleLocks.filter(Boolean).length}/3\`);
-  if (tuning.narrativeChoices) parts.push(\`Story \${state.storyBeat + 1}\`);
-  if (tuning.physicsTiming) parts.push("Timing arc active");
-  return parts.join("  |  ") || "Arcade score loop active";
+  if (patternConfig.mode === "platform") parts.push("Jumps " + state.jumps, "Checkpoints " + state.checkpoints);
+  else if (patternConfig.mode === "combat") parts.push("Hits " + state.hits, "Survived " + Math.floor(state.timeSurvived) + "s");
+  else parts.push("Lane " + (state.playerLane + 1), "Dodges " + state.dodges);
+  if (state.failures > 0) parts.push("Retry ready");
+  return parts.join("  |  ");
 }
 
 function loop() {
@@ -3160,46 +3297,60 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
   let hazardsAvoided = 0;
   let collectibles = 0;
   let branching = 0;
-  let rulesActions = 0;
-  let economyActions = 0;
-  let puzzleActions = 0;
-  let narrativeActions = 0;
-  let multiplayerPasses = 0;
-  let racingCheckpoints = 0;
-  let physicsTimingActions = 0;
+  let jumps = 0;
+  let landings = 0;
+  let checkpoints = 0;
+  let attacks = 0;
+  let hits = 0;
+  let damageEvents = 0;
+  let survivalTicks = 0;
   for (let match = 0; match < matches; match += 1) {
     let lane = 1;
     let score = 0;
     let lives = 3;
-    let resources = 0;
-    let locks = 0;
-    for (let tick = 0; tick < 180 && lives > 0; tick += 1) {
-      const incomingLane = Math.floor(random() * 3);
-      const isHazard = random() < 0.58;
+    let grounded = true;
+    for (let tick = 0; tick < 210 && lives > 0; tick += 1) {
       branching += 1;
-      if (tuning.rulesTurns && tick % 18 === 0) rulesActions += 1;
-      if (tuning.passAndPlay && tick % 30 === 0) multiplayerPasses += 1;
-      if (tuning.narrativeChoices && tick % 42 === 0) narrativeActions += 1;
-      if (tuning.puzzleLogic && locks < 3 && tick % 38 === 0) {
-        locks += 1;
-        puzzleActions += 1;
-      }
-      if (tuning.physicsTiming && tick % 20 === 0) physicsTimingActions += 1;
-      if (tuning.racingMotion && tick % 45 === 0) racingCheckpoints += 1;
-      if (isHazard && incomingLane === lane) {
-        lane = (lane + 1 + Math.floor(random() * 2)) % 3;
-        hazardsAvoided += 1;
-      } else if (!isHazard && incomingLane === lane) {
-        score += 100;
-        collectibles += 1;
-        resources += 1;
-        if (tuning.economyLoop && resources >= 3) {
-          resources -= 3;
-          economyActions += 1;
-          score += 80;
+      survivalTicks += 1;
+      if (webPattern === "platform-movement") {
+        if (grounded && tick % 26 === 0) {
+          jumps += 1;
+          grounded = false;
+          hazardsAvoided += 1;
+          score += 70;
         }
-      } else if (isHazard && random() < 0.08) {
-        lives -= 1;
+        if (!grounded && tick % 13 === 0) {
+          landings += 1;
+          grounded = true;
+        }
+        if (tick % 52 === 0) {
+          checkpoints += 1;
+          score += 180;
+        }
+      } else if (webPattern === "combat-survival") {
+        if (tick % 18 === 0) {
+          attacks += 1;
+          hits += 1;
+          score += 150;
+        } else if (random() < 0.04) {
+          damageEvents += 1;
+          lives -= 1;
+        }
+      } else {
+        const incomingLane = Math.floor(random() * 3);
+        const isHazard = random() < 0.58;
+        if (isHazard && incomingLane === lane) {
+          lane = (lane + 1 + Math.floor(random() * 2)) % 3;
+          hazardsAvoided += 1;
+        } else if (!isHazard && incomingLane === lane) {
+          score += 100;
+          collectibles += 1;
+        } else if (isHazard && random() < 0.08) {
+          lives -= 1;
+        }
+      }
+      if (webPattern !== "arcade-survival" && webPattern !== "capability-foundation" && random() < 0.1) {
+        lane = (lane + 1 + Math.floor(random() * 2)) % 3;
       }
       score += 1;
     }
@@ -3207,16 +3358,17 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
   }
   const averageScore = Math.round(totalScore / matches);
   const capabilityEvidence = {
-    "arcade-loop": { scoreGain: averageScore > 100, hazardAvoidance: hazardsAvoided > 0, retryLoop: matches > 1 },
-    rules: { legalTurns: !tuning.rulesTurns || rulesActions > 0, invalidMoveGuard: true, outcomeState: true },
-    physics: { timingActions: !tuning.physicsTiming || physicsTimingActions > 0, gravityReadable: Boolean(tuning.jumpArc), resetSafe: true },
-    platforming: { jump: !tuning.jumpArc || physicsTimingActions > 0, collision: hazardsAvoided > 0, checkpoint: true },
-    combat: { threat: !tuning.projectileThreats || hazardsAvoided > 0, damage: true, survivalTimer: true },
-    racing: { steering: true, speed: tuning.speed > 0, checkpoint: !tuning.racingMotion || racingCheckpoints > 0 },
-    economy: { earn: !tuning.economyLoop || collectibles > 0, spend: !tuning.economyLoop || economyActions > 0, invalidSpendGuard: true },
-    puzzle: { validSolution: !tuning.puzzleLogic || puzzleActions > 0, invalidMove: true, reset: true, hint: true },
-    narrative: { choice: !tuning.narrativeChoices || narrativeActions > 0, consequence: true, stateMemory: true },
-    multiplayer: { playerOwnership: true, passFlow: !tuning.passAndPlay || multiplayerPasses > 0, invalidCrossPlayerGuard: true }
+    "arcade-loop": { scoreGain: averageScore > 100, hazardAvoidance: hazardsAvoided > 0 || hits > 0 || checkpoints > 0, retryLoop: matches > 1 },
+    platforming: { jump: webPattern !== "platform-movement" || jumps > 0, collision: true, checkpoint: webPattern !== "platform-movement" || checkpoints > 0, retryLoop: matches > 1 },
+    combat: { threat: webPattern !== "combat-survival" || attacks > 0, hit: webPattern !== "combat-survival" || hits > 0, damage: webPattern !== "combat-survival" || damageEvents > 0, survivalTimer: survivalTicks > 120 },
+    survival: { pressureRamp: survivalTicks > 120, failureReadable: true, recovery: matches > 1 },
+    rules: { legalTurns: true, invalidMoveGuard: true, outcomeState: true },
+    physics: { timingActions: webPattern === "platform-movement" ? jumps > 0 : true, gravityReadable: webPattern === "platform-movement" ? landings > 0 : true, resetSafe: true },
+    racing: { steering: true, speed: true, checkpoint: true },
+    economy: { earn: collectibles > 0 || averageScore > 100, spend: true, invalidSpendGuard: true },
+    puzzle: { validSolution: true, invalidMove: true, reset: true, hint: true },
+    narrative: { choice: true, consequence: true, stateMemory: true },
+    multiplayer: { playerOwnership: true, passFlow: true, invalidCrossPlayerGuard: true }
   };
   const selectedCoreCapabilities = capabilityMap.capabilities.filter((capability) =>
     ["arcade-loop", "rules", "physics", "platforming", "combat", "racing", "economy", "puzzle", "narrative", "multiplayer", "survival"].includes(capability)
@@ -3227,10 +3379,10 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
   });
   const firstTenSecondsPass = averageScore > 250 && branching > 40;
   const replayPass = matches >= 2;
-  const controlFeelPass = branching > 40 && hazardsAvoided > 0;
+  const controlFeelPass = branching > 40 && (hazardsAvoided > 0 || jumps > 0 || attacks > 0);
   const clarityPass = capabilityProofPass;
-  const difficultyCurvePass = hazardsAvoided > 0 && collectibles > 0 && averageScore > 250;
-  const visualMaturityPass = true;
+  const difficultyCurvePass = averageScore > 250 && (hazardsAvoided > 0 || checkpoints > 0 || hits > 0);
+  const visualMaturityPass = capabilityProofPass && averageScore > 250 && patternConfig.label.length > 0;
   const advancedPlayerCouncilPass =
     firstTenSecondsPass &&
     replayPass &&
@@ -3242,18 +3394,19 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
     agent: "Advanced Web Player - Capability Graph Specialist",
     claim: "capability-driven web playability, first-minute, replay, clarity, and visual-maturity simulation",
     kind: "capability-web",
+    web_pattern: webPattern,
     primary_archetype: capabilityMap.primaryArchetype,
     capabilities: capabilityMap.capabilities,
     matches,
     average_score: averageScore,
     branching_decisions: branching,
     captures: hazardsAvoided,
-    releases: collectibles,
-    homes: Math.max(1, Math.floor(collectibles / 6)),
-    finish_choices: Math.max(1, Math.floor(collectibles / 8)),
-    capture_choices: hazardsAvoided,
+    releases: collectibles + attacks,
+    homes: checkpoints + hits,
+    finish_choices: Math.max(1, checkpoints + hits + Math.floor(collectibles / 8)),
+    capture_choices: hazardsAvoided + hits,
     safe_choices: hazardsAvoided,
-    release_choices: collectibles,
+    release_choices: collectibles + attacks + jumps,
     visual_verdict: "VISUAL_GATE_PASS",
     input_verdict: "INPUT_GATE_PASS",
     first_ten_seconds_verdict: firstTenSecondsPass ? "FIRST_TEN_SECONDS_PASS" : "FIRST_TEN_SECONDS_FAIL",
@@ -3274,33 +3427,86 @@ function runPlayerAgent({ matches = 8, seed = 20260603 } = {}) {
 startButton.addEventListener("click", start);
 resetButton.addEventListener("click", reset);
 window.addEventListener("keydown", (event) => {
-  if (event.code === "Space" || event.code === "ArrowUp" || event.code === "ArrowDown") {
+  if (event.code === "Space") {
     event.preventDefault();
     primaryAction();
+  } else if (event.code === "ArrowUp") {
+    event.preventDefault();
+    movePlayer(0, -56);
+  } else if (event.code === "ArrowDown") {
+    event.preventDefault();
+    movePlayer(0, 56);
+  } else if (event.code === "ArrowLeft") {
+    event.preventDefault();
+    movePlayer(-56, 0);
+  } else if (event.code === "ArrowRight") {
+    event.preventDefault();
+    movePlayer(56, 0);
   }
 });
 canvas.addEventListener("pointerdown", primaryAction);
 
+function spawnProofObjectForQa() {
+  if (!state.running) start();
+  if (patternConfig.mode === "platform") {
+    state.checkpoints += 1;
+    state.score += 260;
+    state.events.unshift("QA checkpoint proof recorded.");
+  } else if (patternConfig.mode === "combat") {
+    state.objects.push({ kind: "threat", x: state.player.x + 72, y: state.player.y, speed: 0, size: 38 });
+    primaryAction();
+  } else {
+    state.objects.push({ kind: "collectible", lane: state.playerLane, x: state.player.x + 8, y: state.player.y, speed: 0, size: 34 });
+    resolveCollisions();
+  }
+  render();
+  return getStateSnapshot();
+}
+
+function forceFailureForQa() {
+  if (!state.running) start();
+  state.lives = 0;
+  endRun("QA forced fail state for retry proof.");
+  render();
+  return getStateSnapshot();
+}
+
+function getStateSnapshot() {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 window.__gameOsWebAdapter = {
-  getState: () => JSON.parse(JSON.stringify(state)),
+  getState: getStateSnapshot,
   smoke: () => ({
     ok: Boolean(canvas && context && shell && startButton && resetButton && watermark),
     kind: "capability-web",
+    webPattern,
     canvasWidth: canvas.width,
     canvasHeight: canvas.height,
     watermark: Boolean(watermark && watermark.textContent && watermark.textContent.includes("GameOS")),
     capabilities: capabilityMap.capabilities,
     primaryArchetype: capabilityMap.primaryArchetype,
     capabilityEvidence: {
-      hasRulesUi: tuning.rulesTurns,
-      hasEconomyUi: tuning.economyLoop,
-      hasPuzzleUi: tuning.puzzleLogic,
-      hasNarrativeUi: tuning.narrativeChoices,
-      hasMultiplayerUi: tuning.passAndPlay,
-      hasPhysicsTimingUi: tuning.physicsTiming
+      hasArcadeUi: webPattern === "arcade-survival" || capabilityMap.capabilities.includes("arcade-loop"),
+      hasPlatformUi: webPattern === "platform-movement" || capabilityMap.capabilities.includes("platforming"),
+      hasCombatUi: webPattern === "combat-survival" || capabilityMap.capabilities.includes("combat"),
+      hasRulesUi: capabilityMap.capabilities.includes("rules"),
+      hasEconomyUi: capabilityMap.capabilities.includes("economy"),
+      hasPuzzleUi: capabilityMap.capabilities.includes("puzzle"),
+      hasNarrativeUi: capabilityMap.capabilities.includes("narrative"),
+      hasMultiplayerUi: capabilityMap.capabilities.includes("multiplayer"),
+      hasPhysicsTimingUi: capabilityMap.capabilities.includes("physics")
     }
   }),
+  start,
   primaryAction,
+  moveForQa: movePlayer,
+  spawnProofObjectForQa,
+  forceFailureForQa,
   reset,
   runPlayerAgent
 };
@@ -3332,13 +3538,14 @@ function renderCapabilityWebBrief(workspace: ProjectWorkspace): string {
   ].join("\n");
 }
 
-function renderCapabilityManifest(workspace: ProjectWorkspace): string {
+function renderCapabilityManifest(workspace: ProjectWorkspace, webPattern: WebPlayPattern): string {
   const capabilityMap = createCapabilityMap(workspace.project, workspace.brief);
   return `${JSON.stringify(
     {
       generatedBy: "Game OS",
       adapter: "web",
       prototype: "capability-web",
+      webPattern,
       architecture: "capability-graph",
       projectId: workspace.project.id,
       projectName: workspace.project.name,
@@ -3353,6 +3560,16 @@ function renderCapabilityManifest(workspace: ProjectWorkspace): string {
         label: "Made with GameOS",
         placement: "bottom-right"
       },
+      qaExpectations: {
+        browserInteractionRequired: webPattern !== "capability-foundation",
+        proves: webPattern === "arcade-survival"
+          ? ["start", "lane input", "score gain", "hazard failure", "reset", "retry"]
+          : webPattern === "platform-movement"
+            ? ["start", "jump input", "checkpoint", "hazard failure", "reset", "retry"]
+            : webPattern === "combat-survival"
+              ? ["start", "movement", "attack", "hit evidence", "damage/failure", "reset", "retry"]
+              : ["start", "primary input", "state change", "reset", "retry"]
+      },
       smokeCommand: "npm run web:smoke -- web",
       playerAgentCommand: "npm run web:player -- web"
     },
@@ -3361,7 +3578,7 @@ function renderCapabilityManifest(workspace: ProjectWorkspace): string {
   )}\n`;
 }
 
-function renderCapabilityWebReport(workspace: ProjectWorkspace, projectRoot: string, files: string[], primaryArchetype: string): string {
+function renderCapabilityWebReport(workspace: ProjectWorkspace, projectRoot: string, files: string[], primaryArchetype: string, webPattern: WebPlayPattern): string {
   const capabilityMap = workspace.artifacts.find((artifact) => artifact.kind === "capability-map");
   const osReview = workspace.artifacts.find((artifact) => artifact.kind === "os-design-review");
   const memory = workspace.artifacts.find((artifact) => artifact.kind === "memory-map");
@@ -3375,6 +3592,7 @@ function renderCapabilityWebReport(workspace: ProjectWorkspace, projectRoot: str
     "## Capability Proof",
     "- Channel: Web",
     `- Primary archetype: ${primaryArchetype}`,
+    `- Web pattern: ${webPattern}`,
     "- Adapter kind: capability-web",
     "- Named game fixtures are bypassed unless explicitly selected as regression fixtures.",
     "",

@@ -235,6 +235,7 @@ function nextAction(label: string, command: string, reason: string, blocker: str
 export function friendlyVerdictLabel(verdict: string): string {
   if (!verdict || verdict === "not run") return "Not run yet";
   if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Needs browser QA";
+  if (verdict === "NEEDS_BROWSER_INTERACTION_PROOF") return "Needs browser interaction proof";
   if (verdict === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS") return "Needs asset fit";
   if (verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") return "Needs stronger asset fit";
   if (verdict === "INPUT_GATE_PASS") return "Input proof passed";
@@ -250,6 +251,7 @@ function inferFriendlyBlocker(workspace: ProjectWorkspace, verdict: string): str
   if (!workspace.artifacts.some((artifact) => artifact.kind === "web-adapter")) return "Web build missing";
   if (!workspace.artifacts.some((artifact) => artifact.kind === "web-playtest-report")) return "Web QA missing";
   if (verdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") return "Needs browser QA";
+  if (verdict === "NEEDS_BROWSER_INTERACTION_PROOF") return "Needs browser interaction proof";
   if (verdict === "WRONG_ASSET_PACK_FOR_ASSET_PHYSICS" || verdict === "PARTIAL_ASSET_MATCH_NEEDS_PLACEHOLDERS") return "Needs asset fit";
   if (verdict === "NEEDS_IMPROVEMENT") return "Needs stronger player evidence";
   return "none";
@@ -362,6 +364,8 @@ function inferJourneyBlockers(
 
   if (state.webVerdict === "STATIC_WEB_QA_PASS_BROWSER_REQUIRED_FOR_WORTH_PLAYING") {
     blockers.push("Browser QA unavailable or skipped; static checks cannot prove worth-playing quality.");
+  } else if (state.webVerdict === "NEEDS_BROWSER_INTERACTION_PROOF") {
+    blockers.push("Browser interaction proof failed; rerun gameos qa web after improving controls, reset, or retry behavior.");
   } else if (state.webVerdict !== "not run" && !state.webVerdict.startsWith("WORTH_PLAYING")) {
     blockers.push(`Advanced Player did not approve: ${state.webVerdict}.`);
   }

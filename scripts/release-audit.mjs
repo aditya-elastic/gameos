@@ -46,6 +46,7 @@ function checkPackageMetadata() {
   assert(packageJson.license === "MIT", "package license must be MIT.");
   assert(packageJson.engines?.node === ">=24.0.0", "Node 24+ engine requirement must be explicit.");
   assert(packageJson.scripts?.["acceptance:web-quality"] === "node scripts/web-quality-acceptance.mjs", "package scripts must expose acceptance:web-quality.");
+  assert(packageJson.scripts?.["acceptance:capability-web-quality"] === "node scripts/capability-web-quality-acceptance.mjs", "package scripts must expose acceptance:capability-web-quality.");
   assert(packageJson.scripts?.["acceptance:universal-trust"] === "node scripts/universal-trust-acceptance.mjs", "package scripts must expose acceptance:universal-trust.");
   assert(packageJson.scripts?.["acceptance:universal-deep"] === "node scripts/universal-deep-acceptance.mjs", "package scripts must expose acceptance:universal-deep.");
   assert(packageJson.scripts?.["trust:audit"] === "node scripts/trust-audit.mjs", "package scripts must expose trust:audit.");
